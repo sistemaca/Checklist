@@ -277,7 +277,21 @@ $('btnLimpar').onclick = () => {
   equipamentos.forEach(tag => addRow(tag));
 };
 
+// --- FUNÇÃO PARA TENTAR ENVIAR EM SEGUNDO PLANO ---
+function tentarEnviarParaServidorEmSegundoPlano() {
+  // Chama a função de envio mas não espera por ela
+  enviarParaServidorRDE().catch(err => {
+    console.log('Falha no envio em segundo plano, agendando nova tentativa...');
+    // Agenda nova tentativa em 30 segundos
+    setTimeout(tentarEnviarParaServidorEmSegundoPlano, 30000);
+  });
+}
+
 $('btnGerarPDF').onclick = async () => {
+  // Tenta enviar em segundo plano
+  tentarEnviarParaServidorEmSegundoPlano();
+  
+  // Gera o PDF normalmente
   const { jsPDF } = window.jspdf;
   const [yyyy,mm,dd] = $('rde_data').value.split('-');
   const dataFormatada = `${dd}/${mm}/${yyyy}`;
@@ -311,6 +325,10 @@ $('btnGerarPDF').onclick = async () => {
 };
 
 $('btnExcelRDE').onclick=()=>{
+  // Tenta enviar em segundo plano
+  tentarEnviarParaServidorEmSegundoPlano();
+  
+  // Gera o Excel normalmente
   const data=$('rde_data').value.split('-').reverse().join('/');
   const horaDoc=$('rde_hora_doc').value;
   const linhas=Array.from(tblBody.querySelectorAll('tr')).map(r=>{
@@ -375,13 +393,86 @@ async function enviarParaServidorRDE(){
       body:JSON.stringify(dadosAtualizados)
     });
 
-    if(resPut.ok) alert('✅ Dados enviados para o Servidor com sucesso!');
-    else alert('❌ Erro ao enviar para o Servidor.');
+    if(resPut.ok) {
+      console.log('✅ Dados enviados para o Servidor com sucesso!');
+      // Remove dados do cache local se existirem
+      localStorage.removeItem('rde_offline_cache');
+    } else {
+      console.log('❌ Erro ao enviar para o Servidor.');
+      // Salva localmente para tentar depois
+      salvarParaTentarDepois(linhas);
+    }
 
   } catch(err){
-    alert('❌ Erro: ' + err.message);
+    console.log('❌ Erro: ' + err.message);
+    // Salva localmente para tentar depois
+    salvarParaTentarDepois(linhas);
   }
 }
+
+// --- FUNÇÃO PARA SALVAR E TENTAR DEPOIS ---
+function salvarParaTentarDepois(linhas) {
+  if (!navigator.onLine) {
+    // Já existe suporte offline, então apenas retorna
+    return;
+  }
+  
+  // Salva no localStorage para tentar novamente depois
+  const pendentes = JSON.parse(localStorage.getItem('rde_pendentes') || '[]');
+  pendentes.push(...linhas);
+  localStorage.setItem('rde_pendentes', JSON.stringify(pendentes));
+  console.log('📋 Dados salvos para envio posterior');
+}
+
+// --- TENTAR ENVIAR DADOS PENDENTES ---
+async function tentarEnviarPendentes() {
+  const pendentes = JSON.parse(localStorage.getItem('rde_pendentes') || '[]');
+  if (pendentes.length === 0 || !navigator.onLine) return;
+  
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
+    let dadosExistentes = [];
+    if(resGet.ok){
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...pendentes];
+
+    const resPut = await fetch(PUT_URL, {
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':MASTER_KEY,
+        'X-Bin-Versioning':'false'
+      },
+      body:JSON.stringify(dadosAtualizados)
+    });
+
+    if(resPut.ok) {
+      console.log('✅ Dados pendentes enviados com sucesso!');
+      localStorage.removeItem('rde_pendentes');
+    } else {
+      console.log('❌ Falha ao enviar dados pendentes, tentando novamente em 1 minuto...');
+      setTimeout(tentarEnviarPendentes, 60000);
+    }
+
+  } catch(err){
+    console.log('❌ Erro ao enviar pendentes: ' + err.message);
+    setTimeout(tentarEnviarPendentes, 60000);
+  }
+}
+
+// --- VERIFICAR DADOS PENDENTES PERIODICAMENTE ---
+setInterval(tentarEnviarPendentes, 300000); // A cada 5 minutos
+
+// Tenta enviar pendentes quando a conexão voltar
+window.addEventListener('online', tentarEnviarPendentes);
+
 document.getElementById('btnServidor').onclick = enviarParaServidorRDE;
 
 // === SUPORTE OFFLINE (Adicionado por ChatGPT) ===
@@ -503,16 +594,10 @@ window.addEventListener('online', async () => {
     alert('🌐 Conexão restaurada! Enviando dados pendentes...');
     await enviarParaServidorRDE();
   }
+  // Também tenta enviar dados pendentes
+  tentarEnviarPendentes();
 });
 
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
