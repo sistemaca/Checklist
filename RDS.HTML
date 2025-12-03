@@ -9,284 +9,126 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root {
-    --paper-w: 794px;
-    --muted: #666;
-  }
-
+  :root { --paper-w: 794px; --muted: #666; }
   body {
     font-family: "Arial", Helvetica, sans-serif;
     background: #f2f4f7;
     margin: 0;
     padding: 18px;
   }
-
-  .container {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
+  .container { max-width: 900px; margin: 0 auto; }
   .card {
     background: #fff;
     border-radius: 10px;
     padding: 18px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
   }
-
-  h1 {
-    font-size: 18px;
-    margin: 0 0 12px;
-  }
-
-  .row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
   .col {
-    flex: 1;
-    min-width: 150px;
-    display: flex;
-    flex-direction: column;
+    flex: 1; min-width: 150px;
+    display: flex; flex-direction: column;
     margin-bottom: 8px;
   }
-
-  label {
-    font-size: 13px;
-    margin-bottom: 6px;
-    color: #222;
-  }
-
-  input[type=text],
-  input[type=date],
-  select,
-  textarea {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    background: #fff;
-    width: 100%;
+  label { font-size: 13px; margin-bottom: 6px; color: #222; }
+  input[type=text], input[type=date], select, textarea {
+    padding: 8px; border: 1px solid #ddd;
+    border-radius: 6px; font-size: 14px;
+    background: #fff; width: 100%;
     box-sizing: border-box;
   }
-
-  textarea {
-    resize: vertical;
+  textarea { resize: vertical; }
+  .small { max-width: 170px; }
+  input[readonly] {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
   }
-
-  .small {
-    max-width: 170px;
-  }
-
   .btn {
-    display: inline-block;
-    background: #0b73d6;
-    color: #fff;
-    border: none;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.3s;
+    display: inline-block; background: #0b73d6; color: #fff;
+    border: none; padding: 10px 14px;
+    border-radius: 8px; font-size: 14px;
+    cursor: pointer; transition: background 0.3s;
   }
-
-  .btn:hover {
-    background: #0959a8;
-  }
-
-  .btn.gray {
-    background: #6c757d;
-  }
-
+  .btn:hover { background: #0959a8; }
+  .btn.gray { background: #6c757d; }
   .table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    overflow: hidden;
+    width: 100%; border-collapse: collapse; margin-top: 12px;
+    background: #f8f9fa; border-radius: 8px; overflow: hidden;
   }
-
-  .table th,
-  .table td {
-    border: 1px solid #dcdcdc;
-    padding: 8px;
-    font-size: 13px;
-    text-align: left;
+  .table th, .table td {
+    border: 1px solid #dcdcdc; padding: 8px;
+    font-size: 13px; text-align: left;
   }
-
-  .table th {
-    background: #f1f3f5;
-  }
-
-  .table td select,
-  .table td input {
-    font-size: 13px;
-  }
-
+  .table th { background: #f1f3f5; }
+  .table td select, .table td input { font-size: 13px; }
   .actions {
-    margin-top: 12px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
+    margin-top: 12px; display: flex; gap: 8px;
+    flex-wrap: wrap; align-items: center; justify-content: flex-start;
   }
-
-  .muted {
-    color: var(--muted);
-    font-size: 13px;
-  }
-
+  .muted { color: var(--muted); font-size: 13px; }
   .rds-paper {
-    width: var(--paper-w);
-    padding: 24px;
-    background: #fff;
-    color: #111;
-    box-sizing: border-box;
-    font-size: 13px;
+    width: var(--paper-w); padding: 24px; background: #fff;
+    color: #111; box-sizing: border-box; font-size: 13px;
   }
-
   .rds-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: flex-start;
+    display: flex; justify-content: space-between;
+    gap: 12px; align-items: flex-start;
   }
-
-  .rds-meta {
-    font-size: 12px;
-  }
-
+  .rds-meta { font-size: 12px; }
   .rds-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 8px;
+    width: 100%; border-collapse: collapse; margin-top: 8px;
   }
-
-  .rds-table td,
-  .rds-table th {
-    border: 1px solid #333;
-    padding: 6px;
+  .rds-table td, .rds-table th {
+    border: 1px solid #333; padding: 6px;
     font-size: 12px;
   }
-
   .rds-foot {
-    margin-top: 12px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: space-between;
+    margin-top: 12px; display: flex; gap: 12px;
+    align-items: center; justify-content: space-between;
   }
-
   .sig {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 45%;
+    display: flex; flex-direction: column; gap: 6px; width: 45%;
   }
-
   .sig .line {
-    height: 36px;
-    border-bottom: 1px solid #000;
+    height: 36px; border-bottom: 1px solid #000;
   }
-
   .remove-btn {
-    background: #dc3545;
-    color: #fff;
-    border: none;
-    padding: 6px 8px;
-    border-radius: 6px;
-    cursor: pointer;
+    background: #dc3545; color: #fff; border: none;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer;
   }
-
-  /* 🔧 Melhor adaptação dos "cards" e tabela para celular e desktop */
-  @media (max-width: 768px) {
-    .container {
-      padding: 8px;
-    }
-
-    .card {
-      padding: 14px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    h1 {
-      font-size: 16px;
-      text-align: center;
-    }
-
-    .row {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .table {
-      display: block;
-      overflow-x: auto;
-      border-radius: 6px;
-    }
-
-    .table th,
-    .table td {
-      font-size: 12px;
-      padding: 6px;
-    }
-
-    .actions {
-      flex-direction: column;
-      align-items: stretch;
-      text-align: center;
-    }
-
-    .btn {
-      width: 100%;
-    }
-  }
-
-  @media (min-width: 769px) {
-    .table {
-      margin-top: 16px;
-    }
-
-    .actions {
-      justify-content: space-between;
-    }
-  }
-
-  /* Novos estilos para o campo de horário de trabalho */
+  /* Estilos para horário de trabalho */
   .horario-trabalho-container {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
+    display: flex; gap: 8px; align-items: flex-end;
   }
-
   .horario-input-group {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
+    display: flex; flex-direction: column; flex: 1;
   }
-
   .horario-input-group label {
-    font-size: 12px;
-    margin-bottom: 4px;
+    font-size: 12px; margin-bottom: 4px;
   }
-
   .horario-btn {
-    background: #28a745;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    white-space: nowrap;
-    height: fit-content;
+    background: #28a745; color: white; border: none;
+    padding: 8px 12px; border-radius: 6px; cursor: pointer;
+    font-size: 12px; white-space: nowrap; height: fit-content;
   }
-
-  .horario-btn:hover {
-    background: #218838;
+  .horario-btn:hover { background: #218838; }
+  /* Apenas dica de formato */
+  .hint {
+    font-size: 11px; color: #666; margin-top: 2px;
+  }
+  @media (max-width: 768px) {
+    .row { flex-direction: column; gap: 8px; }
+    .btn { width: 100%; }
+    .table { display: block; overflow-x: auto; }
+    .container { padding: 8px; }
+    .card { padding: 14px; }
+    h1 { font-size: 16px; text-align: center; }
+    .table th, .table td { font-size: 12px; padding: 6px; }
+    .actions { flex-direction: column; align-items: stretch; }
+  }
+  @media (min-width: 769px) {
+    .table { margin-top: 16px; }
+    .actions { justify-content: space-between; }
   }
 </style>
 </head>
@@ -297,7 +139,7 @@
 
     <div class="row">
       <div class="col small"><label>Data</label><input id="rds_data" type="date"></div>
-      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text"></div>
+      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text" placeholder="HH:MM"></div>
       <div class="col">
         <label>Contratante</label>
         <select id="rds_contratante">
@@ -329,28 +171,28 @@
       </div>
     </div>
 
-    <!-- MODIFICAÇÃO 1: Inverter posição - DDS primeiro -->
     <div style="margin-top:8px" class="row">
       <div class="col"><label>Diálogo Diário de Segurança (DDS) — Tema</label><input id="rds_tema" type="text" placeholder="Tema do DDS"></div>
     </div>
 
-    <!-- MODIFICAÇÃO 2: Horário de Trabalho com dois campos + botão -->
     <div class="row">
+      <div class="col"><label>Fábrica / Local</label><input id="rds_fabrica" type="text" placeholder="Local de trabalho"></div>
       <div class="col">
         <label>Horário de Trabalho</label>
         <div class="horario-trabalho-container">
           <div class="horario-input-group">
             <label>Entrada</label>
             <input id="rds_horario_entrada" type="text" placeholder="Ex: 07:00">
+            <div class="hint">Formato sugerido: HH:MM</div>
           </div>
           <div class="horario-input-group">
             <label>Saída</label>
             <input id="rds_horario_saida" type="text" placeholder="Ex: 17:30">
+            <div class="hint">Formato sugerido: HH:MM</div>
           </div>
           <button id="btnPreencherHorario" class="horario-btn">Preencher Próximo</button>
         </div>
       </div>
-      <div class="col"><label>Fábrica / Local</label><input id="rds_fabrica" type="text" placeholder="Local de trabalho"></div>
     </div>
 
     <hr style="margin:12px 0">
@@ -386,7 +228,6 @@
   </div>
 </div>
 
-<!-- área oculta para gerar o PDF -->
 <div id="paper" style="display:none">
   <div class="rds-paper" id="rds_report">
     <div class="rds-header">
@@ -449,21 +290,21 @@
 <script>
 // --- DATA E HORA AUTOMÁTICA ---
 window.addEventListener('DOMContentLoaded', () => {
-  function $(id){return document.getElementById(id)} // Função $ definida antes de usar
+  function $(id){return document.getElementById(id)}
 
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
-  $('rds_data').value = `${yyyy}-${mm}-${dd}`; // Agora funciona corretamente
+  $('rds_data').value = `${yyyy}-${mm}-${dd}`;
 
   $('rds_hora_doc').value = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 });
 
-
 // --- FUNCIONÁRIOS ---
-  const funcionarios = [
+const funcionarios = [
  {codigo:"01944", nome:"ADEONES PAULO DA SILVA"},
+ {codigo:"02048", nome:"ADRIANA RODRIGUES DO CARMO"},
   {codigo:"02016", nome:"AGNALDO CRISPIM DA SILVA"},
   {codigo:"02042", nome:"ALINE MARA CUNHA PAIXAO"},
   {codigo:"01924", nome:"APARECIDA MANOEL DA COSTA RODRIGUES"},
@@ -489,6 +330,7 @@ window.addEventListener('DOMContentLoaded', () => {
   {codigo:"01999", nome:"GEOVANE DO AMARAL GOMES"},
   {codigo:"01965", nome:"HENRIQUE MAGNO SANTOS ALMEIDA"},
   {codigo:"02031", nome:"IRANDI ROSA BRITO"},
+  {codigo:"01977", nome:"ISILEI DE FATIMA SILVA"},
   {codigo:"01844", nome:"JANE OLIVEIRA GUSMÃO"},
   {codigo:"02025", nome:"JAQUELINE NAZARE ROMAO"},
   {codigo:"01908", nome:"JESSICA SILVA RIBEIRO"},
@@ -499,6 +341,7 @@ window.addEventListener('DOMContentLoaded', () => {
   {codigo:"01969", nome:"JULIANO UMBERTO DE SALES SILVA"},
   {codigo:"02019", nome:"JUNIOR WESLEY MESSIAS"},
   {codigo:"02020", nome:"JUSCELINA GONÇALVES DE OLIVEIRA"},
+  {codigo:"02046", nome:"KEVIN DE ALMEIDA OLIVEIRA DA SILVA"},
   {codigo:"02018", nome:"MAICON SANTOS LIMA"},
   {codigo:"01909", nome:"MARCELO AUGUSTO DE OLIVEIRA"},
   {codigo:"02036", nome:"MARCOS ANTONIO GONÇALVES LOPES"},
@@ -533,6 +376,23 @@ window.addEventListener('DOMContentLoaded', () => {
 const $ = id => document.getElementById(id);
 const tblBody = document.querySelector('#tblFuncionarios tbody');
 
+// --- FUNÇÃO PARA APLICAR MÁSCARA DE HORÁRIO (APENAS AJUDA) ---
+function aplicarMascaraHorario(input) {
+  input.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    
+    if (value.length > 4) {
+      value = value.substring(0, 4);
+    }
+    
+    if (value.length >= 3) {
+      e.target.value = value.substring(0, 2) + ':' + value.substring(2, 4);
+    } else if (value.length > 0) {
+      e.target.value = value;
+    }
+  });
+}
+
 function criarSelectFuncionario(selected){
   const s=document.createElement('select');
   const opt=document.createElement('option');
@@ -552,28 +412,54 @@ function addRow(data={}) {
   const tr=document.createElement('tr');
   const tdCodigo=document.createElement('td');
   const tdFuncionario=document.createElement('td');
+  const tdEntrada=document.createElement('td');
+  const tdSaida=document.createElement('td');
+  const tdObservacao=document.createElement('td');
+  const tdAcoes=document.createElement('td');
+
   const inputCodigo=document.createElement('input');
   inputCodigo.type='text';
   inputCodigo.value=data.codigo||'';
+  
   const selectFuncionario=criarSelectFuncionario(data.nome);
+  
+  const inputEntrada=document.createElement('input');
+  inputEntrada.type='text';
+  inputEntrada.placeholder='HH:MM';
+  aplicarMascaraHorario(inputEntrada);
+  
+  const inputSaida=document.createElement('input');
+  inputSaida.type='text';
+  inputSaida.placeholder='HH:MM';
+  aplicarMascaraHorario(inputSaida);
+  
+  const inputObservacao=document.createElement('input');
+  inputObservacao.type='text';
+  inputObservacao.placeholder='Observação';
+  
+  const btnRemover=document.createElement('button');
+  btnRemover.className='remove-btn';
+  btnRemover.textContent='Remover';
+  btnRemover.onclick=()=>tr.remove();
+
   inputCodigo.addEventListener('input',()=>{
     const f=funcionarios.find(x=>x.codigo===inputCodigo.value.trim());
     selectFuncionario.value=f?f.nome:'';
   });
+  
   selectFuncionario.addEventListener('change',()=>{
     const f=funcionarios.find(x=>x.nome===selectFuncionario.value);
     inputCodigo.value=f?f.codigo:'';
   });
+
   tdCodigo.appendChild(inputCodigo);
   tdFuncionario.appendChild(selectFuncionario);
-  tr.innerHTML+=`<td></td><td></td>
-  <td><input type="text" placeholder="Entrada" style="width:100%"></td>
-  <td><input type="text" placeholder="Saída" style="width:100%"></td>
-  <td><input type="text" placeholder="Observação" style="width:100%"></td>
-  <td><button class="remove-btn">Remover</button></td>`;
-  tr.children[0].replaceWith(tdCodigo);
-  tr.children[1].replaceWith(tdFuncionario);
-  tr.querySelector('.remove-btn').onclick=()=>tr.remove();
+  tdEntrada.appendChild(inputEntrada);
+  tdSaida.appendChild(inputSaida);
+  tdObservacao.appendChild(inputObservacao);
+  tdAcoes.appendChild(btnRemover);
+
+  tr.append(tdCodigo, tdFuncionario, tdEntrada, tdSaida, tdObservacao, tdAcoes);
   tblBody.appendChild(tr);
 }
 
@@ -582,14 +468,20 @@ for(let i=0;i<20;i++) addRow({});
 $('btnAdd').onclick=()=>addRow({});
 $('btnLimpar').onclick=()=>{tblBody.innerHTML='';for(let i=0;i<20;i++) addRow({});};
 
+// --- APLICAR MÁSCARA NOS CAMPOS DE HORÁRIO PRINCIPAIS ---
+aplicarMascaraHorario($('rds_hora_doc'));
+aplicarMascaraHorario($('rds_horario_entrada'));
+aplicarMascaraHorario($('rds_horario_saida'));
+
 // --- VARIÁVEL PARA CONTROLAR A PRÓXIMA LINHA A SER PREENCHIDA ---
 let proximaLinhaParaPreencher = 0;
 
-// --- MODIFICAÇÃO 3: FUNÇÃO PARA PREENCHER HORÁRIO AUTOMATICAMENTE (CORRIGIDA) ---
+// --- FUNÇÃO PARA PREENCHER HORÁRIO AUTOMATICAMENTE ---
 $('btnPreencherHorario').onclick = () => {
   const entrada = $('rds_horario_entrada').value.trim();
   const saida = $('rds_horario_saida').value.trim();
   
+  // Verifica se os horários estão preenchidos
   if (!entrada || !saida) {
     alert('Por favor, preencha os horários de entrada e saída.');
     return;
@@ -613,15 +505,13 @@ $('btnPreencherHorario').onclick = () => {
   const linhaAtual = linhas[proximaLinhaParaPreencher];
   const cells = linhaAtual.querySelectorAll('td');
   
-  // CORREÇÃO: Usar os índices corretos da estrutura original
-  // cells[2] = Entrada, cells[3] = Saída (conforme a estrutura do seu código base)
   if (cells.length >= 5) {
     const inputEntrada = cells[2].querySelector('input');
     const inputSaida = cells[3].querySelector('input');
     
     if (inputEntrada && inputSaida) {
-      inputEntrada.value = entrada; // Campo de entrada
-      inputSaida.value = saida;     // Campo de saída
+      inputEntrada.value = entrada;
+      inputSaida.value = saida;
       
       // Incrementa para a próxima linha
       proximaLinhaParaPreencher++;
@@ -629,7 +519,7 @@ $('btnPreencherHorario').onclick = () => {
   }
 };
 
-// --- MODIFICAÇÃO 4: FUNÇÃO PARA OBTER HORÁRIO DE TRABALHO COMO TEXTO ---
+// --- FUNÇÃO PARA OBTER HORÁRIO DE TRABALHO COMO TEXTO ---
 function obterHorarioTrabalhoTexto() {
   const entrada = $('rds_horario_entrada').value.trim();
   const saida = $('rds_horario_saida').value.trim();
@@ -640,20 +530,169 @@ function obterHorarioTrabalhoTexto() {
   return '';
 }
 
-// gerar PDF (MANTIDO COM PEQUENA MODIFICAÇÃO)
+// ======================================================
+// FUNÇÕES PARA ENVIO EM SEGUNDO PLANO
+// ======================================================
+
+// --- FUNÇÃO PARA TENTAR ENVIAR EM SEGUNDO PLANO ---
+function tentarEnviarParaServidorEmSegundoPlano() {
+  enviarParaServidorRDSSilencioso().catch(err => {
+    console.log('Falha no envio em segundo plano, agendando nova tentativa...');
+    setTimeout(tentarEnviarParaServidorEmSegundoPlano, 30000);
+  });
+}
+
+// --- FUNÇÃO DE ENVIO SILENCIOSO (SEM ALERTAS PARA O USUÁRIO) ---
+async function enviarParaServidorRDSSilencioso() {
+  gerarExcelBase();
+
+  const dataIso = $('rds_data').value;
+  const [yyyy, mm, dd] = dataIso.split('-');
+  const data = dataIso ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
+  const horaDoc = $('rds_hora_doc').value;
+  const contratante = $('rds_contratante').value;
+  const servico = $('rds_servico').value;
+  
+  const horarioTrabalho = obterHorarioTrabalhoTexto();
+  
+  const fabrica = $('rds_fabrica').value;
+  const tema = $('rds_tema').value;
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Data: data,
+      HoraDocumento: horaDoc,
+      Contratante: contratante,
+      Servico: servico,
+      HorarioTrabalho: horarioTrabalho,
+      Fabrica: fabrica,
+      TemaDDS: tema,
+      Codigo: i[0].value,
+      Nome: i[1].value,
+      Entrada: i[2].value,
+      Saida: i[3].value,
+      Observacao: i[4].value
+    };
+  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
+
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...linhas];
+    const resPut = await fetch(PUT_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Dados enviados para o Servidor com sucesso!');
+      localStorage.removeItem('rds_offline_cache');
+    } else {
+      console.log('❌ Erro ao enviar, salvando localmente...');
+      salvarParaTentarDepoisRDS(linhas);
+    }
+
+  } catch (err) {
+    console.log('❌ Erro: ' + err.message + '\nSalvando localmente...');
+    salvarParaTentarDepoisRDS(linhas);
+  }
+}
+
+// --- FUNÇÃO PARA SALVAR E TENTAR DEPOIS (RDS) ---
+function salvarParaTentarDepoisRDS(linhas) {
+  if (!navigator.onLine) {
+    return;
+  }
+  
+  const pendentes = JSON.parse(localStorage.getItem('rds_pendentes') || '[]');
+  pendentes.push(...linhas);
+  localStorage.setItem('rds_pendentes', JSON.stringify(pendentes));
+  console.log('📋 Dados RDS salvos para envio posterior');
+}
+
+// --- TENTAR ENVIAR DADOS PENDENTES (RDS) ---
+async function tentarEnviarPendentesRDS() {
+  const pendentes = JSON.parse(localStorage.getItem('rds_pendentes') || '[]');
+  if (pendentes.length === 0 || !navigator.onLine) return;
+  
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...pendentes];
+
+    const resPut = await fetch(PUT_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Dados pendentes RDS enviados com sucesso!');
+      localStorage.removeItem('rds_pendentes');
+    } else {
+      console.log('❌ Falha ao enviar dados pendentes RDS, tentando novamente em 1 minuto...');
+      setTimeout(tentarEnviarPendentesRDS, 60000);
+    }
+
+  } catch(err){
+    console.log('❌ Erro ao enviar pendentes RDS: ' + err.message);
+    setTimeout(tentarEnviarPendentesRDS, 60000);
+  }
+}
+
+// --- VERIFICAR DADOS PENDENTES PERIODICAMENTE ---
+setInterval(tentarEnviarPendentesRDS, 300000);
+
+// Tenta enviar pendentes quando a conexão voltar
+window.addEventListener('online', tentarEnviarPendentesRDS);
+
+// ======================================================
+// FUNÇÕES DE GERAR PDF E EXCEL
+// ======================================================
+
+// --- GERAR PDF ---
 $('btnGerarPDF').onclick=async()=>{
+  // Não valida horários, apenas segue em frente
+  tentarEnviarParaServidorEmSegundoPlano();
+  
   const {jsPDF}=window.jspdf;
-  const dataISO = $('rds_data').value; // yyyy-mm-dd
-const [yyyy, mm, dd] = dataISO.split('-');
-const dataObj = new Date(yyyy, mm-1, dd); // mês começa em 0
-const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+  const dataISO = $('rds_data').value;
+  const [yyyy, mm, dd] = dataISO.split('-');
+  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
   $('meta_data').innerText='DATA: '+dataFormatada;
   $('meta_hora_doc').innerText=$('rds_hora_doc').value;
   $('meta_contratante').innerText=$('rds_contratante').value;
   $('meta_servico').innerText=$('rds_servico').value;
   $('meta_fabrica').innerText=$('rds_fabrica').value;
   
-  // MODIFICAÇÃO: Usar a função para obter horário formatado
   $('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
   
   $('meta_tema').innerText=$('rds_tema').value;
@@ -662,17 +701,16 @@ const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0'
   const tbody=$('rds_func_rows');
   tbody.innerHTML='';
   Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
-  const tds=r.querySelectorAll('input,select');
-  const entrada = tds[2].value.trim();
-  const saida = tds[3].value.trim();
-  const observacao = tds[4].value.trim();
-  if(entrada || saida || observacao){
-    const tr2=document.createElement('tr');
-    tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
-    tbody.appendChild(tr2);
-  }
-});
-
+    const tds=r.querySelectorAll('input,select');
+    const entrada = tds[2].value.trim();
+    const saida = tds[3].value.trim();
+    const observacao = tds[4].value.trim();
+    if(entrada || saida || observacao){
+      const tr2=document.createElement('tr');
+      tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
+      tbody.appendChild(tr2);
+    }
+  });
 
   const wrapper=$('rds_report').cloneNode(true);
   wrapper.style.position='fixed';wrapper.style.left='-9999px';
@@ -688,9 +726,14 @@ const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0'
   while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
   pdf.save(`RDS_${$('rds_servico').value}_${dataFormatada}.pdf`);
   document.body.removeChild(wrapper);
-};// 🟢 FUNÇÃO GERAR EXCEL CORRIGIDA
+};
+
+// --- GERAR EXCEL ---
 document.getElementById('btnExcelRDS').addEventListener('click', function() {
-    gerarExcelParaDownload();
+  // Não valida horários, apenas segue em frente
+  tentarEnviarParaServidorEmSegundoPlano();
+  
+  gerarExcelParaDownload();
 });
 
 let ultimoExcelBlob = null;
@@ -699,7 +742,6 @@ let ultimoExcelBlob = null;
 function gerarExcelParaDownload() {
     const blob = gerarExcelBase();
     if (blob) {
-        // Converte o blob de volta para arquivo e faz download
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -714,11 +756,11 @@ function gerarExcelParaDownload() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        alert('✅ Excel gerado com sucesso! Verifique sua pasta de downloads.');
+        alert('✅ Excel gerado com sucesso!');
     }
 }
 
-// FUNÇÃO BASE QUE GERA O EXCEL (usada por ambos)
+// FUNÇÃO BASE QUE GERA O EXCEL
 function gerarExcelBase() {
     try {
         const data = $('rds_data').value;
@@ -727,14 +769,11 @@ function gerarExcelBase() {
         const servico = $('rds_servico').value;
         const fabrica = $('rds_fabrica').value;
         
-        // MODIFICAÇÃO: Usar função para obter horário formatado
         const horarioTrabalho = obterHorarioTrabalhoTexto();
         
         const tema = $('rds_tema').value;
 
-        const tbody = $('tblFuncionarios').querySelector('tbody');
-
-        const linhasFunc = Array.from(tbody.querySelectorAll('tr')).map(tr => {
+        const linhasFunc = Array.from(tblBody.querySelectorAll('tr')).map(tr => {
             const cells = tr.querySelectorAll('td');
             const entrada = cells[2].querySelector('input').value.trim();
             const saida = cells[3].querySelector('input').value.trim();
@@ -752,7 +791,6 @@ function gerarExcelBase() {
             return null;
         }
 
-        // CORREÇÃO DA DATA - MESMO FORMATO DO PDF
         const [yyyy, mm, dd] = data.split('-');
         const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
 
@@ -786,15 +824,17 @@ function gerarExcelBase() {
 }
 
 // ======================================================
-// Salvamento Local + Restauração (RDS) - MODIFICADO
+// FUNÇÕES ORIGINAIS MANTIDAS
 // ======================================================
+
+// Salvamento Local + Restauração (RDS)
 function salvarLocalmenteRDS() {
+  // Não valida horários, apenas salva
   const cabecalho = {
     data: $('rds_data').value,
     horaDoc: $('rds_hora_doc').value,
     contratante: $('rds_contratante').value,
     servico: $('rds_servico').value,
-    // MODIFICAÇÃO: Salvar horários separados
     horarioEntrada: $('rds_horario_entrada').value,
     horarioSaida: $('rds_horario_saida').value,
     fabrica: $('rds_fabrica').value,
@@ -823,20 +863,17 @@ window.addEventListener('load', () => {
   if (cache) {
     const { cabecalho, linhas } = JSON.parse(cache);
 
-    // restaura cabeçalho
     if (cabecalho) {
       $('rds_data').value = cabecalho.data || '';
       $('rds_hora_doc').value = cabecalho.horaDoc || '';
       $('rds_contratante').value = cabecalho.contratante || '';
       $('rds_servico').value = cabecalho.servico || '';
-      // MODIFICAÇÃO: Restaurar horários separados
       $('rds_horario_entrada').value = cabecalho.horarioEntrada || '';
       $('rds_horario_saida').value = cabecalho.horarioSaida || '';
       $('rds_fabrica').value = cabecalho.fabrica || '';
       $('rds_tema').value = cabecalho.tema || '';
     }
 
-    // restaura tabela
     if (linhas?.length) {
       tblBody.innerHTML = "";
       linhas.forEach(l => {
@@ -859,13 +896,12 @@ window.addEventListener('load', () => {
   }
 });
 
-// ======================================================
-// Enviar dados para o servidor (com fallback offline) - MODIFICADO
-// ======================================================
+// Enviar dados para o servidor
 async function enviarParaServidorRDS() {
-  // 🔹 Garante que sempre gere Excel antes de enviar
+  // Não valida horários antes de enviar
+  
   if (!ultimoExcelBlob) {
-    ultimoExcelBlob = gerarExcelBase(); // ← ASSIM FICA (USA A NOVA FUNÇÃO)
+    ultimoExcelBlob = gerarExcelBase();
   }
 
   if (!ultimoExcelBlob) {
@@ -874,14 +910,12 @@ async function enviarParaServidorRDS() {
   }
 
   const dataIso = $('rds_data').value;
-  // CORREÇÃO DA DATA - MESMO FORMATO DO PDF
   const [yyyy, mm, dd] = dataIso.split('-');
   const data = dataIso ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
   const horaDoc = $('rds_hora_doc').value;
   const contratante = $('rds_contratante').value;
   const servico = $('rds_servico').value;
   
-  // MODIFICAÇÃO: Usar função para obter horário formatado
   const horarioTrabalho = obterHorarioTrabalhoTexto();
   
   const fabrica = $('rds_fabrica').value;
@@ -942,13 +976,11 @@ async function enviarParaServidorRDS() {
   }
 }
 
-// ======================================================
-// Eventos de botões e reconexão automática
-// ======================================================
+// Eventos de botões
 document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
 document.getElementById('btnServidor').onclick = enviarParaServidorRDS;
 
-// 🔹 Ao restaurar conexão → gera Excel e envia
+// Ao restaurar conexão
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rds_offline_cache');
   if (cache) {
