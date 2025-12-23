@@ -21,7 +21,7 @@
         }
 
         .container {
-            max-width: 1200px; /* Aumentado para dar mais espaço */
+            max-width: 900px; /* ALTERADO: Reduzido para 900px */
             margin: 0 auto;
         }
 
@@ -108,6 +108,7 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
+            table-layout: fixed; /* Para controle preciso */
         }
 
         .estoque-table thead {
@@ -170,7 +171,7 @@
         }
 
         .quantidade-cell {
-            text-align: center; /* ALTERADO: de right para center */
+            text-align: center; /* Centralizado */
             font-weight: bold;
             color: #0d6efd; /* AZUL sempre */
             font-family: monospace;
@@ -283,7 +284,7 @@
             
             .estoque-table {
                 font-size: 13px;
-                min-width: 700px;
+                min-width: 550px; /* ALTERADO: Reduzido para 550px */
             }
             
             .estoque-table th,
@@ -336,11 +337,12 @@
                 <table class="estoque-table" id="estoqueTable">
                     <thead>
                         <tr>
+                            <!-- ALTERAÇÃO: Nome do Item reduzido para 400px -->
                             <th style="width: 80px;">CÓDIGO</th>
-                            <th style="width: 450px;">NOME DO ITEM</th> <!-- ALTERADO: de 300px para 450px -->
+                            <th style="width: 400px;">NOME DO ITEM</th> <!-- ALTERADO: Reduzido para 400px -->
                             <th style="width: 80px;">UNIDADE</th>
-                            <th style="width: 150px;">CONTA</th>
-                            <th style="width: 120px;">QUANTIDADE</th>
+                            <th style="width: 80px;">CONTA</th>
+                            <th style="width: 80px;">QUANTIDADE</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
