@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Consulta de Itens em Estoque</title>
+    <style>
+        :root {
+            --primary-color: #0b73d6;
+            --danger-color: #dc3545;
+            --muted-color: #666;
+            --conta-color: #6f42c1; /* Nova cor para conta */
+        }
+
+        body {
+            font-family: "Arial", sans-serif;
+            background: #f2f4f7;
+            margin: 0;
+            padding: 20px;
+            color: #111;
+        }
+
+        .container {
+            max-width: 1100px; /* Aumentado para 5 colunas */
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 20px;
+            color: #222;
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #0b73d6 0%, #0959a8 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(11, 115, 214, 0.2);
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(11, 115, 214, 0.1);
+        }
+
+        .search-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            background: #0959a8;
+            transform: translateY(-1px);
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: var(--muted-color);
+            border-radius: 0 6px 6px 0;
+        }
+
+        /* Tabela com scroll */
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .estoque-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .estoque-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .estoque-table th {
+            background: var(--primary-color);
+            color: white;
+            padding: 14px 8px; /* Reduzido padding para 5 colunas */
+            text-align: left;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid #0959a8;
+        }
+
+        .estoque-table td {
+            padding: 10px 8px; /* Reduzido padding para 5 colunas */
+            border-bottom: 1px solid #eee;
+        }
+
+        .estoque-table tbody tr:hover {
+            background-color: #f5f9ff;
+        }
+
+        .estoque-table tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        .estoque-table tbody tr:nth-child(even):hover {
+            background-color: #f5f9ff;
+        }
+
+        .codigo-cell {
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            font-family: monospace;
+            background: #f8f9fa;
+        }
+
+        .nome-cell {
+            color: #222;
+        }
+
+        .unidade-cell {
+            text-align: center;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .conta-cell {
+            text-align: left;
+            color: var(--conta-color);
+            font-weight: 500;
+            font-style: italic;
+        }
+
+        .quantidade-cell {
+            text-align: right;
+            font-weight: bold;
+            color: #0d6efd;
+            font-family: monospace;
+            font-size: 15px;
+        }
+
+        .quantidade-baixa {
+            color: var(--danger-color) !important;
+            background: #fff5f5;
+        }
+
+        .quantidade-alta {
+            color: #28a745 !important;
+        }
+
+        .refresh-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: var(--muted-color);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: var(--muted-color);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted-color);
+            font-style: italic;
+            font-size: 16px;
+        }
+
+        .stats {
+            background: #e8f4ff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 5px;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 20px;
+                padding: 12px;
+            }
+            
+            .search-container {
+                flex-direction: column;
+            }
+            
+            .search-input,
+            .search-btn,
+            .refresh-btn {
+                width: 100%;
+            }
+            
+            .refresh-btn {
+                margin-left: 0;
+                justify-content: center;
+            }
+            
+            .table-container {
+                max-height: 400px;
+                overflow-x: auto; /* Scroll horizontal em mobile */
+            }
+            
+            .estoque-table {
+                font-size: 13px;
+                min-width: 700px; /* Garante que todas colunas apareçam */
+            }
+            
+            .estoque-table th,
+            .estoque-table td {
+                padding: 8px 6px;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📦 ITENS EM ESTOQUE - CONSULTA</h1>
+            
+            <div class="info-box">
+                🔍 <strong>Como usar:</strong> Digite o nome do item para pesquisar ou deixe em branco para ver todos os cadastros. 
+                Os dados são sincronizados automaticamente com o sistema principal.
+            </div>
+            
+            <div class="search-container">
+                <input type="text" 
+                       id="searchInput" 
+                       class="search-input" 
+                       placeholder="Digite o nome do item ou conta (ex: DIESEL, COMBUSTIVEIS)..."
+                       autocomplete="off">
+                <button id="searchBtn" class="search-btn">
+                    🔎 Pesquisar
+                </button>
+                <button id="refreshBtn" class="refresh-btn">
+                    🔄 Atualizar Dados
+                </button>
+            </div>
+            
+            <div class="table-container" id="tableContainer">
+                <div class="loading" id="loading">
+                    <div style="font-size: 16px; margin-bottom: 10px;">Carregando dados do estoque...</div>
+                    <div style="font-size: 12px; color: #888;">Aguarde um momento</div>
+                </div>
+                <div class="no-data" id="noData" style="display: none;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">📭</div>
+                    <div style="font-size: 16px; margin-bottom: 5px;">Nenhum item encontrado</div>
+                    <div style="font-size: 14px;">Tente ajustar sua pesquisa ou verifique se há dados no sistema.</div>
+                </div>
+                <table class="estoque-table" id="estoqueTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">CÓDIGO</th>
+                            <th style="width: 300px;">NOME DO ITEM</th>
+                            <th style="width: 80px;">UNIDADE</th>
+                            <th style="width: 150px;">CONTA</th>
+                            <th style="width: 120px;">QUANTIDADE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Dados serão inseridos aqui pelo JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="status-bar">
+                <div class="stats" id="itemCount">Carregando...</div>
+                <div id="lastUpdate">Última atualização: --:--</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO DO BIN - APENAS LEITURA
+        const BIN_ID = '6949dfbbae596e708fab44d7';
+        const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest`;
+
+        // Elementos DOM
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const tableBody = document.getElementById('tableBody');
+        const loadingEl = document.getElementById('loading');
+        const noDataEl = document.getElementById('noData');
+        const itemCountEl = document.getElementById('itemCount');
+        const lastUpdateEl = document.getElementById('lastUpdate');
+
+        // Variáveis globais
+        let allItems = [];
+        let filteredItems = [];
+        let lastUpdateTime = null;
+
+        // Formatar data
+        function formatDateTime(date) {
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            return date.toLocaleString('pt-BR', options);
+        }
+
+        // Buscar dados do BIN
+        async function fetchData() {
+            try {
+                loadingEl.style.display = 'block';
+                tableBody.innerHTML = '';
+                noDataEl.style.display = 'none';
+                itemCountEl.textContent = 'Carregando...';
+
+                console.log('Buscando dados do BIN:', BIN_ID);
+                
+                const response = await fetch(API_URL, {
+                    headers: {
+                        'X-Master-Key': MASTER_KEY,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Dados recebidos:', data);
+                
+                // Verificar se há dados
+                if (data.record && Array.isArray(data.record)) {
+                    allItems = data.record;
+                    console.log('Itens carregados:', allItems.length);
+                    applyFilter(); // Aplica filtro atual
+                    lastUpdateTime = new Date();
+                    lastUpdateEl.textContent = `Última atualização: ${formatDateTime(lastUpdateTime)}`;
+                } else {
+                    showNoData('Nenhum dado encontrado no sistema.');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar dados:', error);
+                showNoData('Erro ao carregar dados. Verifique sua conexão com a internet.');
+            } finally {
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        // Filtrar itens (agora busca também por CONTA)
+        function applyFilter() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredItems = [...allItems];
+            } else {
+                filteredItems = allItems.filter(item => {
+                    // Busca pelo nome do item E pela conta
+                    const nomeItem = item["NOME DO ITEM"] || '';
+                    const conta = item["CONTA"] || '';
+                    return nomeItem.toLowerCase().includes(searchTerm) || 
+                           conta.toLowerCase().includes(searchTerm);
+                });
+            }
+            
+            renderTable();
+        }
+
+        // Renderizar tabela (agora com 5 colunas)
+        function renderTable() {
+            tableBody.innerHTML = '';
+            
+            if (filteredItems.length === 0) {
+                showNoData('Nenhum item encontrado. Tente outra pesquisa.');
+                return;
+            }
+            
+            noDataEl.style.display = 'none';
+            
+            // Ordenar por código
+            filteredItems.sort((a, b) => {
+                const codA = parseInt(a["CÓDIGO"]) || 0;
+                const codB = parseInt(b["CÓDIGO"]) || 0;
+                return codA - codB;
+            });
+            
+            filteredItems.forEach(item => {
+                const row = document.createElement('tr');
+                
+                // Extrair valores com fallback
+                const codigo = item["CÓDIGO"] || 'N/A';
+                const nome = item["NOME DO ITEM"] || '';
+                const unidade = item["UNIDADE"] || 'UND';
+                const conta = item["CONTA"] || 'Não definida';
+                const quantidade = parseFloat(item["QUANTIDADE EM ESTOQUE"]) || 0;
+                
+                // Verificar se a quantidade é baixa
+                const isLowStock = quantidade < 10;
+                const quantidadeClass = isLowStock ? 'quantidade-cell quantidade-baixa' : 
+                                                quantidade > 50 ? 'quantidade-cell quantidade-alta' : 
+                                                'quantidade-cell';
+                
+                // NOVA LINHA: Adicionada coluna CONTA
+                row.innerHTML = `
+                    <td class="codigo-cell">${codigo}</td>
+                    <td class="nome-cell">${nome}</td>
+                    <td class="unidade-cell">${unidade}</td>
+                    <td class="conta-cell">${conta}</td>
+                    <td class="${quantidadeClass}">${quantidade.toFixed(0)}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Atualizar contador
+            const totalItens = allItems.length;
+            const filtrados = filteredItems.length;
+            const textoContador = filtrados === totalItens ? 
+                `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}` :
+                `${filtrados} de ${totalItens} itens`;
+            
+            itemCountEl.textContent = textoContador;
+        }
+
+        // Mostrar mensagem de nenhum dado
+        function showNoData(message) {
+            tableBody.innerHTML = '';
+            noDataEl.innerHTML = `
+                <div style="font-size: 24px; margin-bottom: 10px;">📭</div>
+                <div style="font-size: 16px; margin-bottom: 5px;">${message}</div>
+            `;
+            noDataEl.style.display = 'block';
+            itemCountEl.textContent = '0 itens';
+        }
+
+        // Event Listeners
+        searchBtn.addEventListener('click', applyFilter);
+        refreshBtn.addEventListener('click', () => {
+            fetchData();
+            searchInput.value = ''; // Limpa pesquisa ao atualizar
+        });
+
+        // Pesquisar ao pressionar Enter
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                applyFilter();
+            }
+        });
+
+        // Pesquisa em tempo real
+        searchInput.addEventListener('input', () => {
+            clearTimeout(window.searchTimeout);
+            window.searchTimeout = setTimeout(applyFilter, 300);
+        });
+
+        // Carregar dados iniciais
+        document.addEventListener('DOMContentLoaded', fetchData);
+
+        // Atualizar automaticamente a cada 60 segundos
+        setInterval(fetchData, 60000);
+        
+        // Mostrar informações da conexão
+        console.log('Sistema de consulta de estoque carregado');
+        console.log('BIN ID:', BIN_ID);
+        console.log('URL da API:', API_URL);
+    </script>
+</body>
+</html>
