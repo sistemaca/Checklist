@@ -304,8 +304,8 @@
             <h1>📦 ITENS EM ESTOQUE - CONSULTA</h1>
             
             <div class="info-box">
-                🔍 <strong>Como usar:</strong> Digite o nome do item para pesquisar ou deixe em branco para ver todos os cadastros. 
-                Os dados são sincronizados automaticamente com o sistema principal.
+                🔍 <strong>Como usar:</strong> Digite o nome do item ou conta para pesquisar. 
+                Deixe em branco para ver todos os cadastros. Clique em "Atualizar Dados" para buscar informações recentes.
             </div>
             
             <div class="search-container">
@@ -376,17 +376,12 @@
         let filteredItems = [];
         let lastUpdateTime = null;
 
-        // Formatar data
+        // Formatar data (apenas hora e minuto)
         function formatDateTime(date) {
-            const options = {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
+            return date.toLocaleTimeString('pt-BR', {
                 hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            };
-            return date.toLocaleString('pt-BR', options);
+                minute: '2-digit'
+            });
         }
 
         // Buscar dados do BIN
@@ -397,8 +392,6 @@
                 noDataEl.style.display = 'none';
                 itemCountEl.textContent = 'Carregando...';
 
-                console.log('Buscando dados do BIN:', BIN_ID);
-                
                 const response = await fetch(API_URL, {
                     headers: {
                         'X-Master-Key': MASTER_KEY,
@@ -407,19 +400,17 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
+                    throw new Error(`Erro ao conectar ao servidor: ${response.status}`);
                 }
 
                 const data = await response.json();
-                console.log('Dados recebidos:', data);
                 
                 // Verificar se há dados
                 if (data.record && Array.isArray(data.record)) {
                     allItems = data.record;
-                    console.log('Itens carregados:', allItems.length);
                     applyFilter(); // Aplica filtro atual
                     lastUpdateTime = new Date();
-                    lastUpdateEl.textContent = `Última atualização: ${formatDateTime(lastUpdateTime)}`;
+                    lastUpdateEl.textContent = `Atualizado às: ${formatDateTime(lastUpdateTime)}`;
                 } else {
                     showNoData('Nenhum dado encontrado no sistema.');
                 }
@@ -431,7 +422,7 @@
             }
         }
 
-        // Filtrar itens (agora busca também por CONTA)
+        // Filtrar itens (busca por nome do item e conta)
         function applyFilter() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             
@@ -439,7 +430,6 @@
                 filteredItems = [...allItems];
             } else {
                 filteredItems = allItems.filter(item => {
-                    // Busca pelo nome do item E pela conta
                     const nomeItem = item["NOME DO ITEM"] || '';
                     const conta = item["CONTA"] || '';
                     return nomeItem.toLowerCase().includes(searchTerm) || 
@@ -450,7 +440,7 @@
             renderTable();
         }
 
-        // Renderizar tabela (agora com 5 colunas)
+        // Renderizar tabela (com 5 colunas)
         function renderTable() {
             tableBody.innerHTML = '';
             
@@ -484,7 +474,6 @@
                                                 quantidade > 50 ? 'quantidade-cell quantidade-alta' : 
                                                 'quantidade-cell';
                 
-                // NOVA LINHA: Adicionada coluna CONTA
                 row.innerHTML = `
                     <td class="codigo-cell">${codigo}</td>
                     <td class="nome-cell">${nome}</td>
@@ -519,6 +508,8 @@
 
         // Event Listeners
         searchBtn.addEventListener('click', applyFilter);
+        
+        // Atualizar dados quando clicar no botão
         refreshBtn.addEventListener('click', () => {
             fetchData();
             searchInput.value = ''; // Limpa pesquisa ao atualizar
@@ -531,22 +522,21 @@
             }
         });
 
-        // Pesquisa em tempo real
+        // Pesquisa em tempo real (mantido)
         searchInput.addEventListener('input', () => {
             clearTimeout(window.searchTimeout);
             window.searchTimeout = setTimeout(applyFilter, 300);
         });
 
-        // Carregar dados iniciais
+        // Carregar dados automaticamente quando a página abre
         document.addEventListener('DOMContentLoaded', fetchData);
 
-        // Atualizar automaticamente a cada 60 segundos
-        setInterval(fetchData, 60000);
+        // ⚠️ REMOVIDO: Atualização automática a cada 60 segundos
+        // setInterval(fetchData, 60000); ← ESTA LINHA FOI REMOVIDA
         
-        // Mostrar informações da conexão
+        // Log de informação (apenas para desenvolvimento)
         console.log('Sistema de consulta de estoque carregado');
         console.log('BIN ID:', BIN_ID);
-        console.log('URL da API:', API_URL);
     </script>
 </body>
 </html>
