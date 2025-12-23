@@ -21,7 +21,7 @@
         }
 
         .container {
-            max-width: 1100px; /* Aumentado para 5 colunas */
+            max-width: 1200px; /* Aumentado para dar mais espaço */
             margin: 0 auto;
         }
 
@@ -119,7 +119,7 @@
         .estoque-table th {
             background: var(--primary-color);
             color: white;
-            padding: 14px 8px; /* Reduzido padding para 5 colunas */
+            padding: 14px 8px;
             text-align: left;
             font-weight: bold;
             position: sticky;
@@ -128,7 +128,7 @@
         }
 
         .estoque-table td {
-            padding: 10px 8px; /* Reduzido padding para 5 colunas */
+            padding: 10px 8px;
             border-bottom: 1px solid #eee;
         }
 
@@ -170,13 +170,14 @@
         }
 
         .quantidade-cell {
-            text-align: right;
+            text-align: center; /* ALTERADO: de right para center */
             font-weight: bold;
-            color: #0d6efd;
+            color: #0d6efd; /* AZUL sempre */
             font-family: monospace;
             font-size: 15px;
         }
 
+        /* Classes condicionais mantidas mas não serão usadas */
         .quantidade-baixa {
             color: var(--danger-color) !important;
             background: #fff5f5;
@@ -277,12 +278,12 @@
             
             .table-container {
                 max-height: 400px;
-                overflow-x: auto; /* Scroll horizontal em mobile */
+                overflow-x: auto;
             }
             
             .estoque-table {
                 font-size: 13px;
-                min-width: 700px; /* Garante que todas colunas apareçam */
+                min-width: 700px;
             }
             
             .estoque-table th,
@@ -304,15 +305,15 @@
             <h1>📦 ITENS EM ESTOQUE - CONSULTA</h1>
             
             <div class="info-box">
-                🔍 <strong>Como usar:</strong> Digite o nome do item ou conta para pesquisar. 
-                Deixe em branco para ver todos os cadastros. Clique em "Atualizar Dados" para buscar informações recentes.
+                🔍 <strong>Como usar:</strong> Digite o nome do item para pesquisar ou deixe em branco para ver todos os cadastros. 
+                Os dados são sincronizados automaticamente com o sistema principal.
             </div>
             
             <div class="search-container">
                 <input type="text" 
                        id="searchInput" 
                        class="search-input" 
-                       placeholder="Digite o nome do item ou conta (ex: Vassoura, Camisa)..."
+                       placeholder="Digite o nome do item ou conta (ex: Vassouras, Saco de Lixo, Limpeza, Epi, Luva)..."
                        autocomplete="off">
                 <button id="searchBtn" class="search-btn">
                     🔎 Pesquisar
@@ -336,7 +337,7 @@
                     <thead>
                         <tr>
                             <th style="width: 80px;">CÓDIGO</th>
-                            <th style="width: 300px;">NOME DO ITEM</th>
+                            <th style="width: 450px;">NOME DO ITEM</th> <!-- ALTERADO: de 300px para 450px -->
                             <th style="width: 80px;">UNIDADE</th>
                             <th style="width: 150px;">CONTA</th>
                             <th style="width: 120px;">QUANTIDADE</th>
@@ -376,12 +377,17 @@
         let filteredItems = [];
         let lastUpdateTime = null;
 
-        // Formatar data (apenas hora e minuto)
+        // Formatar data
         function formatDateTime(date) {
-            return date.toLocaleTimeString('pt-BR', {
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
-            });
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            return date.toLocaleString('pt-BR', options);
         }
 
         // Buscar dados do BIN
@@ -392,6 +398,8 @@
                 noDataEl.style.display = 'none';
                 itemCountEl.textContent = 'Carregando...';
 
+                console.log('Buscando dados do BIN:', BIN_ID);
+                
                 const response = await fetch(API_URL, {
                     headers: {
                         'X-Master-Key': MASTER_KEY,
@@ -400,17 +408,19 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Erro ao conectar ao servidor: ${response.status}`);
+                    throw new Error(`Erro HTTP: ${response.status}`);
                 }
 
                 const data = await response.json();
+                console.log('Dados recebidos:', data);
                 
                 // Verificar se há dados
                 if (data.record && Array.isArray(data.record)) {
                     allItems = data.record;
+                    console.log('Itens carregados:', allItems.length);
                     applyFilter(); // Aplica filtro atual
                     lastUpdateTime = new Date();
-                    lastUpdateEl.textContent = `Atualizado às: ${formatDateTime(lastUpdateTime)}`;
+                    lastUpdateEl.textContent = `Última atualização: ${formatDateTime(lastUpdateTime)}`;
                 } else {
                     showNoData('Nenhum dado encontrado no sistema.');
                 }
@@ -422,7 +432,7 @@
             }
         }
 
-        // Filtrar itens (busca por nome do item e conta)
+        // Filtrar itens (agora busca também por CONTA)
         function applyFilter() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             
@@ -430,6 +440,7 @@
                 filteredItems = [...allItems];
             } else {
                 filteredItems = allItems.filter(item => {
+                    // Busca pelo nome do item E pela conta
                     const nomeItem = item["NOME DO ITEM"] || '';
                     const conta = item["CONTA"] || '';
                     return nomeItem.toLowerCase().includes(searchTerm) || 
@@ -440,7 +451,7 @@
             renderTable();
         }
 
-        // Renderizar tabela (com 5 colunas)
+        // Renderizar tabela (agora com 5 colunas)
         function renderTable() {
             tableBody.innerHTML = '';
             
@@ -468,12 +479,10 @@
                 const conta = item["CONTA"] || 'Não definida';
                 const quantidade = parseFloat(item["QUANTIDADE EM ESTOQUE"]) || 0;
                 
-                // Verificar se a quantidade é baixa
-                const isLowStock = quantidade < 10;
-                const quantidadeClass = isLowStock ? 'quantidade-cell quantidade-baixa' : 
-                                                quantidade > 50 ? 'quantidade-cell quantidade-alta' : 
-                                                'quantidade-cell';
+                // ALTERAÇÃO: Sempre usa apenas 'quantidade-cell' (sempre azul)
+                const quantidadeClass = 'quantidade-cell';
                 
+                // NOVA LINHA: Adicionada coluna CONTA
                 row.innerHTML = `
                     <td class="codigo-cell">${codigo}</td>
                     <td class="nome-cell">${nome}</td>
@@ -508,8 +517,6 @@
 
         // Event Listeners
         searchBtn.addEventListener('click', applyFilter);
-        
-        // Atualizar dados quando clicar no botão
         refreshBtn.addEventListener('click', () => {
             fetchData();
             searchInput.value = ''; // Limpa pesquisa ao atualizar
@@ -522,22 +529,22 @@
             }
         });
 
-        // Pesquisa em tempo real (mantido)
+        // Pesquisa em tempo real
         searchInput.addEventListener('input', () => {
             clearTimeout(window.searchTimeout);
             window.searchTimeout = setTimeout(applyFilter, 300);
         });
 
-        // Carregar dados automaticamente quando a página abre
+        // Carregar dados iniciais
         document.addEventListener('DOMContentLoaded', fetchData);
 
-        // ⚠️ REMOVIDO: Atualização automática a cada 60 segundos
-        // setInterval(fetchData, 60000); ← ESTA LINHA FOI REMOVIDA
+        // ALTERAÇÃO: Atualizar automaticamente a cada 1 hora (3600000 ms)
+        setInterval(fetchData, 3600000);
         
-        // Log de informação (apenas para desenvolvimento)
+        // Mostrar informações da conexão
         console.log('Sistema de consulta de estoque carregado');
         console.log('BIN ID:', BIN_ID);
+        console.log('URL da API:', API_URL);
     </script>
 </body>
 </html>
-
