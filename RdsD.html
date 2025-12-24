@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RDS — Relatório Diário de Serviço (Gerador)</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --paper-w: 794px; --muted: #666; }
+  body {
+    font-family: "Arial", Helvetica, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 18px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .col {
+    flex: 1; min-width: 150px;
+    display: flex; flex-direction: column;
+    margin-bottom: 8px;
+  }
+  label { font-size: 13px; margin-bottom: 6px; color: #222; }
+  input[type=text], input[type=date], select, textarea {
+    padding: 8px; border: 1px solid #ddd;
+    border-radius: 6px; font-size: 14px;
+    background: #fff; width: 100%;
+    box-sizing: border-box;
+  }
+  textarea { resize: vertical; }
+  .small { max-width: 170px; }
+  input[readonly] {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+  }
+  .btn {
+    display: inline-block; background: #0b73d6; color: #fff;
+    border: none; padding: 10px 14px;
+    border-radius: 8px; font-size: 14px;
+    cursor: pointer; transition: background 0.3s;
+  }
+  .btn:hover { background: #0959a8; }
+  .btn.gray { background: #6c757d; }
+  .btn.atualizar {
+    background: #28a745;
+    margin-left: auto;
+  }
+  .btn.atualizar:hover { background: #218838; }
+  .table {
+    width: 100%; border-collapse: collapse; margin-top: 12px;
+    background: #f8f9fa; border-radius: 8px; overflow: hidden;
+  }
+  .table th, .table td {
+    border: 1px solid #dcdcdc; padding: 8px;
+    font-size: 13px; text-align: left;
+  }
+  .table th { background: #f1f3f5; }
+  .table td select, .table td input { font-size: 13px; }
+  .actions {
+    margin-top: 12px; display: flex; gap: 8px;
+    flex-wrap: wrap; align-items: center; justify-content: flex-start;
+  }
+  .muted { color: var(--muted); font-size: 13px; }
+  .rds-paper {
+    width: var(--paper-w); padding: 24px; background: #fff;
+    color: #111; box-sizing: border-box; font-size: 13px;
+  }
+  .rds-header {
+    display: flex; justify-content: space-between;
+    gap: 12px; align-items: flex-start;
+  }
+  .rds-meta { font-size: 12px; }
+  .rds-table {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
+  }
+  .rds-table td, .rds-table th {
+    border: 1px solid #333; padding: 6px;
+    font-size: 12px;
+  }
+  .rds-foot {
+    margin-top: 12px; display: flex; gap: 12px;
+    align-items: center; justify-content: space-between;
+  }
+  .sig {
+    display: flex; flex-direction: column; gap: 6px; width: 45%;
+  }
+  .sig .line {
+    height: 36px; border-bottom: 1px solid #000;
+  }
+  .remove-btn {
+    background: #dc3545; color: #fff; border: none;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  }
+  /* Estilos para horário de trabalho */
+  .horario-trabalho-container {
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  .horario-input-group {
+    display: flex; flex-direction: column; flex: 1;
+  }
+  .horario-input-group label {
+    font-size: 12px; margin-bottom: 4px;
+  }
+  .horario-btn {
+    background: #28a745; color: white; border: none;
+    padding: 8px 12px; border-radius: 6px; cursor: pointer;
+    font-size: 12px; white-space: nowrap; height: fit-content;
+  }
+  .horario-btn:hover { background: #218838; }
+  /* Apenas dica de formato */
+  .hint {
+    font-size: 11px; color: #666; margin-top: 2px;
+  }
+  /* Status dos funcionários */
+  .status-funcionarios {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding: 10px;
+    background: #e8f4ff;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .status-funcionarios .info {
+    color: #0b73d6;
+    font-weight: 500;
+  }
+  /* Mensagem de carregamento */
+  .loading-funcionarios {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 10px 0;
+    text-align: center;
+    color: #856404;
+    font-size: 13px;
+  }
+  /* Mensagem de erro */
+  .erro-funcionarios {
+    background: #fff5f5;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 15px;
+    text-align: center;
+    color: #721c24;
+  }
+  @media (max-width: 768px) {
+    .row { flex-direction: column; gap: 8px; }
+    .btn { width: 100%; }
+    .table { display: block; overflow-x: auto; }
+    .container { padding: 8px; }
+    .card { padding: 14px; }
+    h1 { font-size: 16px; text-align: center; }
+    .table th, .table td { font-size: 12px; padding: 6px; }
+    .actions { flex-direction: column; align-items: stretch; }
+    .status-funcionarios {
+      flex-direction: column;
+      gap: 8px;
+      text-align: center;
+    }
+  }
+  @media (min-width: 769px) {
+    .table { margin-top: 16px; }
+    .actions { justify-content: space-between; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Gerador de RDS — Relatório Diário de Serviço</h1>
+
+    <div class="row">
+      <div class="col small"><label>Data</label><input id="rds_data" type="date"></div>
+      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text" placeholder="HH:MM"></div>
+      <div class="col">
+        <label>Contratante</label>
+        <select id="rds_contratante">
+          <option value="">Selecione...</option>
+          <option>Mineração Belocal</option>
+          <option>Lhoist</option>
+        </select>
+      </div>
+      <div class="col">
+       <label>Serviço</label>
+        <select id="rds_servico">
+          <option value="">Selecione...</option>
+          <option>LIMP ADMINISTRATIVA - ARCOS</option>
+          <option>LIMP ADMINISTRATIVA - LIMEIRA</option>
+          <option>LIMP ADMINISTRATIVA - DORESOPOLIS</option>
+          <option>LIMP INDUSTRIAL FORNOS AZBE</option>
+          <option>LIMP INDUSTRIAL FORNOS MAERZ</option>
+          <option>LIMP INDUSTRIAL BRITAGEM</option>
+          <option>LIMP INDUSTRIAL MOAGEM 01 e 02 CARBONATOS</option>
+          <option>LIMP. INDUSTRIAL DRS</option>
+          <option>LIMPEZA INDUSTRIAL - SPOT</option>
+          <option>LIMPEZA INDUSTRIAL - ALMOXARIFADO</option>
+          <option>TECNICO LABORATORIO</option>
+          <option>COLETA E TRANSPORTES DE RESIDUOS I</option>
+          <option>COLETA E TRANSPORTES DE RESIDUOS II</option>
+          <option>LIMPEZA BALANÇA</option>
+          <option>ALMOXARIFE I</option>
+          <option>ALMOXARIFE II</option>
+          <option>OPERADOR DE LOGISTICA</option>
+          <option>OP. MAQUINAS PESADAS  (BRITAGEM)- MOTORISTAS</option>
+          <option>OP. MAQUINAS SIMPLES ( MINA) - MOTORISTAS</option>
+          <option>OP. DE CAMINHÃO PRODUÇÃO</option>
+          <option>MECÂNICO (MANUTENÇÃO DE EQUIPAMENTO)</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:8px" class="row">
+      <div class="col"><label>Diálogo Diário de Segurança (DDS) — Tema</label><input id="rds_tema" type="text" placeholder="Tema do DDS"></div>
+    </div>
+
+    <div class="row">
+      <div class="col"><label>Fábrica / Local</label><input id="rds_fabrica" type="text" placeholder="Local de trabalho"></div>
+      <div class="col">
+        <label>Horário de Trabalho</label>
+        <div class="horario-trabalho-container">
+          <div class="horario-input-group">
+            <label>Entrada</label>
+            <input id="rds_horario_entrada" type="text" placeholder="Ex: 07:00">
+            <div class="hint">Formato sugerido: HH:MM</div>
+          </div>
+          <div class="horario-input-group">
+            <label>Saída</label>
+            <input id="rds_horario_saida" type="text" placeholder="Ex: 17:30">
+            <div class="hint">Formato sugerido: HH:MM</div>
+          </div>
+          <button id="btnPreencherHorario" class="horario-btn">Preencher Próximo</button>
+        </div>
+      </div>
+    </div>
+
+    <hr style="margin:12px 0">
+
+    <!-- Status dos funcionários carregados -->
+    <div class="status-funcionarios" id="statusFuncionarios" style="display: none;">
+      <div class="info">
+        <span id="contadorFuncionarios">Carregando funcionários...</span>
+      </div>
+      <button id="btnAtualizarFuncionarios" class="btn atualizar">
+        🔄 Atualizar Lista
+      </button>
+    </div>
+
+    <!-- Mensagem de carregamento -->
+    <div class="loading-funcionarios" id="loadingFuncionarios">
+      🔄 Carregando lista de funcionários do servidor...
+    </div>
+
+    <!-- Mensagem de erro -->
+    <div class="erro-funcionarios" id="erroFuncionarios" style="display: none;">
+      <div style="font-weight: bold; margin-bottom: 5px;">⚠️ Não foi possível carregar a lista de funcionários</div>
+      <div style="font-size: 12px; margin-bottom: 10px;">
+        Verifique sua conexão com a internet e tente atualizar a lista.
+      </div>
+      <button id="btnTentarNovamente" class="btn" style="background: #dc3545;">
+        Tentar Novamente
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="muted">Tabela de funcionários (20 linhas automáticas)</div>
+      <button id="btnAdd" class="btn">Adicionar linha</button>
+    </div>
+
+    <table class="table" id="tblFuncionarios">
+      <thead>
+        <tr>
+          <th style="width:80px">Código</th>
+          <th>Funcionário</th>
+          <th style="width:100px">Entrada</th>
+          <th style="width:100px">Saída</th>
+          <th>Observação</th>
+          <th style="width:70px">Ações</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="actions"> 
+      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
+      <button id="btnServidor" class="btn">Enviar para o Servidor</button>  
+      <button id="btnExcelRDS" class="btn gray">Gerar Excel</button> 
+      <button id="btnGerarPDF" class="btn gray">Gerar PDF</button>
+      <button id="btnLimpar" class="btn gray">Limpar</button>
+
+      <div class="muted">Arquivo: <strong>RDS_SERVICO_DD-MM-AAAA_HH-MM.pdf</strong></div>
+    </div>
+  </div>
+</div>
+
+<div id="paper" style="display:none">
+  <div class="rds-paper" id="rds_report">
+    <div class="rds-header">
+      <div>
+        <div style="font-size:12px">COMERCIAL ARCOS LTDA</div>
+        <div style="font-size:11px;color:#333;margin-top:4px">
+          ROD BR 354, KM 474, Nº 749 - VILA CALCITA - ARCOS/MG - CEP: 35600-350
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700">RELATÓRIO DIÁRIO DE SERVIÇO (RDS)</div>
+        <div class="rds-meta" id="meta_data">DATA:</div>
+        <div class="rds-meta" id="meta_hora_doc">HORA:</div>
+      </div>
+    </div>
+
+    <table class="rds-table" style="margin-top:12px">
+      <tr>
+        <td><strong>CONTRATANTE:</strong><div id="meta_contratante"></div></td>
+        <td><strong>SERVIÇO:</strong><div id="meta_servico"></div></td>
+        <td><strong>FÁBRICA / LOCAL:</strong><div id="meta_fabrica"></div></td>
+      </tr>
+      <tr>
+        <td><strong>HORÁRIO DE TRABALHO:</strong><div id="meta_horario_trabalho"></div></td>
+        <td colspan="2"><strong>TEMA (DDS):</strong><div id="meta_tema"></div></td>
+      </tr>
+    </table>
+
+    <table class="rds-table" id="rds_table_func" style="margin-top:12px">
+      <thead>
+        <tr>
+          <th style="width:60px">CÓDIGO</th>
+          <th>NOME</th>
+          <th style="width:80px">ENTRADA</th>
+          <th style="width:80px">SAÍDA</th>
+          <th>OBSERVAÇÃO</th>
+        </tr>
+      </thead>
+      <tbody id="rds_func_rows"></tbody>
+    </table>
+
+    <div style="margin-top:10px;font-size:12px">
+      <strong>DIÁLOGO DIÁRIO DE SEGURANÇA (DDS)</strong>
+      <div id="rds_dds" style="margin-top:6px;min-height:36px"></div>
+    </div>
+
+    <div class="rds-foot">
+      <div class="sig">
+        <div class="line"></div>
+        <div style="font-size:12px; text-align:center;">ASSINATURA ENCARREGADO DA CONTRATADA</div>
+      </div>
+      <div class="sig">
+        <div class="line"></div>
+        <div style="font-size:12px; text-align:center;">ASSINATURA GESTOR DO CONTRATO</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================
+// CONFIGURAÇÃO DO BIN PARA FUNCIONÁRIOS
+// ============================================
+const BIN_FUNCIONARIOS = '694ae37fae596e708face81b';
+const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+const API_FUNCIONARIOS = `https://api.jsonbin.io/v3/b/${BIN_FUNCIONARIOS}/latest`;
+
+// ============================================
+// VARIÁVEIS GLOBAIS
+// ============================================
+let funcionarios = [];
+let funcionariosCarregados = false;
+
+// ============================================
+// FUNÇÕES PARA CARREGAR FUNCIONÁRIOS DO BIN
+// ============================================
+
+// Carregar funcionários do BIN (com cache de 2 dias)
+async function carregarFuncionariosDoBin() {
+  try {
+    document.getElementById('erroFuncionarios').style.display = 'none';
+    document.getElementById('loadingFuncionarios').style.display = 'block';
+    
+    // Verificar cache local primeiro (2 dias = 172800000 ms)
+    const cacheKey = 'funcionarios_cache';
+    const cacheTimestampKey = 'funcionarios_cache_timestamp';
+    const doisDiasEmMs = 2 * 24 * 60 * 60 * 1000;
+    
+    const cacheData = localStorage.getItem(cacheKey);
+    const cacheTime = localStorage.getItem(cacheTimestampKey);
+    
+    // Verificar se tem cache válido
+    let cacheValido = false;
+    if (cacheData && cacheTime) {
+      const cacheAge = Date.now() - parseInt(cacheTime);
+      if (cacheAge < doisDiasEmMs) {
+        cacheValido = true;
+        console.log('📦 Cache válido encontrado (menos de 2 dias)');
+      }
+    }
+    
+    // Se já tem funcionários carregados e está sem internet, NÃO limpar cache
+    if (funcionariosCarregados && funcionarios.length > 0 && !navigator.onLine) {
+      console.log('📡 SEM INTERNET - Mantendo funcionários já carregados');
+      document.getElementById('loadingFuncionarios').style.display = 'none';
+      
+      // Mostrar mensagem informativa
+      const total = funcionarios.length;
+      const texto = `${total} funcionários (modo offline)`;
+      document.getElementById('contadorFuncionarios').textContent = texto;
+      
+      // Avisar que está usando cache por falta de internet
+      setTimeout(() => {
+        alert('⚠️ Você está SEM INTERNET\n\n' +
+              '✅ Continuando com a lista atual de ' + total + ' funcionários\n' +
+              '🔄 Quando a internet voltar, clique em "Atualizar Lista"');
+      }, 500);
+      
+      return true;
+    }
+    
+    // Se tem cache válido e está sem internet, usar cache (sem tentar buscar)
+    if (cacheValido && !navigator.onLine) {
+      console.log('📡 SEM INTERNET - Usando cache disponível');
+      funcionarios = JSON.parse(cacheData);
+      funcionariosCarregados = true;
+      atualizarInterfaceFuncionarios();
+      
+      // Avisar que está usando cache por falta de internet
+      setTimeout(() => {
+        alert('⚠️ Você está SEM INTERNET\n\n' +
+              '✅ Usando lista salva anteriormente\n' +
+              '📋 ' + funcionarios.length + ' funcionários disponíveis\n' +
+              '🔄 Quando a internet voltar, clique em "Atualizar Lista"');
+      }, 500);
+      
+      return true;
+    }
+    
+    // Se está sem internet e não tem cache válido, mostrar erro
+    if (!navigator.onLine) {
+      console.log('❌ SEM INTERNET E SEM CACHE VÁLIDO');
+      document.getElementById('loadingFuncionarios').style.display = 'none';
+      document.getElementById('statusFuncionarios').style.display = 'none';
+      document.getElementById('erroFuncionarios').style.display = 'block';
+      
+      // Mensagem mais amigável
+      document.getElementById('erroFuncionarios').querySelector('div:first-child').textContent = 
+        '⚠️ Sem conexão com a internet';
+      document.getElementById('erroFuncionarios').querySelector('div:nth-child(2)').innerHTML = 
+        'Não é possível carregar a lista de funcionários.<br>' +
+        'Verifique sua conexão e tente novamente.';
+      
+      funcionarios = [];
+      funcionariosCarregados = false;
+      desabilitarTabela();
+      
+      return false;
+    }
+    
+    // Se chegou aqui, tem internet - tentar buscar do servidor
+    
+    // Se tem cache válido, buscar em segundo plano sem limpar
+    if (cacheValido) {
+      console.log('🌐 Tem internet e cache válido - buscando atualização em segundo plano');
+      
+      // Primeiro mostrar cache atual
+      funcionarios = JSON.parse(cacheData);
+      funcionariosCarregados = true;
+      atualizarInterfaceFuncionarios();
+      
+      // Tentar atualizar em segundo plano
+      setTimeout(async () => {
+        try {
+          const response = await fetch(API_FUNCIONARIOS, {
+            headers: {
+              'X-Master-Key': MASTER_KEY,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.record && Array.isArray(data.record)) {
+              const novosFuncionarios = data.record.map(item => ({
+                codigo: item["CÓDIGO"] ? item["CÓDIGO"].toString() : '',
+                nome: item["NOME"] || ''
+              })).filter(f => f.codigo && f.nome);
+              
+              novosFuncionarios.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+              
+              if (novosFuncionarios.length > 0) {
+                // Verificar se houve mudança
+                const cacheAtual = JSON.stringify(funcionarios.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
+                const novos = JSON.stringify(novosFuncionarios);
+                
+                if (cacheAtual !== novos) {
+                  console.log('🔄 Atualização encontrada no servidor');
+                  funcionarios = novosFuncionarios;
+                  localStorage.setItem(cacheKey, novos);
+                  localStorage.setItem(cacheTimestampKey, Date.now().toString());
+                  atualizarDropdownsFuncionarios();
+                  
+                  // Avisar discretamente
+                  setTimeout(() => {
+                    alert('🔄 Lista de funcionários atualizada!\n' +
+                          'Novo total: ' + funcionarios.length + ' funcionários');
+                  }, 1000);
+                } else {
+                  console.log('✅ Lista já está atualizada');
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Falha na atualização em segundo plano:', error);
+          // Não faz nada - mantém o cache atual
+        }
+      }, 1000);
+      
+      return true;
+    }
+    
+    // Buscar do servidor (sem cache válido ou primeira vez)
+    console.log('🌐 Buscando funcionários do BIN...');
+    
+    const response = await fetch(API_FUNCIONARIOS, {
+      headers: {
+        'X-Master-Key': MASTER_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.record && Array.isArray(data.record)) {
+      // Normalizar dados para o formato que o sistema espera
+      funcionarios = data.record.map(item => ({
+        codigo: item["CÓDIGO"] ? item["CÓDIGO"].toString() : '',
+        nome: item["NOME"] || ''
+      })).filter(f => f.codigo && f.nome);
+      
+      if (funcionarios.length === 0) {
+        throw new Error('BIN vazio ou formato inválido');
+      }
+      
+      // Ordenar por nome (ordem alfabética)
+      funcionarios.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      
+      funcionariosCarregados = true;
+      
+      // Salvar no cache local (2 dias)
+      localStorage.setItem(cacheKey, JSON.stringify(funcionarios));
+      localStorage.setItem(cacheTimestampKey, Date.now().toString());
+      
+      atualizarInterfaceFuncionarios();
+      
+      console.log(`✅ ${funcionarios.length} funcionários carregados do BIN e salvos em cache`);
+      
+      return true;
+    } else {
+      throw new Error('Formato de dados inválido no BIN');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar funcionários do BIN:', error);
+    
+    // Verificar se tem cache antigo para usar
+    const cacheKey = 'funcionarios_cache';
+    const cacheData = localStorage.getItem(cacheKey);
+    
+    if (cacheData) {
+      console.log('🔄 Usando cache devido a erro na conexão');
+      funcionarios = JSON.parse(cacheData);
+      funcionariosCarregados = true;
+      
+      document.getElementById('loadingFuncionarios').style.display = 'none';
+      atualizarInterfaceFuncionarios();
+      
+      // Avisar que está usando cache por erro
+      setTimeout(() => {
+        alert('⚠️ Problema na conexão com o servidor\n\n' +
+              '✅ Usando lista salva anteriormente\n' +
+              '📋 ' + funcionarios.length + ' funcionários disponíveis\n' +
+              '🔄 Tente atualizar novamente mais tarde');
+      }, 500);
+      
+      return true;
+    }
+    
+    // Se não tem cache, mostrar erro
+    document.getElementById('loadingFuncionarios').style.display = 'none';
+    document.getElementById('erroFuncionarios').style.display = 'block';
+    document.getElementById('statusFuncionarios').style.display = 'none';
+    
+    funcionarios = [];
+    funcionariosCarregados = false;
+    desabilitarTabela();
+    
+    return false;
+  }
+}
+
+// Atualizar interface após carregar funcionários
+function atualizarInterfaceFuncionarios() {
+  const total = funcionarios.length;
+  const texto = `${total} ${total === 1 ? 'funcionário carregado' : 'funcionários carregados'}`;
+  document.getElementById('contadorFuncionarios').textContent = texto;
+  
+  document.getElementById('statusFuncionarios').style.display = 'flex';
+  document.getElementById('loadingFuncionarios').style.display = 'none';
+  
+  atualizarDropdownsFuncionarios();
+  habilitarTabela();
+}
+
+// Atualizar todos os dropdowns existentes
+function atualizarDropdownsFuncionarios() {
+  const selects = document.querySelectorAll('#tblFuncionarios select');
+  selects.forEach(select => {
+    const selectedValue = select.value;
+    
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    
+    funcionarios.forEach(func => {
+      const option = document.createElement('option');
+      option.value = func.nome;
+      option.textContent = func.nome;
+      option.dataset.codigo = func.codigo;
+      select.appendChild(option);
+    });
+    
+    if (selectedValue) {
+      select.value = selectedValue;
+    }
+  });
+}
+
+// Desabilitar tabela quando não há funcionários
+function desabilitarTabela() {
+  const inputs = document.querySelectorAll('#tblFuncionarios input');
+  const selects = document.querySelectorAll('#tblFuncionarios select');
+  
+  inputs.forEach(input => {
+    input.disabled = true;
+    input.placeholder = 'Carregue a lista primeiro';
+  });
+  
+  selects.forEach(select => {
+    select.disabled = true;
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    const option = document.createElement('option');
+    option.value = "";
+    option.textContent = "⚠️ Lista não carregada";
+    option.disabled = true;
+    select.appendChild(option);
+  });
+}
+
+// Habilitar tabela quando funcionários são carregados
+function habilitarTabela() {
+  const inputs = document.querySelectorAll('#tblFuncionarios input');
+  const selects = document.querySelectorAll('#tblFuncionarios select');
+  
+  inputs.forEach(input => {
+    input.disabled = false;
+    if (input.type === 'text' && !input.id.includes('hora')) {
+      input.placeholder = '';
+    }
+  });
+  
+  selects.forEach(select => {
+    select.disabled = false;
+  });
+}
+
+// ============================================
+// FUNÇÕES ORIGINAIS DO RDS
+// ============================================
+
+// --- DATA E HORA AUTOMÁTICA ---
+window.addEventListener('DOMContentLoaded', () => {
+  function $(id){return document.getElementById(id)}
+
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  $('rds_data').value = `${yyyy}-${mm}-${dd}`;
+
+  $('rds_hora_doc').value = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  
+  carregarFuncionariosDoBin();
+});
+
+// --- FUNÇÕES PRINCIPAIS ---
+const $ = id => document.getElementById(id);
+const tblBody = document.querySelector('#tblFuncionarios tbody');
+
+// --- FUNÇÃO PARA APLICAR MÁSCARA DE HORÁRIO ---
+function aplicarMascaraHorario(input) {
+  input.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    
+    if (value.length > 4) {
+      value = value.substring(0, 4);
+    }
+    
+    if (value.length >= 3) {
+      e.target.value = value.substring(0, 2) + ':' + value.substring(2, 4);
+    } else if (value.length > 0) {
+      e.target.value = value;
+    }
+  });
+}
+
+// Função para criar dropdown de funcionários
+function criarSelectFuncionario(selected){
+  const s = document.createElement('select');
+  const opt = document.createElement('option');
+  opt.value = ""; 
+  opt.textContent = "Selecione...";
+  s.appendChild(opt);
+  
+  if (funcionariosCarregados && funcionarios.length > 0) {
+    funcionarios.forEach(func => {
+      const o = document.createElement('option');
+      o.value = func.nome;
+      o.textContent = func.nome;
+      o.dataset.codigo = func.codigo;
+      if (selected === func.nome) o.selected = true;
+      s.appendChild(o);
+    });
+  } else {
+    const o = document.createElement('option');
+    o.value = "";
+    o.textContent = "Carregando...";
+    o.disabled = true;
+    s.appendChild(o);
+  }
+  
+  return s;
+}
+
+function addRow(data={}) {
+  const tr=document.createElement('tr');
+  const tdCodigo=document.createElement('td');
+  const tdFuncionario=document.createElement('td');
+  const tdEntrada=document.createElement('td');
+  const tdSaida=document.createElement('td');
+  const tdObservacao=document.createElement('td');
+  const tdAcoes=document.createElement('td');
+
+  const inputCodigo=document.createElement('input');
+  inputCodigo.type='text';
+  inputCodigo.value=data.codigo||'';
+  
+  const selectFuncionario=criarSelectFuncionario(data.nome);
+  
+  const inputEntrada=document.createElement('input');
+  inputEntrada.type='text';
+  inputEntrada.placeholder='HH:MM';
+  aplicarMascaraHorario(inputEntrada);
+  
+  const inputSaida=document.createElement('input');
+  inputSaida.type='text';
+  inputSaida.placeholder='HH:MM';
+  aplicarMascaraHorario(inputSaida);
+  
+  const inputObservacao=document.createElement('input');
+  inputObservacao.type='text';
+  inputObservacao.placeholder='Observação';
+  
+  const btnRemover=document.createElement('button');
+  btnRemover.className='remove-btn';
+  btnRemover.textContent='Remover';
+  btnRemover.onclick=()=>tr.remove();
+
+  inputCodigo.addEventListener('input',()=>{
+    if (!funcionariosCarregados) return;
+    
+    const codigoDigitado = inputCodigo.value.trim();
+    if (!codigoDigitado) {
+      selectFuncionario.value = "";
+      return;
+    }
+    
+    const funcionario = funcionarios.find(f => 
+      f.codigo.toString() === codigoDigitado.toString()
+    );
+    
+    selectFuncionario.value = funcionario ? funcionario.nome : "";
+  });
+  
+  selectFuncionario.addEventListener('change',()=>{
+    if (!funcionariosCarregados) return;
+    
+    if (!selectFuncionario.value) {
+      inputCodigo.value = '';
+      return;
+    }
+    
+    const funcionario = funcionarios.find(f => 
+      f.nome === selectFuncionario.value
+    );
+    
+    if (funcionario) {
+      inputCodigo.value = funcionario.codigo;
+    }
+  });
+
+  tdCodigo.appendChild(inputCodigo);
+  tdFuncionario.appendChild(selectFuncionario);
+  tdEntrada.appendChild(inputEntrada);
+  tdSaida.appendChild(inputSaida);
+  tdObservacao.appendChild(inputObservacao);
+  tdAcoes.appendChild(btnRemover);
+
+  tr.append(tdCodigo, tdFuncionario, tdEntrada, tdSaida, tdObservacao, tdAcoes);
+  tblBody.appendChild(tr);
+}
+
+// cria 20 linhas iniciais
+for(let i=0;i<20;i++) addRow({});
+
+// Event listeners para botões
+$('btnAdd').onclick=()=>addRow({});
+$('btnLimpar').onclick=()=>{
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  tblBody.innerHTML='';
+  for(let i=0;i<20;i++) addRow({});
+};
+
+// Botão para atualizar funcionários
+$('btnAtualizarFuncionarios').onclick = async () => {
+  // Verificar se está online antes de tentar atualizar
+  if (!navigator.onLine) {
+    alert('⚠️ Você está SEM INTERNET\n\n' +
+          'Não é possível atualizar a lista sem conexão.\n' +
+          'Continue usando a lista atual até a internet voltar.');
+    return;
+  }
+  
+  $('btnAtualizarFuncionarios').disabled = true;
+  $('btnAtualizarFuncionarios').innerHTML = '🔄 Atualizando...';
+  
+  // Limpar cache APENAS se estiver online e usuário confirmar
+  const confirmar = confirm('🔄 ATUALIZAR LISTA DE FUNCIONÁRIOS\n\n' +
+                          'Isso buscará a lista mais recente do servidor.\n' +
+                          'Deseja continuar?');
+  
+  if (!confirmar) {
+    $('btnAtualizarFuncionarios').disabled = false;
+    $('btnAtualizarFuncionarios').innerHTML = '🔄 Atualizar Lista';
+    return;
+  }
+  
+  // Limpar cache para forçar atualização
+  localStorage.removeItem('funcionarios_cache');
+  localStorage.removeItem('funcionarios_cache_timestamp');
+  
+  await carregarFuncionariosDoBin();
+  
+  setTimeout(() => {
+    $('btnAtualizarFuncionarios').disabled = false;
+    $('btnAtualizarFuncionarios').innerHTML = '🔄 Atualizar Lista';
+  }, 1000);
+};
+
+// Botão tentar novamente
+$('btnTentarNovamente').onclick = async () => {
+  // Verificar se está online
+  if (!navigator.onLine) {
+    alert('⚠️ Você está SEM INTERNET\n\n' +
+          'Não é possível carregar a lista sem conexão.\n' +
+          'Verifique sua conexão e tente novamente.');
+    return;
+  }
+  
+  $('btnTentarNovamente').disabled = true;
+  $('btnTentarNovamente').innerHTML = 'Tentando...';
+  
+  await carregarFuncionariosDoBin();
+  
+  setTimeout(() => {
+    $('btnTentarNovamente').disabled = false;
+    $('btnTentarNovamente').innerHTML = 'Tentar Novamente';
+  }, 1000);
+};
+
+// --- APLICAR MÁSCARA NOS CAMPOS DE HORÁRIO PRINCIPAIS ---
+aplicarMascaraHorario($('rds_hora_doc'));
+aplicarMascaraHorario($('rds_horario_entrada'));
+aplicarMascaraHorario($('rds_horario_saida'));
+
+// --- VARIÁVEL PARA CONTROLAR A PRÓXIMA LINHA A SER PREENCHIDA ---
+let proximaLinhaParaPreencher = 0;
+
+// --- FUNÇÃO PARA PREENCHER HORÁRIO AUTOMATICAMENTE ---
+$('btnPreencherHorario').onclick = () => {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  const entrada = $('rds_horario_entrada').value.trim();
+  const saida = $('rds_horario_saida').value.trim();
+  
+  if (!entrada || !saida) {
+    alert('Por favor, preencha os horários de entrada e saída.');
+    return;
+  }
+  
+  const linhas = tblBody.querySelectorAll('tr');
+  
+  if (linhas.length === 0) {
+    alert('Não há linhas na tabela para preencher.');
+    return;
+  }
+  
+  if (proximaLinhaParaPreencher >= linhas.length) {
+    alert('Todas as linhas já foram preenchidas!');
+    return;
+  }
+  
+  const linhaAtual = linhas[proximaLinhaParaPreencher];
+  const cells = linhaAtual.querySelectorAll('td');
+  
+  if (cells.length >= 5) {
+    const inputEntrada = cells[2].querySelector('input');
+    const inputSaida = cells[3].querySelector('input');
+    
+    if (inputEntrada && inputSaida) {
+      inputEntrada.value = entrada;
+      inputSaida.value = saida;
+      proximaLinhaParaPreencher++;
+    }
+  }
+};
+
+// --- FUNÇÃO PARA OBTER HORÁRIO DE TRABALHO COMO TEXTO ---
+function obterHorarioTrabalhoTexto() {
+  const entrada = $('rds_horario_entrada').value.trim();
+  const saida = $('rds_horario_saida').value.trim();
+  
+  if (entrada && saida) {
+    return `${entrada} às ${saida}`;
+  }
+  return '';
+}
+
+// ======================================================
+// FUNÇÕES PARA ENVIO EM SEGUNDO PLANO
+// ======================================================
+
+function tentarEnviarParaServidorEmSegundoPlano() {
+  if (!funcionariosCarregados) return;
+  
+  enviarParaServidorRDSSilencioso().catch(err => {
+    console.log('Falha no envio em segundo plano, agendando nova tentativa...');
+    setTimeout(tentarEnviarParaServidorEmSegundoPlano, 30000);
+  });
+}
+
+async function enviarParaServidorRDSSilencioso() {
+  if (!funcionariosCarregados) return;
+  
+  gerarExcelBase();
+
+  const dataIso = $('rds_data').value;
+  const [yyyy, mm, dd] = dataIso.split('-');
+  const data = dataIso ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
+  const horaDoc = $('rds_hora_doc').value;
+  const contratante = $('rds_contratante').value;
+  const servico = $('rds_servico').value;
+  
+  const horarioTrabalho = obterHorarioTrabalhoTexto();
+  
+  const fabrica = $('rds_fabrica').value;
+  const tema = $('rds_tema').value;
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Data: data,
+      HoraDocumento: horaDoc,
+      Contratante: contratante,
+      Servico: servico,
+      HorarioTrabalho: horarioTrabalho,
+      Fabrica: fabrica,
+      TemaDDS: tema,
+      Codigo: i[0].value,
+      Nome: i[1].value,
+      Entrada: i[2].value,
+      Saida: i[3].value,
+      Observacao: i[4].value
+    };
+  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
+
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...linhas];
+    const resPut = await fetch(PUT_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Dados enviados para o Servidor com sucesso!');
+      localStorage.removeItem('rds_offline_cache');
+    } else {
+      console.log('❌ Erro ao enviar, salvando localmente...');
+      salvarParaTentarDepoisRDS(linhas);
+    }
+
+  } catch (err) {
+    console.log('❌ Erro: ' + err.message + '\nSalvando localmente...');
+    salvarParaTentarDepoisRDS(linhas);
+  }
+}
+
+function salvarParaTentarDepoisRDS(linhas) {
+  if (!navigator.onLine) {
+    return;
+  }
+  
+  const pendentes = JSON.parse(localStorage.getItem('rds_pendentes') || '[]');
+  pendentes.push(...linhas);
+  localStorage.setItem('rds_pendentes', JSON.stringify(pendentes));
+  console.log('📋 Dados RDS salvos para envio posterior');
+}
+
+async function tentarEnviarPendentesRDS() {
+  const pendentes = JSON.parse(localStorage.getItem('rds_pendentes') || '[]');
+  if (pendentes.length === 0 || !navigator.onLine) return;
+  
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...pendentes];
+
+    const resPut = await fetch(PUT_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Dados pendentes RDS enviados com sucesso!');
+      localStorage.removeItem('rds_pendentes');
+    } else {
+      console.log('❌ Falha ao enviar dados pendentes RDS, tentando novamente em 1 minuto...');
+      setTimeout(tentarEnviarPendentesRDS, 60000);
+    }
+
+  } catch(err){
+    console.log('❌ Erro ao enviar pendentes RDS: ' + err.message);
+    setTimeout(tentarEnviarPendentesRDS, 60000);
+  }
+}
+
+setInterval(tentarEnviarPendentesRDS, 300000);
+window.addEventListener('online', tentarEnviarPendentesRDS);
+
+// ======================================================
+// FUNÇÕES DE GERAR PDF E EXCEL
+// ======================================================
+
+$('btnGerarPDF').onclick=async()=>{
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  tentarEnviarParaServidorEmSegundoPlano();
+  
+  const {jsPDF}=window.jspdf;
+  const dataISO = $('rds_data').value;
+  const [yyyy, mm, dd] = dataISO.split('-');
+  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+  $('meta_data').innerText='DATA: '+dataFormatada;
+  $('meta_hora_doc').innerText=$('rds_hora_doc').value;
+  $('meta_contratante').innerText=$('rds_contratante').value;
+  $('meta_servico').innerText=$('rds_servico').value;
+  $('meta_fabrica').innerText=$('rds_fabrica').value;
+  
+  $('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
+  
+  $('meta_tema').innerText=$('rds_tema').value;
+  $('rds_dds').innerText=$('rds_tema').value;
+
+  const tbody=$('rds_func_rows');
+  tbody.innerHTML='';
+  Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
+    const tds=r.querySelectorAll('input,select');
+    const entrada = tds[2].value.trim();
+    const saida = tds[3].value.trim();
+    const observacao = tds[4].value.trim();
+    if(entrada || saida || observacao){
+      const tr2=document.createElement('tr');
+      tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
+      tbody.appendChild(tr2);
+    }
+  });
+
+  const wrapper=$('rds_report').cloneNode(true);
+  wrapper.style.position='fixed';wrapper.style.left='-9999px';
+  document.body.appendChild(wrapper);
+  const canvas=await html2canvas(wrapper,{scale:2});
+  const img=canvas.toDataURL('image/png');
+  const pdf=new jsPDF({unit:'pt',format:'a4'});
+  const w=pdf.internal.pageSize.width;
+  const h=(canvas.height*w)/canvas.width;
+  let pos=0, heightLeft=h;
+  pdf.addImage(img,'PNG',0,pos,w,h);
+  heightLeft-=pdf.internal.pageSize.height;
+  while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
+  pdf.save(`RDS_${$('rds_servico').value}_${dataFormatada}.pdf`);
+  document.body.removeChild(wrapper);
+};
+
+document.getElementById('btnExcelRDS').addEventListener('click', function() {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  tentarEnviarParaServidorEmSegundoPlano();
+  
+  gerarExcelParaDownload();
+});
+
+let ultimoExcelBlob = null;
+
+function gerarExcelParaDownload() {
+    if (!funcionariosCarregados) {
+        alert('⚠️ Primeiro carregue a lista de funcionários');
+        return;
+    }
+    
+    const blob = gerarExcelBase();
+    if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        const data = $('rds_data').value;
+        const servico = $('rds_servico').value;
+        const nomeArquivo = `RDS_${servico.replace(/[^a-z0-9]/gi,'_')}_${data}.xlsx`;
+        a.download = nomeArquivo;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert('✅ Excel gerado com sucesso!');
+    }
+}
+
+function gerarExcelBase() {
+    try {
+        if (!funcionariosCarregados) return null;
+        
+        const data = $('rds_data').value;
+        const hora = $('rds_hora_doc').value;
+        const contratante = $('rds_contratante').value;
+        const servico = $('rds_servico').value;
+        const fabrica = $('rds_fabrica').value;
+        
+        const horarioTrabalho = obterHorarioTrabalhoTexto();
+        
+        const tema = $('rds_tema').value;
+
+        const linhasFunc = Array.from(tblBody.querySelectorAll('tr')).map(tr => {
+            const cells = tr.querySelectorAll('td');
+            const entrada = cells[2].querySelector('input').value.trim();
+            const saida = cells[3].querySelector('input').value.trim();
+            const observacao = cells[4].querySelector('input').value.trim();
+            const inputCodigo = cells[0].querySelector('input');
+            const selectNome = cells[1].querySelector('select');
+            const codigo = (entrada || saida) ? (inputCodigo ? inputCodigo.value.trim() : '') : '';
+            const nome = (entrada || saida) ? (selectNome?.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
+
+            return { Codigo: codigo, Nome: nome, Entrada: entrada, Saida: saida, Observacao: observacao };
+        }).filter(f => f.Entrada || f.Saida || f.Observacao);
+
+        if (linhasFunc.length === 0) {
+            alert('⚠️ Nenhum dado de funcionário preenchido!');
+            return null;
+        }
+
+        const [yyyy, mm, dd] = data.split('-');
+        const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+
+        const linhas = linhasFunc.map(f => ({
+            Data: dataFormatada,
+            Hora: hora,
+            Contratante: contratante,
+            Servico: servico,
+            Fabrica: fabrica,
+            HorarioTrabalho: horarioTrabalho,
+            TemaDDS: tema,
+            Codigo: f.Codigo,
+            Nome: f.Nome,
+            Entrada: f.Entrada,
+            Saida: f.Saida,
+            Observacao: f.Observacao
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(linhas);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'RDS');
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        ultimoExcelBlob = new Blob([wbout], { type: 'application/octet-stream' });
+
+        return ultimoExcelBlob;
+        
+    } catch (error) {
+        alert('❌ Erro ao gerar Excel: ' + error.message);
+        return null;
+    }
+}
+
+// ======================================================
+// FUNÇÕES ORIGINAIS MANTIDAS
+// ======================================================
+
+function salvarLocalmenteRDS() {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  const cabecalho = {
+    data: $('rds_data').value,
+    horaDoc: $('rds_hora_doc').value,
+    contratante: $('rds_contratante').value,
+    servico: $('rds_servico').value,
+    horarioEntrada: $('rds_horario_entrada').value,
+    horarioSaida: $('rds_horario_saida').value,
+    fabrica: $('rds_fabrica').value,
+    tema: $('rds_tema').value
+  };
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Codigo: i[0].value,
+      Nome: i[1].value,
+      Entrada: i[2].value,
+      Saida: i[3].value,
+      Observacao: i[4].value
+    };
+  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
+
+  const pacote = { cabecalho, linhas };
+
+  localStorage.setItem('rds_offline_cache', JSON.stringify(pacote));
+  alert('💾 Dados salvos localmente! Tudo oque voce salvou até agora vai ficar salvo até ser enviado para o servidor, adicionou ou mudou alguma coisa salve de novo, sem atualizar a pagina funciona no celular pelo tempo que for preciso, atualizou e a pagina sumiu, os dados salvos recuperaram assim que a conexão voltar, pode enviar automatico, por garantia se não houver mensagem de envio enive para Servidor!');
+}
+
+window.addEventListener('load', () => {
+  const cache = localStorage.getItem('rds_offline_cache');
+  if (cache) {
+    const { cabecalho, linhas } = JSON.parse(cache);
+
+    if (cabecalho) {
+      $('rds_data').value = cabecalho.data || '';
+      $('rds_hora_doc').value = cabecalho.horaDoc || '';
+      $('rds_contratante').value = cabecalho.contratante || '';
+      $('rds_servico').value = cabecalho.servico || '';
+      $('rds_horario_entrada').value = cabecalho.horarioEntrada || '';
+      $('rds_horario_saida').value = cabecalho.horarioSaida || '';
+      $('rds_fabrica').value = cabecalho.fabrica || '';
+      $('rds_tema').value = cabecalho.tema || '';
+    }
+
+    if (linhas?.length) {
+      tblBody.innerHTML = "";
+      linhas.forEach(l => {
+        const tr = document.createElement('tr');
+        const select = criarSelectFuncionario(l.Nome || '');
+        tr.innerHTML = `
+          <td><input type="text" value="${l.Codigo || ''}" /></td>
+          <td></td>
+          <td><input type="text" value="${l.Entrada || ''}" /></td>
+          <td><input type="text" value="${l.Saida || ''}" /></td>
+          <td><input type="text" value="${l.Observacao || ''}" /></td>
+          <td><button class="remove-btn">Remover</button></td>
+        `;
+        tr.children[1].appendChild(select);
+        tr.querySelector('.remove-btn').onclick = () => tr.remove();
+        tblBody.appendChild(tr);
+      });
+      alert('📦 Dados locais carregados!');
+    }
+  }
+});
+
+async function enviarParaServidorRDS() {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  if (!ultimoExcelBlob) {
+    ultimoExcelBlob = gerarExcelBase();
+  }
+
+  if (!ultimoExcelBlob) {
+    alert('❌ Não foi possível gerar o Excel para envio');
+    return;
+  }
+
+  const dataIso = $('rds_data').value;
+  const [yyyy, mm, dd] = dataIso.split('-');
+  const data = dataIso ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
+  const horaDoc = $('rds_hora_doc').value;
+  const contratante = $('rds_contratante').value;
+  const servico = $('rds_servico').value;
+  
+  const horarioTrabalho = obterHorarioTrabalhoTexto();
+  
+  const fabrica = $('rds_fabrica').value;
+  const tema = $('rds_tema').value;
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Data: data,
+      HoraDocumento: horaDoc,
+      Contratante: contratante,
+      Servico: servico,
+      HorarioTrabalho: horarioTrabalho,
+      Fabrica: fabrica,
+      TemaDDS: tema,
+      Codigo: i[0].value,
+      Nome: i[1].value,
+      Entrada: i[2].value,
+      Saida: i[3].value,
+      Observacao: i[4].value
+    };
+  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
+
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...linhas];
+    const resPut = await fetch(PUT_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      alert('✅ Dados enviados com sucesso!');
+      localStorage.removeItem('rds_offline_cache');
+    } else {
+      alert('❌ Erro ao enviar, dados mantidos localmente.');
+      salvarLocalmenteRDS();
+    }
+
+  } catch (err) {
+    alert('❌ Erro: ' + err.message + '\nDados salvos localmente.');
+    salvarLocalmenteRDS();
+  }
+}
+
+document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
+document.getElementById('btnServidor').onclick = enviarParaServidorRDS;
+
+window.addEventListener('online', async () => {
+  const cache = localStorage.getItem('rds_offline_cache');
+  if (cache && funcionariosCarregados) {
+    ultimoExcelBlob = gerarExcelBase();
+    alert('🌐 Conexão restaurada! Enviando dados pendentes...');
+    await enviarParaServidorRDS();
+  }
+});
+</script>
+</body>
+</html>
+
