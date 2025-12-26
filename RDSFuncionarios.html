@@ -972,7 +972,7 @@ function obterHorarioTrabalhoTexto() {
 // FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR
 // ======================================================
 
-async function enviarParaServidorRDS(limparCache = true) {
+async function enviarParaServidorRDS(limparCache = true, mostrarAlerta = true) {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
     return false;
@@ -1009,7 +1009,9 @@ async function enviarParaServidorRDS(limparCache = true) {
   }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
 
   if (linhas.length === 0) {
-    alert("⚠️ Não há dados para enviar!");
+    if (mostrarAlerta) {
+      alert("⚠️ Não há dados para enviar!");
+    }
     return false;
   }
 
@@ -1049,11 +1051,17 @@ async function enviarParaServidorRDS(limparCache = true) {
       return true;
     } else {
       console.log('❌ Erro ao enviar para o Servidor.');
+      if (mostrarAlerta) {
+        alert('❌ Erro ao enviar para o servidor.');
+      }
       return false;
     }
 
   } catch (err) {
     console.log('❌ Erro: ' + err.message);
+    if (mostrarAlerta) {
+      alert('❌ Erro de conexão: ' + err.message);
+    }
     return false;
   }
 }
@@ -1069,7 +1077,7 @@ $('btnGerarPDF').onclick = async () => {
   }
   
   // Primeiro tenta enviar para o servidor
-  const enviadoComSucesso = await enviarParaServidorRDS(true);
+  const enviadoComSucesso = await enviarParaServidorRDS(true, false); // Não mostrar alerta aqui ainda
   
   if (enviadoComSucesso) {
     // Se enviou com sucesso, gera o PDF
@@ -1126,9 +1134,11 @@ $('btnGerarPDF').onclick = async () => {
     // Limpa o formulário após gerar PDF e enviar
     tblBody.innerHTML = '';
     for(let i=0;i<20;i++) addRow({});
-    alert('✅ PDF gerado e dados enviados!\nFormulário limpo para novo registro.');
+    
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
   } else {
-    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.');
+    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
   }
 };
 
@@ -1137,7 +1147,12 @@ $('btnGerarPDF').onclick = async () => {
 // ======================================================
 
 document.getElementById('btnServidor').onclick = async () => {
-  const enviadoComSucesso = await enviarParaServidorRDS(true);
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  const enviadoComSucesso = await enviarParaServidorRDS(true, true);
   
   if (enviadoComSucesso) {
     alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
@@ -1164,7 +1179,7 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
   }
   
   // Primeiro tenta enviar para o servidor (igual ao PDF)
-  const enviadoComSucesso = await enviarParaServidorRDS(true);
+  const enviadoComSucesso = await enviarParaServidorRDS(true, false); // Não mostrar alerta aqui ainda
   
   if (enviadoComSucesso) {
     // Se enviou com sucesso, gera o Excel
@@ -1239,9 +1254,10 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
     tblBody.innerHTML = '';
     for(let i=0;i<20;i++) addRow({});
     
-    alert('✅ Excel gerado e dados enviados!\nFormulário limpo para novo registro.');
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ Excel gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
   } else {
-    alert('❌ Não foi possível enviar para o servidor. O Excel não será gerado.');
+    alert('❌ Não foi possível enviar para o servidor. O Excel não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
   }
 });
 
@@ -1354,19 +1370,22 @@ window.addEventListener('load', () => {
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rds_offline_cache');
   if (cache) {
-    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos.');
+    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
+    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
     
     if (acao) {
-      const enviado = await enviarParaServidorRDS(true);
+      const enviado = await enviarParaServidorRDS(true, false);
       if (enviado) {
         const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
         if (limpar) {
           tblBody.innerHTML = '';
           for(let i=0;i<20;i++) addRow({});
         }
+      } else {
+        alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
       }
     } else {
-      alert('💾 Dados mantidos no cache local. Use "Enviar para Servidor" quando quiser enviar.');
+      alert('💾 Dados mantidos no cache local.\nVocê pode enviá-los depois clicando em "Enviar para Servidor".');
     }
   }
 });
@@ -1377,3 +1396,4 @@ document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
 </script>
 </body>
 </html>
+
