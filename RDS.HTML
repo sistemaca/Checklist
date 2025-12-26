@@ -172,7 +172,7 @@
   #tblFuncionarios th:nth-child(1) { width: 70px; } /* Código */
   #tblFuncionarios th:nth-child(2) { min-width: 175px; } /* Funcionário - DIMINUIU 5px (era 180px) */
   #tblFuncionarios th:nth-child(3) { width: 85px; } /* Entrada */
-  #tblFuncionarios th:nth-child(4) { width: 85px; } /* Saída */
+  #tblFuncionarios th:nth-child(4) { width: 85px; } /* Saída - MESMO TAMANHO */
   #tblFuncionarios th:nth-child(5) { width: 125px; } /* Observação - AUMENTOU 5px (era 120px) */
   #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações - APENAS X */
   
@@ -184,11 +184,19 @@
     box-sizing: border-box;
   }
   
-  /* Para horários - mesmo tamanho */
+  /* Para horários - mesmo tamanho e centralizados */
+  #tblFuncionarios td:nth-child(3),
+  #tblFuncionarios td:nth-child(4) {
+    text-align: center;
+    padding: 4px 2px !important;
+  }
+  
   #tblFuncionarios td:nth-child(3) input,
   #tblFuncionarios td:nth-child(4) input {
     width: 100%;
     text-align: center;
+    padding: 6px 2px;
+    font-size: 13px;
   }
   
   /* Botão remover apenas X */
@@ -236,12 +244,12 @@
       text-align: center;
     }
     
-    /* AJUSTES ESPECÍFICOS PARA CELULAR */
+    /* AJUSTES ESPECÍFICOS PARA CELULAR - ENTRADA E SAÍDA DO MESMO TAMANHO */
     #tblFuncionarios th:nth-child(1) { width: 60px; } /* Código menor */
-    #tblFuncionarios th:nth-child(2) { min-width: 155px; } /* Funcionário - DIMINUIU 5px (era 160px) */
-    #tblFuncionarios th:nth-child(3) { width: 75px; } /* Entrada */
-    #tblFuncionarios th:nth-child(4) { width: 80px; } /* Saída - AUMENTOU 5px (era 75px) */
-    #tblFuncionarios th:nth-child(5) { width: 100px; } /* Observação */
+    #tblFuncionarios th:nth-child(2) { min-width: 150px; } /* Funcionário - REDUZIDO 10px (era 160px) */
+    #tblFuncionarios th:nth-child(3) { width: 80px; text-align: center; } /* Entrada - AUMENTADO 5px (era 75px) */
+    #tblFuncionarios th:nth-child(4) { width: 80px; text-align: center; } /* Saída - AUMENTADO 5px (era 75px) */
+    #tblFuncionarios th:nth-child(5) { width: 95px; } /* Observação - REDUZIDO 10px (era 105px) */
     #tblFuncionarios th:nth-child(6) { width: 35px; } /* Ações */
     
     /* Inputs menores no celular */
@@ -251,11 +259,21 @@
       padding: 6px 4px;
     }
     
-    /* Horários centralizados e menores */
+    /* Horários centralizados e do MESMO TAMANHO no celular */
+    #tblFuncionarios td:nth-child(3),
+    #tblFuncionarios td:nth-child(4) {
+      width: 80px;
+      min-width: 80px;
+      text-align: center;
+      padding: 4px 1px !important;
+    }
+    
     #tblFuncionarios td:nth-child(3) input,
     #tblFuncionarios td:nth-child(4) input {
       font-size: 12px;
-      padding: 6px 2px;
+      padding: 6px 1px;
+      width: 100%;
+      text-align: center;
     }
     
     /* Botão X ainda menor no celular */
@@ -1493,4 +1511,3 @@ document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
 </script>
 </body>
 </html>
-
