@@ -187,6 +187,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('rde_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 });
 
+// LISTA ORIGINAL DE EQUIPAMENTOS (34 equipamentos) - CORRIGIDA
 const equipamentos = [
   "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
   "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
@@ -267,6 +268,7 @@ function addRow(tag="") {
   tblBody.appendChild(tr);
 }
 
+// CARREGA OS EQUIPAMENTOS APENAS UMA VEZ - REMOVIDA A DUPLICAÇÃO
 equipamentos.forEach(tag => addRow(tag));
 
 $('btnLimpar').onclick = () => {
@@ -445,6 +447,10 @@ function salvarLocalmente() {
 // --- CARREGAR DADOS SALVOS AO ABRIR A PÁGINA ---
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rde_offline_cache');
+  
+  // SEMPRE LIMPA A TABELA PRIMEIRO
+  tblBody.innerHTML = "";
+  
   if (cache) {
     const linhas = JSON.parse(cache);
     
@@ -453,7 +459,6 @@ window.addEventListener('load', () => {
       const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
       
       if (carregar) {
-        tblBody.innerHTML = "";
         linhas.forEach(l => {
           const tr = document.createElement('tr');
           const select = criarSelectArea(l.TAG || '');
@@ -501,12 +506,19 @@ window.addEventListener('load', () => {
         
         alert('📂 Dados carregados do cache local.');
       } else {
-        alert('📄 Iniciando formulário em branco.');
+        // Remove o cache se o usuário escolher começar em branco
+        localStorage.removeItem('rde_offline_cache');
+        // Carrega a lista padrão
         equipamentos.forEach(tag => addRow(tag));
+        alert('📄 Iniciando formulário em branco.');
       }
+    } else {
+      // Cache vazio, remove e carrega lista padrão
+      localStorage.removeItem('rde_offline_cache');
+      equipamentos.forEach(tag => addRow(tag));
     }
   } else {
-    // Carrega a lista padrão se não houver cache
+    // Não há cache, carrega a lista padrão
     equipamentos.forEach(tag => addRow(tag));
   }
 });
