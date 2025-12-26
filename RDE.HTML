@@ -278,7 +278,7 @@ $('btnLimpar').onclick = () => {
 };
 
 // --- FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR ---
-async function enviarParaServidorRDE(limparCache = true) {
+async function enviarParaServidorRDE(limparCache = true, mostrarAlerta = true) {
   const dataIso = $('rde_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
   const horaDoc = $('rde_hora_doc').value;
@@ -297,7 +297,9 @@ async function enviarParaServidorRDE(limparCache = true) {
   }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
 
   if (linhas.length === 0) {
-    alert("⚠️ Não há dados para enviar!");
+    if (mostrarAlerta) {
+      alert("⚠️ Não há dados para enviar!");
+    }
     return false;
   }
 
@@ -337,11 +339,17 @@ async function enviarParaServidorRDE(limparCache = true) {
       return true;
     } else {
       console.log('❌ Erro ao enviar para o Servidor.');
+      if (mostrarAlerta) {
+        alert('❌ Erro ao enviar para o servidor.');
+      }
       return false;
     }
 
   } catch(err){
     console.log('❌ Erro: ' + err.message);
+    if (mostrarAlerta) {
+      alert('❌ Erro de conexão: ' + err.message);
+    }
     return false;
   }
 }
@@ -349,7 +357,7 @@ async function enviarParaServidorRDE(limparCache = true) {
 // --- GERAR PDF (envia para servidor automaticamente) ---
 $('btnGerarPDF').onclick = async () => {
   // Primeiro tenta enviar para o servidor
-  const enviadoComSucesso = await enviarParaServidorRDE(true);
+  const enviadoComSucesso = await enviarParaServidorRDE(true, false); // Não mostrar alerta aqui ainda
   
   if (enviadoComSucesso) {
     // Se enviou com sucesso, gera o PDF
@@ -387,15 +395,17 @@ $('btnGerarPDF').onclick = async () => {
     // Limpa o formulário após gerar PDF e enviar
     tblBody.innerHTML = "";
     equipamentos.forEach(tag => addRow(tag));
-    alert('✅ PDF gerado e dados enviados!\nFormulário limpo para novo registro.');
+    
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
   } else {
-    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.');
+    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
   }
 };
 
 // --- ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF) ---
 document.getElementById('btnServidor').onclick = async () => {
-  const enviadoComSucesso = await enviarParaServidorRDE(true);
+  const enviadoComSucesso = await enviarParaServidorRDE(true, true);
   
   if (enviadoComSucesso) {
     alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
@@ -527,19 +537,23 @@ window.addEventListener('load', () => {
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rde_offline_cache');
   if (cache) {
-    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos.');
+    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
+    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
     
     if (acao) {
-      const enviado = await enviarParaServidorRDE(true);
+      // Cria um formulário temporário apenas com os dados do cache para enviar
+      const enviado = await enviarParaServidorRDE(true, false);
       if (enviado) {
         const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
         if (limpar) {
           tblBody.innerHTML = "";
           equipamentos.forEach(tag => addRow(tag));
         }
+      } else {
+        alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
       }
     } else {
-      alert('💾 Dados mantidos no cache local. Use "Enviar para Servidor" quando quiser enviar.');
+      alert('💾 Dados mantidos no cache local.\nVocê pode enviá-los depois clicando em "Enviar para Servidor".');
     }
   }
 });
