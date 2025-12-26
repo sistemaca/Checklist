@@ -161,7 +161,7 @@
   .erro-funcionarios {
     background: #fff5f5;
     border: 1px solid #f5c6cb;
-    border-radius = 6px;
+    border-radius: 6px;
     padding: 15px;
     margin-top: 15px;
     text-align: center;
@@ -170,11 +170,11 @@
   
   /* NOVOS ESTILOS PARA A TABELA RESPONSIVA */
   #tblFuncionarios th:nth-child(1) { width: 70px; } /* Código */
-  #tblFuncionarios th:nth-child(2) { min-width: 165px; } /* Funcionário - DIMINUIU 10px (era 175px) */
+  #tblFuncionarios th:nth-child(2) { min-width: 155px; } /* Funcionário */
   #tblFuncionarios th:nth-child(3) { width: 85px; } /* Entrada */
-  #tblFuncionarios th:nth-child(4) { width: 85px; } /* Saída - MESMO TAMANHO */
-  #tblFuncionarios th:nth-child(5) { width: 135px; } /* Observação - AUMENTOU 10px (era 125px) */
-  #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações - APENAS X */
+  #tblFuncionarios th:nth-child(4) { width: 85px; } /* Saída */
+  #tblFuncionarios th:nth-child(5) { width: 125px; } /* Observação */
+  #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações */
   
   /* Garantir que inputs ocupem toda a célula */
   #tblFuncionarios td input,
@@ -221,6 +221,41 @@
     background: #c82333;
   }
 
+  /* Garantir que Observação ocupe espaço máximo disponível */
+  #tblFuncionarios td:nth-child(5) {
+    max-width: none !important;
+  }
+
+  #tblFuncionarios td:nth-child(5) input {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* MODIFICAÇÕES PARA DESKTOP */
+  @media (min-width: 769px) {
+    .table { margin-top: 16px; }
+    .actions { justify-content: space-between; }
+    
+    /* Reduzir 10px de Entrada e 10px de Saída, passar para Observação */
+    #tblFuncionarios th:nth-child(1) { width: 70px; } /* Código */
+    #tblFuncionarios th:nth-child(2) { min-width: 155px; } /* Funcionário - MESMO TAMANHO */
+    #tblFuncionarios th:nth-child(3) { width: 75px; } /* Entrada - DIMINUIU 10px (era 85px) */
+    #tblFuncionarios th:nth-child(4) { width: 75px; } /* Saída - DIMINUIU 10px (era 85px) */
+    #tblFuncionarios th:nth-child(5) { width: 145px; } /* Observação - AUMENTOU 20px (era 125px) */
+    #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações */
+    
+    /* Ajustar inputs de horário para ficarem menores */
+    #tblFuncionarios td:nth-child(3) input,
+    #tblFuncionarios td:nth-child(4) input {
+      width: 100%;
+      text-align: center;
+      padding: 6px 2px;
+      font-size: 13px;
+    }
+  }
+  
+  /* MODIFICAÇÕES PARA CELULAR */
   @media (max-width: 768px) {
     .row { flex-direction: column; gap: 8px; }
     .btn { width: 100%; }
@@ -246,10 +281,10 @@
     
     /* AJUSTES ESPECÍFICOS PARA CELULAR - ENTRADA E SAÍDA DO MESMO TAMANHO */
     #tblFuncionarios th:nth-child(1) { width: 60px; } /* Código menor */
-    #tblFuncionarios th:nth-child(2) { min-width: 160px; } /* Funcionário - AUMENTOU 10px (era 150px) */
-    #tblFuncionarios th:nth-child(3) { width: 75px; text-align: center; } /* Entrada - DIMINUIU 5px (era 80px) */
-    #tblFuncionarios th:nth-child(4) { width: 75px; text-align: center; } /* Saída - DIMINUIU 5px (era 80px) */
-    #tblFuncionarios th:nth-child(5) { width: 95px; } /* Observação - MANTÉM 95px */
+    #tblFuncionarios th:nth-child(2) { min-width: 170px; } /* Funcionário - AUMENTOU 10px (era 160px) */
+    #tblFuncionarios th:nth-child(3) { width: 70px; text-align: center; } /* Entrada - DIMINUIU 5px (era 75px) */
+    #tblFuncionarios th:nth-child(4) { width: 70px; text-align: center; } /* Saída - DIMINUIU 5px (era 75px) */
+    #tblFuncionarios th:nth-child(5) { width: 105px; } /* Observação - AUMENTOU 10px (era 95px) */
     #tblFuncionarios th:nth-child(6) { width: 35px; } /* Ações */
     
     /* Inputs menores no celular */
@@ -262,8 +297,8 @@
     /* Horários centralizados e do MESMO TAMANHO no celular */
     #tblFuncionarios td:nth-child(3),
     #tblFuncionarios td:nth-child(4) {
-      width: 75px;
-      min-width: 75px;
+      width: 70px;
+      min-width: 70px;
       text-align: center;
       padding: 4px 1px !important;
     }
@@ -276,17 +311,18 @@
       text-align: center;
     }
     
+    /* Garantir que Observação ocupe espaço máximo disponível */
+    #tblFuncionarios td:nth-child(5) input {
+      width: 100%;
+      max-width: 100%;
+    }
+    
     /* Botão X ainda menor no celular */
     .remove-btn-x {
       width: 24px;
       height: 24px;
       font-size: 12px;
     }
-  }
-  
-  @media (min-width: 769px) {
-    .table { margin-top: 16px; }
-    .actions { justify-content: space-between; }
   }
 </style>
 </head>
