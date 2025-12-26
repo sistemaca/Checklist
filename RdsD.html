@@ -232,6 +232,19 @@
     box-sizing: border-box;
   }
 
+  /* NOVO: Alinhar código à direita (como no Excel) */
+  #tblFuncionarios td:nth-child(1) {
+    text-align: right !important;
+  }
+  
+  #tblFuncionarios td:nth-child(1) input {
+    text-align: right !important;
+    direction: ltr; /* Garante que números fiquem na ordem correta */
+    font-family: monospace; /* Melhora a leitura de números */
+    font-size: 13px;
+    padding-right: 8px; /* Dá um pouco de espaço à direita */
+  }
+
   /* MODIFICAÇÕES PARA DESKTOP */
   @media (min-width: 769px) {
     .table { margin-top: 16px; }
@@ -251,6 +264,12 @@
       width: 100%;
       text-align: center;
       padding: 6px 2px;
+      font-size: 13px;
+    }
+    
+    /* Código alinhado à direita também no desktop */
+    #tblFuncionarios td:nth-child(1) input {
+      text-align: right !important;
       font-size: 13px;
     }
   }
@@ -292,6 +311,27 @@
     #tblFuncionarios td select {
       font-size: 12px;
       padding: 6px 4px;
+    }
+    
+    /* NOVO: Código alinhado à direita no celular - ocultando zeros à esquerda */
+    #tblFuncionarios td:nth-child(1) {
+      text-align: right !important;
+      padding-left: 4px !important;
+      padding-right: 4px !important;
+      max-width: 60px;
+      overflow: hidden;
+    }
+    
+    #tblFuncionarios td:nth-child(1) input {
+      text-align: right !important;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 6px 2px !important;
+      direction: ltr;
+      width: 100%;
+      /* Faz com que zeros à esquerda fiquem menos visíveis */
+      background: linear-gradient(to left, transparent 10px, #fff 20px);
+      background-color: #fff;
     }
     
     /* Horários centralizados e do MESMO TAMANHO no celular */
@@ -917,6 +957,7 @@ function addRow(data={}) {
   const inputCodigo=document.createElement('input');
   inputCodigo.type='text';
   inputCodigo.value=data.codigo||'';
+  inputCodigo.style.textAlign = 'right'; // NOVO: Alinhar à direita
   
   const selectFuncionario=criarSelectFuncionario(data.nome);
   
@@ -1486,7 +1527,7 @@ window.addEventListener('load', () => {
             const tr = document.createElement('tr');
             const select = criarSelectFuncionario(l.Nome || '');
             tr.innerHTML = `
-              <td><input type="text" value="${l.Codigo || ''}" /></td>
+              <td><input type="text" value="${l.Codigo || ''}" style="text-align: right;" /></td>
               <td></td>
               <td><input type="text" value="${l.Entrada || ''}" style="text-align: center;" /></td>
               <td><input type="text" value="${l.Saida || ''}" style="text-align: center;" /></td>
@@ -1547,4 +1588,3 @@ document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
 </script>
 </body>
 </html>
-
