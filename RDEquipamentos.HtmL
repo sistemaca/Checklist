@@ -1,0 +1,593 @@
+<!DOCTYPE html> 
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RDE — Relatório Diário de Equipamentos</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root { --paper-w: 794px; --muted: #666; }
+  body {
+    font-family: "Arial", Helvetica, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 18px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .col {
+    flex: 1; min-width: 150px;
+    display: flex; flex-direction: column;
+    margin-bottom: 8px;
+  }
+  label { font-size: 13px; margin-bottom: 6px; color: #222; }
+  input[type=text], input[type=date], select {
+    padding: 8px; border: 1px solid #ddd;
+    border-radius: 6px; font-size: 14px;
+    background: #fff; width: 100%;
+    box-sizing: border-box;
+  }
+  input[readonly] {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+  }
+  .btn {
+    display: inline-block; background: #0b73d6; color: #fff;
+    border: none; padding: 10px 14px;
+    border-radius: 8px; font-size: 14px;
+    cursor: pointer; transition: background 0.3s;
+  }
+  .btn:hover { background: #0959a8; }
+  .btn.gray { background: #6c757d; }
+  .table {
+    width: 100%; border-collapse: collapse; margin-top: 12px;
+    background: #f8f9fa; border-radius: 8px; overflow: hidden;
+  }
+  .table th, .table td {
+    border: 1px solid #dcdcdc; padding: 6px;
+    font-size: 12px; text-align: center;
+  }
+  .table th { background: #f1f3f5; }
+  .table th.sinistro-header {
+    background: #e9ecef;
+    border-bottom: 2px solid #495057;
+    font-weight: bold;
+  }
+  .actions {
+    margin-top: 12px; display: flex; gap: 8px;
+    flex-wrap: wrap; align-items: center; justify-content: flex-start;
+  }
+  .muted { color: var(--muted); font-size: 13px; }
+  .rds-paper {
+    width: var(--paper-w); padding: 24px; background: #fff;
+    color: #111; box-sizing: border-box; font-size: 13px;
+  }
+  .rds-table {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
+  }
+  .rds-table td, .rds-table th {
+    border: 1px solid #333; padding: 6px;
+    font-size: 12px; text-align: center;
+  }
+  .rds-table th.sinistro-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid #333;
+    font-weight: bold;
+  }
+  .observacao-final {
+    margin-top: 12px;
+    padding: 10px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #856404;
+  }
+  
+  /* AJUSTE MÍNIMO APENAS PARA CELULAR - COLUNA ÁREA */
+  @media (max-width: 768px) {
+    .row { flex-direction: column; gap: 8px; }
+    .btn { width: 100%; }
+    .table { 
+      display: block; 
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .container { padding: 8px; }
+    .card { padding: 14px; }
+    h1 { font-size: 16px; text-align: center; }
+    .table th, .table td { 
+      font-size: 12px; 
+      padding: 6px;
+      white-space: nowrap;
+    }
+    .actions { flex-direction: column; align-items: stretch; }
+    
+    /* APENAS A COLUNA ÁREA RECEBE UM AJUSTE NO CELULAR */
+    #tblEquipamentos td:nth-child(2) {
+      min-width: 140px; /* Aumenta um pouco a coluna ÁREA no celular */
+    }
+    
+    /* Garantir que o select fique adequado */
+    #tblEquipamentos td:nth-child(2) select {
+      width: 100% !important;
+      font-size: 12px;
+      padding: 6px 4px;
+    }
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+    <h1>RDE — Relatório Diário de Equipamentos</h1>
+
+    <div class="row">
+      <div class="col"><label>Data</label><input id="rde_data" type="date" readonly></div>
+      <div class="col"><label>Hora do Documento</label><input id="rde_hora_doc" type="text" readonly></div>
+    </div>
+
+    <div class="muted">Tabela de Equipamentos</div>
+    <table class="table" id="tblEquipamentos">
+      <thead>
+        <tr>
+          <th rowspan="2">TAG</th>
+          <th rowspan="2">ÁREA</th>
+          <th colspan="2" class="sinistro-header">SINISTRO</th>
+          <th rowspan="2">OBSERVAÇÃO</th>
+        </tr>
+        <tr>
+          <th>SIM</th>
+          <th>NÃO</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- Observação Final Adicionada -->
+    <div class="observacao-final">
+      <strong>OBSERVAÇÃO:</strong> CASO DE RESPOSTA "SIM" PREENCHER FORMULÁRIO "FORMULÁRIO DE REGISTRO DE SINISTRO COM EQUIPAMENTO", EVIDENCIAR COM FOTOS E ENVIAR PARA LUIS.
+    </div>
+
+    <div class="actions">
+      <button id="btnSalvarLocal" class="btn gray">Salvar Localmente</button>
+      <button id="btnServidor" class="btn">Enviar para o Servidor</button>
+      <button id="btnGerarPDF" class="btn">Gerar PDF</button>
+      <button id="btnLimpar" class="btn gray">Limpar</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="paper" style="display:none">
+  <div class="rds-paper" id="rde_report">
+    <div style="display:flex;justify-content:space-between;">
+      <div>
+        <div style="font-size:12px">COMERCIAL ARCOS LTDA</div>
+        <div style="font-size:11px;margin-top:4px">ROD BR 354, KM 474, Nº 749 - VILA CALCITA - ARCOS/MG</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700">RELATÓRIO DIÁRIO DE EQUIPAMENTOS (RDE)</div>
+        <div id="meta_data"></div>
+        <div id="meta_hora_doc"></div>
+      </div>
+    </div>
+
+    <table class="rds-table" id="rde_table_equip" style="margin-top:12px">
+      <thead>
+        <tr>
+          <th rowspan="2">TAG</th>
+          <th rowspan="2">ÁREA</th>
+          <th colspan="2" class="sinistro-header">SINISTRO</th>
+          <th rowspan="2">OBSERVAÇÃO</th>
+        </tr>
+        <tr>
+          <th>SIM</th>
+          <th>NÃO</th>
+        </tr>
+      </thead>
+      <tbody id="rde_equip_rows"></tbody>
+    </table>
+    
+    <!-- OBSERVAÇÃO REMOVIDA DO PDF -->
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  $('rde_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  $('rde_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+});
+
+// LISTA ORIGINAL DE EQUIPAMENTOS (34 equipamentos) - CORRIGIDA
+const equipamentos = [
+  "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
+  "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
+  "MC002","MC004","MC005","MC006",
+  "PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"
+];
+
+const tblBody = document.querySelector('#tblEquipamentos tbody');
+
+function criarSelectArea(tagPrefix) {
+  const select = document.createElement('select');
+  const opcoesEMP = ["FAB. ARCOS","CAL","CAL EXTRA","HIDRATAÇÃO","SAFRA-CAL","CARBONATO","CALCIFERTIL","CARBONATO EXTRA","DRS","ALMOXARIFADO","MANUTENÇÃO","RESERVA","OFICINA MINA","GARAGEM"];
+  const opcoesMC = ["CAL","CARBONATO","DRS","MANUTENÇÃO","RESERVA","GARAGEM"];
+  const opcoesPC = ["BIOMASSA","CAL","COQUE","BRITAGEM","MANUTENÇÃO","RESERVA","GARAGEM"];
+  const lista = tagPrefix.startsWith("EMP") ? opcoesEMP : tagPrefix.startsWith("MC") ? opcoesMC : opcoesPC;
+
+  const vazio = document.createElement('option');
+  vazio.textContent = "";
+  vazio.value = "";
+  select.appendChild(vazio);
+
+  lista.forEach(op => {
+    const o = document.createElement('option');
+    o.textContent = op;
+    select.appendChild(o);
+  });
+  return select;
+}
+
+// Função para gerenciar checkboxes mutuamente exclusivos
+function gerenciarCheckboxes(checkboxClicado, linha) {
+  const checkboxes = linha.querySelectorAll('input[type="checkbox"]');
+  
+  if (checkboxClicado.checked) {
+    // Desmarca o outro checkbox
+    checkboxes.forEach(cb => {
+      if (cb !== checkboxClicado) {
+        cb.checked = false;
+      }
+    });
+  }
+}
+
+function addRow(tag="") {
+  const tr = document.createElement('tr');
+  const tdTag = document.createElement('td');
+  const tdArea = document.createElement('td');
+  const tdSim = document.createElement('td');
+  const tdNao = document.createElement('td');
+  const tdObs = document.createElement('td');
+
+  const inputTag = document.createElement('input');
+  inputTag.type = 'text';
+  inputTag.value = tag;
+  inputTag.style.textAlign = "center";
+  inputTag.readOnly = true; // COLUNA TAG NÃO EDITÁVEL
+  inputTag.title = "Campo TAG não é editável";
+
+  const areaSelect = criarSelectArea(tag);
+  const inputSim = document.createElement('input');
+  inputSim.type = 'checkbox';
+  inputSim.addEventListener('change', () => gerenciarCheckboxes(inputSim, tr));
+  
+  const inputNao = document.createElement('input');
+  inputNao.type = 'checkbox';
+  inputNao.addEventListener('change', () => gerenciarCheckboxes(inputNao, tr));
+  
+  const inputObs = document.createElement('input');
+  inputObs.type = 'text';
+
+  tdTag.appendChild(inputTag);
+  tdArea.appendChild(areaSelect);
+  tdSim.appendChild(inputSim);
+  tdNao.appendChild(inputNao);
+  tdObs.appendChild(inputObs);
+
+  tr.append(tdTag, tdArea, tdSim, tdNao, tdObs);
+  tblBody.appendChild(tr);
+}
+
+// CARREGA OS EQUIPAMENTOS APENAS UMA VEZ - REMOVIDA A DUPLICAÇÃO
+equipamentos.forEach(tag => addRow(tag));
+
+$('btnLimpar').onclick = () => {
+  tblBody.innerHTML = "";
+  equipamentos.forEach(tag => addRow(tag));
+  alert('🧹 Formulário limpo!');
+};
+
+// --- FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR ---
+async function enviarParaServidorRDE(limparCache = true, mostrarAlerta = true) {
+  const dataIso = $('rde_data').value;
+  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
+  const horaDoc = $('rde_hora_doc').value;
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r=>{
+    const i=r.querySelectorAll('input,select');
+    return {
+      Data:data,
+      HoraDocumento:horaDoc,
+      TAG:i[0].value,
+      Area:i[1].value,
+      Sim:i[2].checked?"X":"",
+      Nao:i[3].checked?"X":"",
+      Observacao:i[4].value
+    };
+  }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
+
+  if (linhas.length === 0) {
+    if (mostrarAlerta) {
+      alert("⚠️ Não há dados para enviar!");
+    }
+    return false;
+  }
+
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
+    let dadosExistentes = [];
+    if(resGet.ok){
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...linhas];
+
+    const resPut = await fetch(PUT_URL, {
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':MASTER_KEY,
+        'X-Bin-Versioning':'false'
+      },
+      body:JSON.stringify(dadosAtualizados)
+    });
+
+    if(resPut.ok) {
+      console.log('✅ Dados enviados para o Servidor com sucesso!');
+      
+      // Limpa o cache local se o envio foi bem sucedido
+      if (limparCache) {
+        localStorage.removeItem('rde_offline_cache');
+        console.log('🗑️ Cache local limpo após envio bem-sucedido');
+      }
+      
+      return true;
+    } else {
+      console.log('❌ Erro ao enviar para o Servidor.');
+      if (mostrarAlerta) {
+        alert('❌ Erro ao enviar para o servidor.');
+      }
+      return false;
+    }
+
+  } catch(err){
+    console.log('❌ Erro: ' + err.message);
+    if (mostrarAlerta) {
+      alert('❌ Erro de conexão: ' + err.message);
+    }
+    return false;
+  }
+}
+
+// --- GERAR PDF (envia para servidor automaticamente) ---
+$('btnGerarPDF').onclick = async () => {
+  // Primeiro tenta enviar para o servidor
+  const enviadoComSucesso = await enviarParaServidorRDE(true, false); // Não mostrar alerta aqui ainda
+  
+  if (enviadoComSucesso) {
+    // Se enviou com sucesso, gera o PDF
+    const { jsPDF } = window.jspdf;
+    const [yyyy,mm,dd] = $('rde_data').value.split('-');
+    const dataFormatada = `${dd}/${mm}/${yyyy}`;
+    const horaFormatada = $('rde_hora_doc').value;
+    $('meta_data').innerText = "DATA: " + dataFormatada;
+    $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
+
+    const tbody = $('rde_equip_rows');
+    tbody.innerHTML = "";
+    Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
+      const inputs=r.querySelectorAll('input,select');
+      const sim=inputs[2].checked?"X":"";
+      const nao=inputs[3].checked?"X":"";
+      const obs=inputs[4].value;
+      const tr2=document.createElement('tr');
+      tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
+      tbody.appendChild(tr2);
+    });
+
+    const wrapper=$('rde_report').cloneNode(true);
+    wrapper.style.position='fixed';wrapper.style.left='-9999px';
+    document.body.appendChild(wrapper);
+    const canvas=await html2canvas(wrapper,{scale:2});
+    const pdf=new jsPDF({unit:'pt',format:'a4'});
+    const img=canvas.toDataURL('image/png');
+    const w=pdf.internal.pageSize.width;
+    const h=(canvas.height*w)/canvas.width;
+    pdf.addImage(img,'PNG',0,0,w,h);
+    pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
+    document.body.removeChild(wrapper);
+    
+    // Limpa o formulário após gerar PDF e enviar
+    tblBody.innerHTML = "";
+    equipamentos.forEach(tag => addRow(tag));
+    
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
+  } else {
+    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
+  }
+};
+
+// --- ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF) ---
+document.getElementById('btnServidor').onclick = async () => {
+  const enviadoComSucesso = await enviarParaServidorRDE(true, true);
+  
+  if (enviadoComSucesso) {
+    alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
+    
+    // Limpa o formulário após envio bem-sucedido
+    tblBody.innerHTML = "";
+    equipamentos.forEach(tag => addRow(tag));
+  } else {
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
+    
+    // Se não conseguiu enviar, salva localmente
+    salvarLocalmente();
+  }
+};
+
+// --- SALVAR LOCALMENTE (APENAS QUANDO OFFLINE OU PARA BACKUP) ---
+function salvarLocalmente() {
+  const dataIso = $('rde_data').value;
+  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
+  const horaDoc = $('rde_hora_doc').value;
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Data: data,
+      HoraDocumento: horaDoc,
+      TAG: i[0].value,
+      Area: i[1].value,
+      Sim: i[2].checked ? "X" : "",
+      Nao: i[3].checked ? "X" : "",
+      Observacao: i[4].value
+    };
+  }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
+
+  if (linhas.length === 0) {
+    alert("⚠️ Não há dados para salvar!");
+    return;
+  }
+
+  localStorage.setItem('rde_offline_cache', JSON.stringify(linhas));
+  
+  if (!navigator.onLine) {
+    alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
+  } else {
+    alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
+  }
+}
+
+// --- CARREGAR DADOS SALVOS AO ABRIR A PÁGINA ---
+window.addEventListener('load', () => {
+  const cache = localStorage.getItem('rde_offline_cache');
+  
+  // SEMPRE LIMPA A TABELA PRIMEIRO
+  tblBody.innerHTML = "";
+  
+  if (cache) {
+    const linhas = JSON.parse(cache);
+    
+    // Verifica se há dados no cache
+    if (linhas.length > 0) {
+      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
+      
+      if (carregar) {
+        linhas.forEach(l => {
+          const tr = document.createElement('tr');
+          const select = criarSelectArea(l.TAG || '');
+          select.value = l.Area || '';
+          
+          const inputTag = document.createElement('input');
+          inputTag.type = 'text';
+          inputTag.value = l.TAG || '';
+          inputTag.style.textAlign = "center";
+          inputTag.readOnly = true;
+          
+          const inputSim = document.createElement('input');
+          inputSim.type = 'checkbox';
+          inputSim.checked = l.Sim === "X";
+          
+          const inputNao = document.createElement('input');
+          inputNao.type = 'checkbox';
+          inputNao.checked = l.Nao === "X";
+          
+          const inputObs = document.createElement('input');
+          inputObs.type = 'text';
+          inputObs.value = l.Observacao || '';
+          
+          // Adiciona os eventos para os checkboxes
+          inputSim.addEventListener('change', () => gerenciarCheckboxes(inputSim, tr));
+          inputNao.addEventListener('change', () => gerenciarCheckboxes(inputNao, tr));
+          
+          tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td>`;
+          tr.children[0].appendChild(inputTag);
+          tr.children[1].appendChild(select);
+          tr.children[2].appendChild(inputSim);
+          tr.children[3].appendChild(inputNao);
+          tr.children[4].appendChild(inputObs);
+          
+          tblBody.appendChild(tr);
+        });
+        
+        // Completa com equipamentos que não estão no cache
+        const tagsExistentes = linhas.map(l => l.TAG);
+        equipamentos.forEach(tag => {
+          if (!tagsExistentes.includes(tag)) {
+            addRow(tag);
+          }
+        });
+        
+        alert('📂 Dados carregados do cache local.');
+      } else {
+        // Remove o cache se o usuário escolher começar em branco
+        localStorage.removeItem('rde_offline_cache');
+        // Carrega a lista padrão
+        equipamentos.forEach(tag => addRow(tag));
+        alert('📄 Iniciando formulário em branco.');
+      }
+    } else {
+      // Cache vazio, remove e carrega lista padrão
+      localStorage.removeItem('rde_offline_cache');
+      equipamentos.forEach(tag => addRow(tag));
+    }
+  } else {
+    // Não há cache, carrega a lista padrão
+    equipamentos.forEach(tag => addRow(tag));
+  }
+});
+
+// --- TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR ---
+window.addEventListener('online', async () => {
+  const cache = localStorage.getItem('rde_offline_cache');
+  if (cache) {
+    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
+    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
+    
+    if (acao) {
+      // Cria um formulário temporário apenas com os dados do cache para enviar
+      const enviado = await enviarParaServidorRDE(true, false);
+      if (enviado) {
+        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
+        if (limpar) {
+          tblBody.innerHTML = "";
+          equipamentos.forEach(tag => addRow(tag));
+        }
+      } else {
+        alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
+      }
+    } else {
+      alert('💾 Dados mantidos no cache local.\nVocê pode enviá-los depois clicando em "Enviar para Servidor".');
+    }
+  }
+});
+
+// Associar o botão de salvar localmente
+document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
+
+</script>
+</body>
+</html>
