@@ -95,6 +95,13 @@
     color: #856404;
   }
   
+  /* NOVO: Fonte monoespaçada para TAG em DESKTOP também */
+  #tblEquipamentos td:nth-child(1) input {
+    font-family: monospace; /* Padroniza fonte monoespaçada */
+    font-size: 15px; /* AUMENTADO: de 12px para 13px (tamanho original) */
+    text-align: center;
+  }
+  
   /* AJUSTES APENAS PARA CELULAR */
   @media (max-width: 768px) {
     .row { flex-direction: column; gap: 8px; }
@@ -121,10 +128,10 @@
       text-align: center;
     }
     
-    /* TAG input - fonte monoespaçada para melhor leitura */
+    /* TAG input - fonte monoespaçada para melhor leitura (celular mantém 11px) */
     #tblEquipamentos td:nth-child(1) input {
-      font-family: monospace;
-      font-size: 11px;
+      font-family: monospace; /* JÁ ESTÁ APLICADO ACIMA, MAS REFORÇA PARA CELULAR */
+      font-size: 11px; /* Celular mantém 11px (menor para caber melhor) */
       padding: 6px 2px;
       width: 100%;
       text-align: center;
