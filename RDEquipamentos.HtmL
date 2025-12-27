@@ -95,7 +95,7 @@
     color: #856404;
   }
   
-  /* AJUSTE MÍNIMO APENAS PARA CELULAR - COLUNA ÁREA */
+  /* AJUSTES APENAS PARA CELULAR */
   @media (max-width: 768px) {
     .row { flex-direction: column; gap: 8px; }
     .btn { width: 100%; }
@@ -114,16 +114,59 @@
     }
     .actions { flex-direction: column; align-items: stretch; }
     
-    /* APENAS A COLUNA ÁREA RECEBE UM AJUSTE NO CELULAR */
-    #tblEquipamentos td:nth-child(2) {
-      min-width: 140px; /* Aumenta um pouco a coluna ÁREA no celular */
+    /* AJUSTES ESPECÍFICOS PARA AS COLUNAS NO CELULAR */
+    /* TAG - aumenta para mostrar código completo (ex: PC001, EMP005) */
+    #tblEquipamentos td:nth-child(1) {
+      min-width: 70px; /* Suficiente para mostrar PC001/EMP005 */
+      text-align: center;
     }
     
-    /* Garantir que o select fique adequado */
+    /* TAG input - fonte monoespaçada para melhor leitura */
+    #tblEquipamentos td:nth-child(1) input {
+      font-family: monospace;
+      font-size: 11px;
+      padding: 6px 2px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    /* ÁREA - reduz um pouco (140px estava grande demais) */
+    #tblEquipamentos td:nth-child(2) {
+      min-width: 120px; /* Reduzido de 140px para 120px */
+    }
+    
+    /* ÁREA select - ajustado */
     #tblEquipamentos td:nth-child(2) select {
       width: 100% !important;
-      font-size: 12px;
+      font-size: 11px;
+      padding: 6px 2px;
+      max-width: 100%;
+    }
+    
+    /* SINISTRO SIM/NÃO - mantém pequeno */
+    #tblEquipamentos td:nth-child(3),
+    #tblEquipamentos td:nth-child(4) {
+      min-width: 45px;
+      text-align: center;
+    }
+    
+    /* Checkboxes um pouco maiores para toque fácil */
+    #tblEquipamentos td:nth-child(3) input[type="checkbox"],
+    #tblEquipamentos td:nth-child(4) input[type="checkbox"] {
+      transform: scale(1.1);
+      margin: 0 auto;
+      display: block;
+    }
+    
+    /* OBSERVAÇÃO - ocupa espaço restante */
+    #tblEquipamentos td:nth-child(5) {
+      min-width: 100px;
+    }
+    
+    #tblEquipamentos td:nth-child(5) input {
+      font-size: 11px;
       padding: 6px 4px;
+      width: 100%;
     }
   }
 </style>
