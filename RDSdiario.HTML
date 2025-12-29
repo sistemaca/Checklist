@@ -65,7 +65,11 @@
     font-size: 13px; text-align: left;
   }
   .table th { background: #f1f3f5; }
-  .table td select, .table td input { font-size: 13px; }
+  .table td select, .table td input { 
+    font-size: 13px; 
+    width: 100%;
+    box-sizing: border-box;
+  }
   .actions {
     margin-top: 12px; display: flex; gap: 8px;
     flex-wrap: wrap; align-items: center; justify-content: flex-start;
@@ -100,6 +104,12 @@
   .remove-btn {
     background: #dc3545; color: #fff; border: none;
     padding: 6px 8px; border-radius: 6px; cursor: pointer;
+    font-size: 12px;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   /* Estilos para horário de trabalho */
   .horario-trabalho-container {
@@ -157,24 +167,202 @@
     text-align: center;
     color: #721c24;
   }
+  
+  /* NOVOS ESTILOS PARA A TABELA RESPONSIVA */
+  #tblFuncionarios th:nth-child(1) { width: 70px; } /* Código */
+  #tblFuncionarios th:nth-child(2) { min-width: 155px; } /* Funcionário */
+  #tblFuncionarios th:nth-child(3) { width: 85px; } /* Entrada */
+  #tblFuncionarios th:nth-child(4) { width: 85px; } /* Saída */
+  #tblFuncionarios th:nth-child(5) { width: 125px; } /* Observação */
+  #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações */
+  
+  /* Garantir que inputs ocupem toda a célula */
+  #tblFuncionarios td input,
+  #tblFuncionarios td select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Para horários - mesmo tamanho e centralizados */
+  #tblFuncionarios td:nth-child(3),
+  #tblFuncionarios td:nth-child(4) {
+    text-align: center;
+    padding: 4px 2px !important;
+  }
+  
+  #tblFuncionarios td:nth-child(3) input,
+  #tblFuncionarios td:nth-child(4) input {
+    width: 100%;
+    text-align: center;
+    padding: 6px 2px;
+    font-size: 13px;
+  }
+  
+  /* Botão remover apenas X */
+  .remove-btn-x {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0;
+    margin: 0 auto;
+  }
+  
+  .remove-btn-x:hover {
+    background: #c82333;
+  }
+
+  /* Garantir que Observação ocupe espaço máximo disponível */
+  #tblFuncionarios td:nth-child(5) {
+    max-width: none !important;
+  }
+
+  #tblFuncionarios td:nth-child(5) input {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* NOVO: Alinhar código à direita (como no Excel) */
+  #tblFuncionarios td:nth-child(1) {
+    text-align: right !important;
+  }
+  
+  #tblFuncionarios td:nth-child(1) input {
+    text-align: right !important;
+    direction: ltr; /* Garante que números fiquem na ordem correta */
+    font-family: monospace; /* Melhora a leitura de números */
+    font-size: 13px;
+    padding-right: 8px; /* Dá um pouco de espaço à direita */
+  }
+
+  /* MODIFICAÇÕES PARA DESKTOP */
+  @media (min-width: 769px) {
+    .table { margin-top: 16px; }
+    .actions { justify-content: space-between; }
+    
+    /* Reduzir 10px de Entrada e 10px de Saída, passar para Observação */
+    #tblFuncionarios th:nth-child(1) { width: 70px; } /* Código */
+    #tblFuncionarios th:nth-child(2) { min-width: 155px; } /* Funcionário - MESMO TAMANHO */
+    #tblFuncionarios th:nth-child(3) { width: 75px; } /* Entrada - DIMINUIU 10px (era 85px) */
+    #tblFuncionarios th:nth-child(4) { width: 75px; } /* Saída - DIMINUIU 10px (era 85px) */
+    #tblFuncionarios th:nth-child(5) { width: 145px; } /* Observação - AUMENTOU 20px (era 125px) */
+    #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações */
+    
+    /* Ajustar inputs de horário para ficarem menores */
+    #tblFuncionarios td:nth-child(3) input,
+    #tblFuncionarios td:nth-child(4) input {
+      width: 100%;
+      text-align: center;
+      padding: 6px 2px;
+      font-size: 13px;
+    }
+    
+    /* Código alinhado à direita também no desktop */
+    #tblFuncionarios td:nth-child(1) input {
+      text-align: right !important;
+      font-size: 15px;
+    }
+  }
+  
+  /* MODIFICAÇÕES PARA CELULAR */
   @media (max-width: 768px) {
     .row { flex-direction: column; gap: 8px; }
     .btn { width: 100%; }
-    .table { display: block; overflow-x: auto; }
+    .table { 
+      display: block; 
+      overflow-x: auto;
+      font-size: 12px;
+    }
     .container { padding: 8px; }
     .card { padding: 14px; }
     h1 { font-size: 16px; text-align: center; }
-    .table th, .table td { font-size: 12px; padding: 6px; }
+    .table th, .table td { 
+      font-size: 12px; 
+      padding: 6px;
+      white-space: nowrap;
+    }
     .actions { flex-direction: column; align-items: stretch; }
     .status-funcionarios {
       flex-direction: column;
       gap: 8px;
       text-align: center;
     }
-  }
-  @media (min-width: 769px) {
-    .table { margin-top: 16px; }
-    .actions { justify-content: space-between; }
+    
+    /* AJUSTES ESPECÍFICOS PARA CELULAR - ENTRADA E SAÍDA DO MESMO TAMANHO */
+    #tblFuncionarios th:nth-child(1) { width: 60px; } /* Código menor */
+    #tblFuncionarios th:nth-child(2) { min-width: 170px; } /* Funcionário - AUMENTOU 10px (era 160px) */
+    #tblFuncionarios th:nth-child(3) { width: 70px; text-align: center; } /* Entrada - DIMINUIU 5px (era 75px) */
+    #tblFuncionarios th:nth-child(4) { width: 70px; text-align: center; } /* Saída - DIMINUIU 5px (era 75px) */
+    #tblFuncionarios th:nth-child(5) { width: 105px; } /* Observação - AUMENTOU 10px (era 95px) */
+    #tblFuncionarios th:nth-child(6) { width: 35px; } /* Ações */
+    
+    /* Inputs menores no celular */
+    #tblFuncionarios td input,
+    #tblFuncionarios td select {
+      font-size: 12px;
+      padding: 6px 4px;
+    }
+    
+    /* NOVO: Código alinhado à direita no celular - ocultando zeros à esquerda */
+    #tblFuncionarios td:nth-child(1) {
+      text-align: right !important;
+      padding-left: 4px !important;
+      padding-right: 4px !important;
+      max-width: 60px;
+      overflow: hidden;
+    }
+    
+    #tblFuncionarios td:nth-child(1) input {
+      text-align: right !important;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 6px 2px !important;
+      direction: ltr;
+      width: 100%;
+      /* Faz com que zeros à esquerda fiquem menos visíveis */
+      background: linear-gradient(to left, transparent 10px, #fff 20px);
+      background-color: #fff;
+    }
+    
+    /* Horários centralizados e do MESMO TAMANHO no celular */
+    #tblFuncionarios td:nth-child(3),
+    #tblFuncionarios td:nth-child(4) {
+      width: 70px;
+      min-width: 70px;
+      text-align: center;
+      padding: 4px 1px !important;
+    }
+    
+    #tblFuncionarios td:nth-child(3) input,
+    #tblFuncionarios td:nth-child(4) input {
+      font-size: 12px;
+      padding: 6px 1px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    /* Garantir que Observação ocupe espaço máximo disponível */
+    #tblFuncionarios td:nth-child(5) input {
+      width: 100%;
+      max-width: 100%;
+    }
+    
+    /* Botão X ainda menor no celular */
+    .remove-btn-x {
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+    }
   }
 </style>
 </head>
@@ -283,22 +471,22 @@
     <table class="table" id="tblFuncionarios">
       <thead>
         <tr>
-          <th style="width:80px">Código</th>
+          <th>Código</th>
           <th>Funcionário</th>
-          <th style="width:100px">Entrada</th>
-          <th style="width:100px">Saída</th>
+          <th>Entrada</th>
+          <th>Saída</th>
           <th>Observação</th>
-          <th style="width:70px">Ações</th>
+          <th>Ações</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
 
     <div class="actions"> 
-      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
+      <button id="btnSalvarLocal" class="btn gray">Salvar Localmente</button>
       <button id="btnServidor" class="btn">Enviar para o Servidor</button>  
-      <button id="btnExcelRDS" class="btn gray">Gerar Excel</button> 
-      <button id="btnGerarPDF" class="btn gray">Gerar PDF</button>
+      <button id="btnGerarPDF" class="btn">Gerar PDF</button>      
+      <button id="btnExcelRDS" class="btn">Gerar Excel</button> 
       <button id="btnLimpar" class="btn gray">Limpar</button>
 
       <div class="muted">Arquivo: <strong>RDS_SERVICO_DD-MM-AAAA_HH-MM.pdf</strong></div>
@@ -769,17 +957,20 @@ function addRow(data={}) {
   const inputCodigo=document.createElement('input');
   inputCodigo.type='text';
   inputCodigo.value=data.codigo||'';
+  inputCodigo.style.textAlign = 'right'; // NOVO: Alinhar à direita
   
   const selectFuncionario=criarSelectFuncionario(data.nome);
   
   const inputEntrada=document.createElement('input');
   inputEntrada.type='text';
   inputEntrada.placeholder='HH:MM';
+  inputEntrada.style.textAlign = 'center';
   aplicarMascaraHorario(inputEntrada);
   
   const inputSaida=document.createElement('input');
   inputSaida.type='text';
   inputSaida.placeholder='HH:MM';
+  inputSaida.style.textAlign = 'center';
   aplicarMascaraHorario(inputSaida);
   
   const inputObservacao=document.createElement('input');
@@ -787,8 +978,9 @@ function addRow(data={}) {
   inputObservacao.placeholder='Observação';
   
   const btnRemover=document.createElement('button');
-  btnRemover.className='remove-btn';
-  btnRemover.textContent='Remover';
+  btnRemover.className='remove-btn-x';
+  btnRemover.textContent='X';
+  btnRemover.title='Remover linha';
   btnRemover.onclick=()=>tr.remove();
 
   inputCodigo.addEventListener('input',()=>{
@@ -847,6 +1039,7 @@ $('btnLimpar').onclick=()=>{
   }
   tblBody.innerHTML='';
   for(let i=0;i<20;i++) addRow({});
+  alert('🧹 Formulário limpo!');
 };
 
 // Botão para atualizar funcionários
@@ -968,22 +1161,14 @@ function obterHorarioTrabalhoTexto() {
 }
 
 // ======================================================
-// FUNÇÕES PARA ENVIO EM SEGUNDO PLANO
+// FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR
 // ======================================================
 
-function tentarEnviarParaServidorEmSegundoPlano() {
-  if (!funcionariosCarregados) return;
-  
-  enviarParaServidorRDSSilencioso().catch(err => {
-    console.log('Falha no envio em segundo plano, agendando nova tentativa...');
-    setTimeout(tentarEnviarParaServidorEmSegundoPlano, 30000);
-  });
-}
-
-async function enviarParaServidorRDSSilencioso() {
-  if (!funcionariosCarregados) return;
-  
-  gerarExcelBase();
+async function enviarParaServidorRDS(limparCache = true, mostrarAlerta = true) {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return false;
+  }
 
   const dataIso = $('rds_data').value;
   const [yyyy, mm, dd] = dataIso.split('-');
@@ -1015,6 +1200,13 @@ async function enviarParaServidorRDSSilencioso() {
     };
   }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
 
+  if (linhas.length === 0) {
+    if (mostrarAlerta) {
+      alert("⚠️ Não há dados para enviar!");
+    }
+    return false;
+  }
+
   try {
     const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
     const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
@@ -1040,236 +1232,229 @@ async function enviarParaServidorRDSSilencioso() {
 
     if (resPut.ok) {
       console.log('✅ Dados enviados para o Servidor com sucesso!');
-      localStorage.removeItem('rds_offline_cache');
+      
+      // Limpa o cache local se o envio foi bem sucedido
+      if (limparCache) {
+        localStorage.removeItem('rds_offline_cache');
+        localStorage.removeItem('rds_pendentes');
+        console.log('🗑️ Cache local limpo após envio bem-sucedido');
+      }
+      
+      return true;
     } else {
-      console.log('❌ Erro ao enviar, salvando localmente...');
-      salvarParaTentarDepoisRDS(linhas);
+      console.log('❌ Erro ao enviar para o Servidor.');
+      if (mostrarAlerta) {
+        alert('❌ Erro ao enviar para o servidor.');
+      }
+      return false;
     }
 
   } catch (err) {
-    console.log('❌ Erro: ' + err.message + '\nSalvando localmente...');
-    salvarParaTentarDepoisRDS(linhas);
+    console.log('❌ Erro: ' + err.message);
+    if (mostrarAlerta) {
+      alert('❌ Erro de conexão: ' + err.message);
+    }
+    return false;
   }
 }
 
-function salvarParaTentarDepoisRDS(linhas) {
-  if (!navigator.onLine) {
+// ======================================================
+// GERAR PDF (envia para servidor automaticamente)
+// ======================================================
+
+$('btnGerarPDF').onclick = async () => {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
     return;
   }
   
-  const pendentes = JSON.parse(localStorage.getItem('rds_pendentes') || '[]');
-  pendentes.push(...linhas);
-  localStorage.setItem('rds_pendentes', JSON.stringify(pendentes));
-  console.log('📋 Dados RDS salvos para envio posterior');
-}
-
-async function tentarEnviarPendentesRDS() {
-  const pendentes = JSON.parse(localStorage.getItem('rds_pendentes') || '[]');
-  if (pendentes.length === 0 || !navigator.onLine) return;
+  // Primeiro tenta enviar para o servidor
+  const enviadoComSucesso = await enviarParaServidorRDS(true, false); // Não mostrar alerta aqui ainda
   
-  try {
-    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
-    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
-    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+  if (enviadoComSucesso) {
+    // Se enviou com sucesso, gera o PDF
+    const {jsPDF}=window.jspdf;
+    const dataISO = $('rds_data').value;
+    const [yyyy, mm, dd] = dataISO.split('-');
+    const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+    $('meta_data').innerText='DATA: '+dataFormatada;
+    $('meta_hora_doc').innerText=$('rds_hora_doc').value;
+    $('meta_contratante').innerText=$('rds_contratante').value;
+    $('meta_servico').innerText=$('rds_servico').value;
+    $('meta_fabrica').innerText=$('rds_fabrica').value;
+    
+    $('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
+    
+    $('meta_tema').innerText=$('rds_tema').value;
+    $('rds_dds').innerText=$('rds_tema').value;
 
-    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
-    let dadosExistentes = [];
-    if (resGet.ok) {
-      const json = await resGet.json();
-      dadosExistentes = Array.isArray(json.record) ? json.record : [];
-    }
-
-    const dadosAtualizados = [...dadosExistentes, ...pendentes];
-
-    const resPut = await fetch(PUT_URL, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Versioning': 'false'
-      },
-      body: JSON.stringify(dadosAtualizados)
+    const tbody=$('rds_func_rows');
+    tbody.innerHTML='';
+    Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
+      const tds=r.querySelectorAll('input,select');
+      const entrada = tds[2].value.trim();
+      const saida = tds[3].value.trim();
+      const observacao = tds[4].value.trim();
+      if(entrada || saida || observacao){
+        const tr2=document.createElement('tr');
+        tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
+        tbody.appendChild(tr2);
+      }
     });
 
-    if (resPut.ok) {
-      console.log('✅ Dados pendentes RDS enviados com sucesso!');
-      localStorage.removeItem('rds_pendentes');
-    } else {
-      console.log('❌ Falha ao enviar dados pendentes RDS, tentando novamente em 1 minuto...');
-      setTimeout(tentarEnviarPendentesRDS, 60000);
-    }
-
-  } catch(err){
-    console.log('❌ Erro ao enviar pendentes RDS: ' + err.message);
-    setTimeout(tentarEnviarPendentesRDS, 60000);
+    const wrapper=$('rds_report').cloneNode(true);
+    wrapper.style.position='fixed';wrapper.style.left='-9999px';
+    document.body.appendChild(wrapper);
+    const canvas=await html2canvas(wrapper,{scale:2});
+    const img=canvas.toDataURL('image/png');
+    const pdf=new jsPDF({unit:'pt',format:'a4'});
+    const w=pdf.internal.pageSize.width;
+    const h=(canvas.height*w)/canvas.width;
+    let pos=0, heightLeft=h;
+    pdf.addImage(img,'PNG',0,pos,w,h);
+    heightLeft-=pdf.internal.pageSize.height;
+    while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
+    
+    // NOME DO ARQUIVO COM DATA E HORA
+    const dataArquivo = `${dd}-${mm}-${yyyy}`;
+    const horaArquivo = $('rds_hora_doc').value.replace(':', '-');
+    const nomeServico = $('rds_servico').value.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
+    pdf.save(`RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.pdf`);
+    
+    document.body.removeChild(wrapper);
+    
+    // Limpa o formulário após gerar PDF e enviar
+    tblBody.innerHTML = '';
+    for(let i=0;i<20;i++) addRow({});
+    
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
+  } else {
+    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
   }
-}
-
-setInterval(tentarEnviarPendentesRDS, 300000);
-window.addEventListener('online', tentarEnviarPendentesRDS);
-
-// ======================================================
-// FUNÇÕES DE GERAR PDF E EXCEL
-// ======================================================
-
-$('btnGerarPDF').onclick=async()=>{
-  if (!funcionariosCarregados) {
-    alert('⚠️ Primeiro carregue a lista de funcionários');
-    return;
-  }
-  
-  tentarEnviarParaServidorEmSegundoPlano();
-  
-  const {jsPDF}=window.jspdf;
-  const dataISO = $('rds_data').value;
-  const [yyyy, mm, dd] = dataISO.split('-');
-  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
-  $('meta_data').innerText='DATA: '+dataFormatada;
-  $('meta_hora_doc').innerText=$('rds_hora_doc').value;
-  $('meta_contratante').innerText=$('rds_contratante').value;
-  $('meta_servico').innerText=$('rds_servico').value;
-  $('meta_fabrica').innerText=$('rds_fabrica').value;
-  
-  $('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
-  
-  $('meta_tema').innerText=$('rds_tema').value;
-  $('rds_dds').innerText=$('rds_tema').value;
-
-  const tbody=$('rds_func_rows');
-  tbody.innerHTML='';
-  Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
-    const tds=r.querySelectorAll('input,select');
-    const entrada = tds[2].value.trim();
-    const saida = tds[3].value.trim();
-    const observacao = tds[4].value.trim();
-    if(entrada || saida || observacao){
-      const tr2=document.createElement('tr');
-      tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
-      tbody.appendChild(tr2);
-    }
-  });
-
-  const wrapper=$('rds_report').cloneNode(true);
-  wrapper.style.position='fixed';wrapper.style.left='-9999px';
-  document.body.appendChild(wrapper);
-  const canvas=await html2canvas(wrapper,{scale:2});
-  const img=canvas.toDataURL('image/png');
-  const pdf=new jsPDF({unit:'pt',format:'a4'});
-  const w=pdf.internal.pageSize.width;
-  const h=(canvas.height*w)/canvas.width;
-  let pos=0, heightLeft=h;
-  pdf.addImage(img,'PNG',0,pos,w,h);
-  heightLeft-=pdf.internal.pageSize.height;
-  while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
-  pdf.save(`RDS_${$('rds_servico').value}_${dataFormatada}.pdf`);
-  document.body.removeChild(wrapper);
 };
 
-document.getElementById('btnExcelRDS').addEventListener('click', function() {
+// ======================================================
+// ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF)
+// ======================================================
+
+document.getElementById('btnServidor').onclick = async () => {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
     return;
   }
   
-  tentarEnviarParaServidorEmSegundoPlano();
+  const enviadoComSucesso = await enviarParaServidorRDS(true, true);
   
-  gerarExcelParaDownload();
-});
-
-let ultimoExcelBlob = null;
-
-function gerarExcelParaDownload() {
-    if (!funcionariosCarregados) {
-        alert('⚠️ Primeiro carregue a lista de funcionários');
-        return;
-    }
+  if (enviadoComSucesso) {
+    alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
     
-    const blob = gerarExcelBase();
-    if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        const data = $('rds_data').value;
-        const servico = $('rds_servico').value;
-        const nomeArquivo = `RDS_${servico.replace(/[^a-z0-9]/gi,'_')}_${data}.xlsx`;
-        a.download = nomeArquivo;
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        alert('✅ Excel gerado com sucesso!');
-    }
-}
-
-function gerarExcelBase() {
-    try {
-        if (!funcionariosCarregados) return null;
-        
-        const data = $('rds_data').value;
-        const hora = $('rds_hora_doc').value;
-        const contratante = $('rds_contratante').value;
-        const servico = $('rds_servico').value;
-        const fabrica = $('rds_fabrica').value;
-        
-        const horarioTrabalho = obterHorarioTrabalhoTexto();
-        
-        const tema = $('rds_tema').value;
-
-        const linhasFunc = Array.from(tblBody.querySelectorAll('tr')).map(tr => {
-            const cells = tr.querySelectorAll('td');
-            const entrada = cells[2].querySelector('input').value.trim();
-            const saida = cells[3].querySelector('input').value.trim();
-            const observacao = cells[4].querySelector('input').value.trim();
-            const inputCodigo = cells[0].querySelector('input');
-            const selectNome = cells[1].querySelector('select');
-            const codigo = (entrada || saida) ? (inputCodigo ? inputCodigo.value.trim() : '') : '';
-            const nome = (entrada || saida) ? (selectNome?.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
-
-            return { Codigo: codigo, Nome: nome, Entrada: entrada, Saida: saida, Observacao: observacao };
-        }).filter(f => f.Entrada || f.Saida || f.Observacao);
-
-        if (linhasFunc.length === 0) {
-            alert('⚠️ Nenhum dado de funcionário preenchido!');
-            return null;
-        }
-
-        const [yyyy, mm, dd] = data.split('-');
-        const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
-
-        const linhas = linhasFunc.map(f => ({
-            Data: dataFormatada,
-            Hora: hora,
-            Contratante: contratante,
-            Servico: servico,
-            Fabrica: fabrica,
-            HorarioTrabalho: horarioTrabalho,
-            TemaDDS: tema,
-            Codigo: f.Codigo,
-            Nome: f.Nome,
-            Entrada: f.Entrada,
-            Saida: f.Saida,
-            Observacao: f.Observacao
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(linhas);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'RDS');
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        ultimoExcelBlob = new Blob([wbout], { type: 'application/octet-stream' });
-
-        return ultimoExcelBlob;
-        
-    } catch (error) {
-        alert('❌ Erro ao gerar Excel: ' + error.message);
-        return null;
-    }
-}
+    // Limpa o formulário após envio bem-sucedido
+    tblBody.innerHTML = '';
+    for(let i=0;i<20;i++) addRow({});
+  } else {
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
+    
+    // Se não conseguiu enviar, salva localmente
+    salvarLocalmenteRDS();
+  }
+};
 
 // ======================================================
-// FUNÇÕES ORIGINAIS MANTIDAS
+// GERAR EXCEL (funciona igual ao PDF - envia e limpa)
+// ======================================================
+
+document.getElementById('btnExcelRDS').addEventListener('click', async function() {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  // Primeiro tenta enviar para o servidor (igual ao PDF)
+  const enviadoComSucesso = await enviarParaServidorRDS(true, false); // Não mostrar alerta aqui ainda
+  
+  if (enviadoComSucesso) {
+    // Se enviou com sucesso, gera o Excel
+    const data = $('rds_data').value;
+    const hora = $('rds_hora_doc').value;
+    const contratante = $('rds_contratante').value;
+    const servico = $('rds_servico').value;
+    const fabrica = $('rds_fabrica').value;
+    
+    const horarioTrabalho = obterHorarioTrabalhoTexto();
+    
+    const tema = $('rds_tema').value;
+
+    const linhasFunc = Array.from(tblBody.querySelectorAll('tr')).map(tr => {
+        const cells = tr.querySelectorAll('td');
+        const entrada = cells[2].querySelector('input').value.trim();
+        const saida = cells[3].querySelector('input').value.trim();
+        const observacao = cells[4].querySelector('input').value.trim();
+        const inputCodigo = cells[0].querySelector('input');
+        const selectNome = cells[1].querySelector('select');
+        const codigo = (entrada || saida) ? (inputCodigo ? inputCodigo.value.trim() : '') : '';
+        const nome = (entrada || saida) ? (selectNome?.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
+
+        return { Codigo: codigo, Nome: nome, Entrada: entrada, Saida: saida, Observacao: observacao };
+    }).filter(f => f.Entrada || f.Saida || f.Observacao);
+
+    if (linhasFunc.length === 0) {
+        alert('⚠️ Nenhum dado de funcionário preenchido!');
+        return;
+    }
+
+    const [yyyy, mm, dd] = data.split('-');
+    const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+
+    const linhas = linhasFunc.map(f => ({
+        Data: dataFormatada,
+        Hora: hora,
+        Contratante: contratante,
+        Servico: servico,
+        Fabrica: fabrica,
+        HorarioTrabalho: horarioTrabalho,
+        TemaDDS: tema,
+        Codigo: f.Codigo,
+        Nome: f.Nome,
+        Entrada: f.Entrada,
+        Saida: f.Saida,
+        Observacao: f.Observacao
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'RDS');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // NOME DO ARQUIVO COM DATA E HORA (igual ao PDF)
+    const dataArquivo = `${dd}-${mm}-${yyyy}`;
+    const horaArquivo = hora.replace(':', '-');
+    const nomeServico = servico.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
+    a.download = `RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.xlsx`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Limpa o formulário após gerar Excel e enviar (igual ao PDF)
+    tblBody.innerHTML = '';
+    for(let i=0;i<20;i++) addRow({});
+    
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ Excel gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
+  } else {
+    alert('❌ Não foi possível enviar para o servidor. O Excel não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
+  }
+});
+
+// ======================================================
+// SALVAR LOCALMENTE (APENAS QUANDO OFFLINE OU PARA BACKUP)
 // ======================================================
 
 function salvarLocalmenteRDS() {
@@ -1303,140 +1488,104 @@ function salvarLocalmenteRDS() {
   const pacote = { cabecalho, linhas };
 
   localStorage.setItem('rds_offline_cache', JSON.stringify(pacote));
-  alert('💾 Dados salvos localmente! Tudo oque voce salvou até agora vai ficar salvo até ser enviado para o servidor, adicionou ou mudou alguma coisa salve de novo, sem atualizar a pagina funciona no celular pelo tempo que for preciso, atualizou e a pagina sumiu, os dados salvos recuperaram assim que a conexão voltar, pode enviar automatico, por garantia se não houver mensagem de envio enive para Servidor!');
+  
+  if (!navigator.onLine) {
+    alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
+  } else {
+    alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
+  }
 }
+
+// ======================================================
+// CARREGAR DADOS SALVOS AO ABRIR A PÁGINA
+// ======================================================
 
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rds_offline_cache');
   if (cache) {
     const { cabecalho, linhas } = JSON.parse(cache);
 
-    if (cabecalho) {
-      $('rds_data').value = cabecalho.data || '';
-      $('rds_hora_doc').value = cabecalho.horaDoc || '';
-      $('rds_contratante').value = cabecalho.contratante || '';
-      $('rds_servico').value = cabecalho.servico || '';
-      $('rds_horario_entrada').value = cabecalho.horarioEntrada || '';
-      $('rds_horario_saida').value = cabecalho.horarioSaida || '';
-      $('rds_fabrica').value = cabecalho.fabrica || '';
-      $('rds_tema').value = cabecalho.tema || '';
-    }
+    // Verificar se há dados no cache
+    if (cabecalho && linhas && linhas.length > 0) {
+      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
+      
+      if (carregar) {
+        if (cabecalho) {
+          $('rds_data').value = cabecalho.data || '';
+          $('rds_hora_doc').value = cabecalho.horaDoc || '';
+          $('rds_contratante').value = cabecalho.contratante || '';
+          $('rds_servico').value = cabecalho.servico || '';
+          $('rds_horario_entrada').value = cabecalho.horarioEntrada || '';
+          $('rds_horario_saida').value = cabecalho.horarioSaida || '';
+          $('rds_fabrica').value = cabecalho.fabrica || '';
+          $('rds_tema').value = cabecalho.tema || '';
+        }
 
-    if (linhas?.length) {
-      tblBody.innerHTML = "";
-      linhas.forEach(l => {
-        const tr = document.createElement('tr');
-        const select = criarSelectFuncionario(l.Nome || '');
-        tr.innerHTML = `
-          <td><input type="text" value="${l.Codigo || ''}" /></td>
-          <td></td>
-          <td><input type="text" value="${l.Entrada || ''}" /></td>
-          <td><input type="text" value="${l.Saida || ''}" /></td>
-          <td><input type="text" value="${l.Observacao || ''}" /></td>
-          <td><button class="remove-btn">Remover</button></td>
-        `;
-        tr.children[1].appendChild(select);
-        tr.querySelector('.remove-btn').onclick = () => tr.remove();
-        tblBody.appendChild(tr);
-      });
-      alert('📦 Dados locais carregados!');
+        if (linhas?.length) {
+          tblBody.innerHTML = "";
+          linhas.forEach(l => {
+            const tr = document.createElement('tr');
+            const select = criarSelectFuncionario(l.Nome || '');
+            tr.innerHTML = `
+              <td><input type="text" value="${l.Codigo || ''}" style="text-align: right;" /></td>
+              <td></td>
+              <td><input type="text" value="${l.Entrada || ''}" style="text-align: center;" /></td>
+              <td><input type="text" value="${l.Saida || ''}" style="text-align: center;" /></td>
+              <td><input type="text" value="${l.Observacao || ''}" /></td>
+              <td><button class="remove-btn-x" title="Remover linha">X</button></td>
+            `;
+            tr.children[1].appendChild(select);
+            tr.querySelector('.remove-btn-x').onclick = () => tr.remove();
+            tblBody.appendChild(tr);
+          });
+          
+          // Completa com linhas vazias se necessário
+          if (linhas.length < 20) {
+            for(let i = linhas.length; i < 20; i++) {
+              addRow({});
+            }
+          }
+          
+          alert('📂 Dados carregados do cache local.');
+        }
+      } else {
+        alert('📄 Iniciando formulário em branco.');
+      }
     }
   }
 });
 
-async function enviarParaServidorRDS() {
-  if (!funcionariosCarregados) {
-    alert('⚠️ Primeiro carregue a lista de funcionários');
-    return;
-  }
-  
-  if (!ultimoExcelBlob) {
-    ultimoExcelBlob = gerarExcelBase();
-  }
-
-  if (!ultimoExcelBlob) {
-    alert('❌ Não foi possível gerar o Excel para envio');
-    return;
-  }
-
-  const dataIso = $('rds_data').value;
-  const [yyyy, mm, dd] = dataIso.split('-');
-  const data = dataIso ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
-  const horaDoc = $('rds_hora_doc').value;
-  const contratante = $('rds_contratante').value;
-  const servico = $('rds_servico').value;
-  
-  const horarioTrabalho = obterHorarioTrabalhoTexto();
-  
-  const fabrica = $('rds_fabrica').value;
-  const tema = $('rds_tema').value;
-
-  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
-    const i = r.querySelectorAll('input,select');
-    return {
-      Data: data,
-      HoraDocumento: horaDoc,
-      Contratante: contratante,
-      Servico: servico,
-      HorarioTrabalho: horarioTrabalho,
-      Fabrica: fabrica,
-      TemaDDS: tema,
-      Codigo: i[0].value,
-      Nome: i[1].value,
-      Entrada: i[2].value,
-      Saida: i[3].value,
-      Observacao: i[4].value
-    };
-  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
-
-  try {
-    const GET_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a/latest';
-    const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
-    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
-
-    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY } });
-    let dadosExistentes = [];
-    if (resGet.ok) {
-      const json = await resGet.json();
-      dadosExistentes = Array.isArray(json.record) ? json.record : [];
-    }
-
-    const dadosAtualizados = [...dadosExistentes, ...linhas];
-    const resPut = await fetch(PUT_URL, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Versioning': 'false'
-      },
-      body: JSON.stringify(dadosAtualizados)
-    });
-
-    if (resPut.ok) {
-      alert('✅ Dados enviados com sucesso!');
-      localStorage.removeItem('rds_offline_cache');
-    } else {
-      alert('❌ Erro ao enviar, dados mantidos localmente.');
-      salvarLocalmenteRDS();
-    }
-
-  } catch (err) {
-    alert('❌ Erro: ' + err.message + '\nDados salvos localmente.');
-    salvarLocalmenteRDS();
-  }
-}
-
-document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
-document.getElementById('btnServidor').onclick = enviarParaServidorRDS;
+// ======================================================
+// TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR
+// ======================================================
 
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rds_offline_cache');
-  if (cache && funcionariosCarregados) {
-    ultimoExcelBlob = gerarExcelBase();
-    alert('🌐 Conexão restaurada! Enviando dados pendentes...');
-    await enviarParaServidorRDS();
+  if (cache) {
+    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
+    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
+    
+    if (acao) {
+      const enviado = await enviarParaServidorRDS(true, false);
+      if (enviado) {
+        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
+        if (limpar) {
+          tblBody.innerHTML = '';
+          for(let i=0;i<20;i++) addRow({});
+        }
+      } else {
+        alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
+      }
+    } else {
+      alert('💾 Dados mantidos no cache local.\nVocê pode enviá-los depois clicando em "Enviar para Servidor".');
+    }
   }
 });
+
+// Associar o botão de salvar localmente
+document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
+
 </script>
 </body>
 </html>
+
