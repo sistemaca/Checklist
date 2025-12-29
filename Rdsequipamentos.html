@@ -94,10 +94,87 @@
     font-size: 12px;
     color: #856404;
   }
+  
+  /* NOVO: Fonte monoespaçada para TAG em DESKTOP também */
+  #tblEquipamentos td:nth-child(1) input {
+    font-family: monospace; /* Padroniza fonte monoespaçada */
+    font-size: 17px; /* AUMENTADO: de 12px para 13px (tamanho original) */
+    text-align: center;
+  }
+  
+  /* AJUSTES APENAS PARA CELULAR */
   @media (max-width: 768px) {
     .row { flex-direction: column; gap: 8px; }
     .btn { width: 100%; }
-    .table { display: block; overflow-x: auto; }
+    .table { 
+      display: block; 
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .container { padding: 8px; }
+    .card { padding: 14px; }
+    h1 { font-size: 16px; text-align: center; }
+    .table th, .table td { 
+      font-size: 12px; 
+      padding: 6px;
+      white-space: nowrap;
+    }
+    .actions { flex-direction: column; align-items: stretch; }
+    
+    /* AJUSTES ESPECÍFICOS PARA AS COLUNAS NO CELULAR */
+    /* TAG - aumenta para mostrar código completo (ex: PC001, EMP005) */
+    #tblEquipamentos td:nth-child(1) {
+      min-width: 70px; /* Suficiente para mostrar PC001/EMP005 */
+      text-align: center;
+    }
+    
+    /* TAG input - fonte monoespaçada para melhor leitura (celular mantém 11px) */
+    #tblEquipamentos td:nth-child(1) input {
+      font-family: monospace; /* JÁ ESTÁ APLICADO ACIMA, MAS REFORÇA PARA CELULAR */
+      font-size: 13px; /* Celular mantém 11px (menor para caber melhor) */
+      padding: 6px 2px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    /* ÁREA - reduz um pouco (140px estava grande demais) */
+    #tblEquipamentos td:nth-child(2) {
+      min-width: 120px; /* Reduzido de 140px para 120px */
+    }
+    
+    /* ÁREA select - ajustado */
+    #tblEquipamentos td:nth-child(2) select {
+      width: 100% !important;
+      font-size: 11px;
+      padding: 6px 2px;
+      max-width: 100%;
+    }
+    
+    /* SINISTRO SIM/NÃO - mantém pequeno */
+    #tblEquipamentos td:nth-child(3),
+    #tblEquipamentos td:nth-child(4) {
+      min-width: 45px;
+      text-align: center;
+    }
+    
+    /* Checkboxes um pouco maiores para toque fácil */
+    #tblEquipamentos td:nth-child(3) input[type="checkbox"],
+    #tblEquipamentos td:nth-child(4) input[type="checkbox"] {
+      transform: scale(1.1);
+      margin: 0 auto;
+      display: block;
+    }
+    
+    /* OBSERVAÇÃO - ocupa espaço restante */
+    #tblEquipamentos td:nth-child(5) {
+      min-width: 100px;
+    }
+    
+    #tblEquipamentos td:nth-child(5) input {
+      font-size: 11px;
+      padding: 6px 4px;
+      width: 100%;
+    }
   }
 </style>
 </head>
@@ -135,10 +212,9 @@
     </div>
 
     <div class="actions">
-      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
+      <button id="btnSalvarLocal" class="btn gray">Salvar Localmente</button>
       <button id="btnServidor" class="btn">Enviar para o Servidor</button>
-      <button id="btnGerarPDF" class="btn gray">Gerar PDF</button>
-      <button id="btnExcelRDE" class="btn gray">Gerar Excel</button>
+      <button id="btnGerarPDF" class="btn">Gerar PDF</button>
       <button id="btnLimpar" class="btn gray">Limpar</button>
     </div>
 
@@ -188,6 +264,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('rde_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 });
 
+// LISTA ORIGINAL DE EQUIPAMENTOS (34 equipamentos) - CORRIGIDA
 const equipamentos = [
   "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
   "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
@@ -243,10 +320,8 @@ function addRow(tag="") {
   inputTag.type = 'text';
   inputTag.value = tag;
   inputTag.style.textAlign = "center";
-  inputTag.addEventListener('input', () => {
-    tdArea.innerHTML = "";
-    tdArea.appendChild(criarSelectArea(inputTag.value.toUpperCase()));
-  });
+  inputTag.readOnly = true; // COLUNA TAG NÃO EDITÁVEL
+  inputTag.title = "Campo TAG não é editável";
 
   const areaSelect = criarSelectArea(tag);
   const inputSim = document.createElement('input');
@@ -270,88 +345,17 @@ function addRow(tag="") {
   tblBody.appendChild(tr);
 }
 
+// CARREGA OS EQUIPAMENTOS APENAS UMA VEZ - REMOVIDA A DUPLICAÇÃO
 equipamentos.forEach(tag => addRow(tag));
 
 $('btnLimpar').onclick = () => {
   tblBody.innerHTML = "";
   equipamentos.forEach(tag => addRow(tag));
+  alert('🧹 Formulário limpo!');
 };
 
-// --- FUNÇÃO PARA TENTAR ENVIAR EM SEGUNDO PLANO ---
-function tentarEnviarParaServidorEmSegundoPlano() {
-  // Chama a função de envio mas não espera por ela
-  enviarParaServidorRDE().catch(err => {
-    console.log('Falha no envio em segundo plano, agendando nova tentativa...');
-    // Agenda nova tentativa em 30 segundos
-    setTimeout(tentarEnviarParaServidorEmSegundoPlano, 30000);
-  });
-}
-
-$('btnGerarPDF').onclick = async () => {
-  // Tenta enviar em segundo plano
-  tentarEnviarParaServidorEmSegundoPlano();
-  
-  // Gera o PDF normalmente
-  const { jsPDF } = window.jspdf;
-  const [yyyy,mm,dd] = $('rde_data').value.split('-');
-  const dataFormatada = `${dd}/${mm}/${yyyy}`;
-  const horaFormatada = $('rde_hora_doc').value;
-  $('meta_data').innerText = "DATA: " + dataFormatada;
-  $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
-
-  const tbody = $('rde_equip_rows');
-  tbody.innerHTML = "";
-  Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
-    const inputs=r.querySelectorAll('input,select');
-    const sim=inputs[2].checked?"X":"";
-    const nao=inputs[3].checked?"X":"";
-    const obs=inputs[4].value;
-    const tr2=document.createElement('tr');
-    tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
-    tbody.appendChild(tr2);
-  });
-
-  const wrapper=$('rde_report').cloneNode(true);
-  wrapper.style.position='fixed';wrapper.style.left='-9999px';
-  document.body.appendChild(wrapper);
-  const canvas=await html2canvas(wrapper,{scale:2});
-  const pdf=new jsPDF({unit:'pt',format:'a4'});
-  const img=canvas.toDataURL('image/png');
-  const w=pdf.internal.pageSize.width;
-  const h=(canvas.height*w)/canvas.width;
-  pdf.addImage(img,'PNG',0,0,w,h);
-  pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
-  document.body.removeChild(wrapper);
-};
-
-$('btnExcelRDE').onclick=()=>{
-  // Tenta enviar em segundo plano
-  tentarEnviarParaServidorEmSegundoPlano();
-  
-  // Gera o Excel normalmente
-  const data=$('rde_data').value.split('-').reverse().join('/');
-  const horaDoc=$('rde_hora_doc').value;
-  const linhas=Array.from(tblBody.querySelectorAll('tr')).map(r=>{
-    const i=r.querySelectorAll('input,select');
-    return{
-      Data:data,
-      HoraDocumento:horaDoc,
-      TAG:i[0].value,
-      Area:i[1].value,
-      Sim:i[2].checked?"X":"",
-      Nao:i[3].checked?"X":"",
-      Observacao:i[4].value
-    };
-  });
-  const ws=XLSX.utils.json_to_sheet(linhas);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'RDE');
-  XLSX.writeFile(wb,`RDE_${data.replace(/\//g,'-')}_${horaDoc.replace(':','')}.xlsx`);
-  alert("✅ Excel gerado com sucesso!");
-};
-
-// --- ENVIAR PARA O SERVIDOR ---
-async function enviarParaServidorRDE(){
+// --- FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR ---
+async function enviarParaServidorRDE(limparCache = true, mostrarAlerta = true) {
   const dataIso = $('rde_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
   const horaDoc = $('rde_hora_doc').value;
@@ -368,6 +372,13 @@ async function enviarParaServidorRDE(){
       Observacao:i[4].value
     };
   }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
+
+  if (linhas.length === 0) {
+    if (mostrarAlerta) {
+      alert("⚠️ Não há dados para enviar!");
+    }
+    return false;
+  }
 
   try {
     const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
@@ -395,89 +406,99 @@ async function enviarParaServidorRDE(){
 
     if(resPut.ok) {
       console.log('✅ Dados enviados para o Servidor com sucesso!');
-      // Remove dados do cache local se existirem
-      localStorage.removeItem('rde_offline_cache');
+      
+      // Limpa o cache local se o envio foi bem sucedido
+      if (limparCache) {
+        localStorage.removeItem('rde_offline_cache');
+        console.log('🗑️ Cache local limpo após envio bem-sucedido');
+      }
+      
+      return true;
     } else {
       console.log('❌ Erro ao enviar para o Servidor.');
-      // Salva localmente para tentar depois
-      salvarParaTentarDepois(linhas);
+      if (mostrarAlerta) {
+        alert('❌ Erro ao enviar para o servidor.');
+      }
+      return false;
     }
 
   } catch(err){
     console.log('❌ Erro: ' + err.message);
-    // Salva localmente para tentar depois
-    salvarParaTentarDepois(linhas);
-  }
-}
-
-// --- FUNÇÃO PARA SALVAR E TENTAR DEPOIS ---
-function salvarParaTentarDepois(linhas) {
-  if (!navigator.onLine) {
-    // Já existe suporte offline, então apenas retorna
-    return;
-  }
-  
-  // Salva no localStorage para tentar novamente depois
-  const pendentes = JSON.parse(localStorage.getItem('rde_pendentes') || '[]');
-  pendentes.push(...linhas);
-  localStorage.setItem('rde_pendentes', JSON.stringify(pendentes));
-  console.log('📋 Dados salvos para envio posterior');
-}
-
-// --- TENTAR ENVIAR DADOS PENDENTES ---
-async function tentarEnviarPendentes() {
-  const pendentes = JSON.parse(localStorage.getItem('rde_pendentes') || '[]');
-  if (pendentes.length === 0 || !navigator.onLine) return;
-  
-  try {
-    const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
-    const PUT_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193';
-    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
-
-    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
-    let dadosExistentes = [];
-    if(resGet.ok){
-      const json = await resGet.json();
-      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    if (mostrarAlerta) {
+      alert('❌ Erro de conexão: ' + err.message);
     }
+    return false;
+  }
+}
 
-    const dadosAtualizados = [...dadosExistentes, ...pendentes];
+// --- GERAR PDF (envia para servidor automaticamente) ---
+$('btnGerarPDF').onclick = async () => {
+  // Primeiro tenta enviar para o servidor
+  const enviadoComSucesso = await enviarParaServidorRDE(true, false); // Não mostrar alerta aqui ainda
+  
+  if (enviadoComSucesso) {
+    // Se enviou com sucesso, gera o PDF
+    const { jsPDF } = window.jspdf;
+    const [yyyy,mm,dd] = $('rde_data').value.split('-');
+    const dataFormatada = `${dd}/${mm}/${yyyy}`;
+    const horaFormatada = $('rde_hora_doc').value;
+    $('meta_data').innerText = "DATA: " + dataFormatada;
+    $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
 
-    const resPut = await fetch(PUT_URL, {
-      method:'PUT',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Master-Key':MASTER_KEY,
-        'X-Bin-Versioning':'false'
-      },
-      body:JSON.stringify(dadosAtualizados)
+    const tbody = $('rde_equip_rows');
+    tbody.innerHTML = "";
+    Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
+      const inputs=r.querySelectorAll('input,select');
+      const sim=inputs[2].checked?"X":"";
+      const nao=inputs[3].checked?"X":"";
+      const obs=inputs[4].value;
+      const tr2=document.createElement('tr');
+      tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
+      tbody.appendChild(tr2);
     });
 
-    if(resPut.ok) {
-      console.log('✅ Dados pendentes enviados com sucesso!');
-      localStorage.removeItem('rde_pendentes');
-    } else {
-      console.log('❌ Falha ao enviar dados pendentes, tentando novamente em 1 minuto...');
-      setTimeout(tentarEnviarPendentes, 60000);
-    }
-
-  } catch(err){
-    console.log('❌ Erro ao enviar pendentes: ' + err.message);
-    setTimeout(tentarEnviarPendentes, 60000);
+    const wrapper=$('rde_report').cloneNode(true);
+    wrapper.style.position='fixed';wrapper.style.left='-9999px';
+    document.body.appendChild(wrapper);
+    const canvas=await html2canvas(wrapper,{scale:2});
+    const pdf=new jsPDF({unit:'pt',format:'a4'});
+    const img=canvas.toDataURL('image/png');
+    const w=pdf.internal.pageSize.width;
+    const h=(canvas.height*w)/canvas.width;
+    pdf.addImage(img,'PNG',0,0,w,h);
+    pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
+    document.body.removeChild(wrapper);
+    
+    // Limpa o formulário após gerar PDF e enviar
+    tblBody.innerHTML = "";
+    equipamentos.forEach(tag => addRow(tag));
+    
+    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
+    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
+  } else {
+    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
   }
-}
+};
 
-// --- VERIFICAR DADOS PENDENTES PERIODICAMENTE ---
-setInterval(tentarEnviarPendentes, 300000); // A cada 5 minutos
+// --- ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF) ---
+document.getElementById('btnServidor').onclick = async () => {
+  const enviadoComSucesso = await enviarParaServidorRDE(true, true);
+  
+  if (enviadoComSucesso) {
+    alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
+    
+    // Limpa o formulário após envio bem-sucedido
+    tblBody.innerHTML = "";
+    equipamentos.forEach(tag => addRow(tag));
+  } else {
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
+    
+    // Se não conseguiu enviar, salva localmente
+    salvarLocalmente();
+  }
+};
 
-// Tenta enviar pendentes quando a conexão voltar
-window.addEventListener('online', tentarEnviarPendentes);
-
-document.getElementById('btnServidor').onclick = enviarParaServidorRDE;
-
-// === SUPORTE OFFLINE (Adicionado por ChatGPT) ===
-
-// Salvar dados localmente
+// --- SALVAR LOCALMENTE (APENAS QUANDO OFFLINE OU PARA BACKUP) ---
 function salvarLocalmente() {
   const dataIso = $('rde_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
@@ -496,108 +517,130 @@ function salvarLocalmente() {
     };
   }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
 
-  localStorage.setItem('rde_offline_cache', JSON.stringify(linhas));
-  alert('💾 Dados salvos localmente! Serão enviados quando houver conexão.');
-}
-
-// Carregar dados salvos ao abrir a página
-window.addEventListener('load', () => {
-  const cache = localStorage.getItem('rde_offline_cache');
-  if (cache) {
-    const linhas = JSON.parse(cache);
-    tblBody.innerHTML = "";
-    linhas.forEach(l => {
-      const tr = document.createElement('tr');
-      const select = criarSelectArea(l.TAG || '');
-      select.value = l.Area || '';
-      tr.innerHTML = `
-        <td><input type="text" value="${l.TAG || ''}" style="text-align:center" /></td>
-        <td></td>
-        <td><input type="checkbox" ${l.Sim ? 'checked' : ''}></td>
-        <td><input type="checkbox" ${l.Nao ? 'checked' : ''}></td>
-        <td><input type="text" value="${l.Observacao || ''}" /></td>`;
-      tblBody.appendChild(tr);
-      tr.children[1].appendChild(select);
-    });
-    alert('📦 Dados locais carregados!');
-  }
-});
-
-// Reescrever o botão "Enviar para Servidor" para suportar offline
-async function enviarParaServidorRDE() {
-  if (!navigator.onLine) {
-    salvarLocalmente();
+  if (linhas.length === 0) {
+    alert("⚠️ Não há dados para salvar!");
     return;
   }
 
-  const dataIso = $('rde_data').value;
-  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
-  const horaDoc = $('rde_hora_doc').value;
-
-  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r=>{
-    const i=r.querySelectorAll('input,select');
-    return {
-      Data:data,
-      HoraDocumento:horaDoc,
-      TAG:i[0].value,
-      Area:i[1].value,
-      Sim:i[2].checked?"X":"",
-      Nao:i[3].checked?"X":"",
-      Observacao:i[4].value
-    };
-  }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
-
-  try {
-    const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
-    const PUT_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193';
-    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
-
-    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
-    let dadosExistentes = [];
-    if(resGet.ok){
-      const json = await resGet.json();
-      dadosExistentes = Array.isArray(json.record) ? json.record : [];
-    }
-
-    const dadosAtualizados = [...dadosExistentes, ...linhas];
-    const resPut = await fetch(PUT_URL, {
-      method:'PUT',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Master-Key':MASTER_KEY,
-        'X-Bin-Versioning':'false'
-      },
-      body:JSON.stringify(dadosAtualizados)
-    });
-
-    if(resPut.ok) {
-      alert('✅ Dados enviados com sucesso!');
-      localStorage.removeItem('rde_offline_cache');
-    } else {
-      alert('❌ Erro ao enviar, dados mantidos localmente.');
-      salvarLocalmente();
-    }
-
-  } catch(err){
-    alert('❌ Erro: ' + err.message + '\nDados salvos localmente.');
-    salvarLocalmente();
+  localStorage.setItem('rde_offline_cache', JSON.stringify(linhas));
+  
+  if (!navigator.onLine) {
+    alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
+  } else {
+    alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
   }
 }
 
-// Associar o novo botão de salvar
-document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
+// --- CARREGAR DADOS SALVOS AO ABRIR A PÁGINA ---
+window.addEventListener('load', () => {
+  const cache = localStorage.getItem('rde_offline_cache');
+  
+  // SEMPRE LIMPA A TABELA PRIMEIRO
+  tblBody.innerHTML = "";
+  
+  if (cache) {
+    const linhas = JSON.parse(cache);
+    
+    // Verifica se há dados no cache
+    if (linhas.length > 0) {
+      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
+      
+      if (carregar) {
+        linhas.forEach(l => {
+          const tr = document.createElement('tr');
+          const select = criarSelectArea(l.TAG || '');
+          select.value = l.Area || '';
+          
+          const inputTag = document.createElement('input');
+          inputTag.type = 'text';
+          inputTag.value = l.TAG || '';
+          inputTag.style.textAlign = "center";
+          inputTag.readOnly = true;
+          
+          const inputSim = document.createElement('input');
+          inputSim.type = 'checkbox';
+          inputSim.checked = l.Sim === "X";
+          
+          const inputNao = document.createElement('input');
+          inputNao.type = 'checkbox';
+          inputNao.checked = l.Nao === "X";
+          
+          const inputObs = document.createElement('input');
+          inputObs.type = 'text';
+          inputObs.value = l.Observacao || '';
+          
+          // Adiciona os eventos para os checkboxes
+          inputSim.addEventListener('change', () => gerenciarCheckboxes(inputSim, tr));
+          inputNao.addEventListener('change', () => gerenciarCheckboxes(inputNao, tr));
+          
+          tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td>`;
+          tr.children[0].appendChild(inputTag);
+          tr.children[1].appendChild(select);
+          tr.children[2].appendChild(inputSim);
+          tr.children[3].appendChild(inputNao);
+          tr.children[4].appendChild(inputObs);
+          
+          tblBody.appendChild(tr);
+        });
+        
+        // Completa com equipamentos que não estão no cache
+        const tagsExistentes = linhas.map(l => l.TAG);
+        equipamentos.forEach(tag => {
+          if (!tagsExistentes.includes(tag)) {
+            addRow(tag);
+          }
+        });
+        
+        alert('📂 Dados carregados do cache local.');
+      } else {
+        // Remove o cache se o usuário escolher começar em branco
+        localStorage.removeItem('rde_offline_cache');
+        // Carrega a lista padrão
+        equipamentos.forEach(tag => addRow(tag));
+        alert('📄 Iniciando formulário em branco.');
+      }
+    } else {
+      // Cache vazio, remove e carrega lista padrão
+      localStorage.removeItem('rde_offline_cache');
+      equipamentos.forEach(tag => addRow(tag));
+    }
+  } else {
+    // Não há cache, carrega a lista padrão
+    equipamentos.forEach(tag => addRow(tag));
+  }
+});
 
-// Enviar automaticamente quando a internet voltar
+// --- TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR ---
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rde_offline_cache');
   if (cache) {
-    alert('🌐 Conexão restaurada! Enviando dados pendentes...');
-    await enviarParaServidorRDE();
+    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
+    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
+    
+    if (acao) {
+      // Cria um formulário temporário apenas com os dados do cache para enviar
+      const enviado = await enviarParaServidorRDE(true, false);
+      if (enviado) {
+        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
+        if (limpar) {
+          tblBody.innerHTML = "";
+          equipamentos.forEach(tag => addRow(tag));
+        }
+      } else {
+        alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
+      }
+    } else {
+      alert('💾 Dados mantidos no cache local.\nVocê pode enviá-los depois clicando em "Enviar para Servidor".');
+    }
   }
-  // Também tenta enviar dados pendentes
-  tentarEnviarPendentes();
 });
+
+// Associar o botão de salvar localmente
+document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
 
 </script>
 </body>
 </html>
+
+
+
