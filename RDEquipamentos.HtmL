@@ -467,7 +467,7 @@ document.body.appendChild(wrapper);
 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
 const canvas = await html2canvas(wrapper, {
-  scale: 2,
+  scale: 1.2,
   useCORS: true,
   backgroundColor: '#ffffff',
   logging: false
@@ -652,6 +652,7 @@ document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
 </script>
 </body>
 </html>
+
 
 
 
