@@ -221,7 +221,7 @@
   </div>
 </div>
 
-<div id="paper" style="display:none">
+<div id="paper" style="visibility:hidden; position:absolute; left:-9999px; top:0">
   <div class="rds-paper" id="rde_report">
     <div style="display:flex;justify-content:space-between;">
       <div>
@@ -456,16 +456,27 @@ $('btnGerarPDF').onclick = async () => {
       tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
       tbody.appendChild(tr2);
     });
+   const wrapper = $('rde_report').cloneNode(true);
+wrapper.style.visibility = 'visible';
+wrapper.style.position = 'absolute';
+wrapper.style.left = '-9999px';
+wrapper.style.top = '0';
+document.body.appendChild(wrapper);
 
-    const wrapper=$('rde_report').cloneNode(true);
-    wrapper.style.position='fixed';wrapper.style.left='-9999px';
-    document.body.appendChild(wrapper);
-    const canvas=await html2canvas(wrapper,{scale:2});
+// 🔥 FORÇA O BROWSER A RENDERIZAR
+await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+const canvas = await html2canvas(wrapper, {
+  scale: 2,
+  useCORS: true,
+  backgroundColor: '#ffffff',
+  logging: false
+});
     const pdf=new jsPDF({unit:'pt',format:'a4'});
     const img=canvas.toDataURL('image/png');
     const w=pdf.internal.pageSize.width;
     const h=(canvas.height*w)/canvas.width;
-    pdf.addImage(img,'PNG',0,0,w,h);
+    pdf.addImage(img, 'PNG', 20, 20, w - 40, h);
     pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
     document.body.removeChild(wrapper);
     
@@ -641,5 +652,6 @@ document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
 </script>
 </body>
 </html>
+
 
 
