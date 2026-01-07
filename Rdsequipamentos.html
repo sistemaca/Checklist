@@ -346,8 +346,8 @@ function addRow(tag="") {
   return tr;
 }
 
-// CARREGA OS EQUIPAMENTOS APENAS UMA VEZ
-equipamentos.forEach(tag => addRow(tag));
+// REMOVI A LINHA QUE CARREGA OS EQUIPAMENTOS AQUI!
+// equipamentos.forEach(tag => addRow(tag)); // ← REMOVER ESTA LINHA
 
 $('btnLimpar').onclick = () => {
   if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
@@ -597,12 +597,15 @@ function salvarLocalmente() {
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rde_offline_cache');
   
+  // SEMPRE LIMPA A TABELA PRIMEIRO (importante!)
+  tblBody.innerHTML = "";
+  
   if (cache) {
     const linhas = JSON.parse(cache);
     
     // Verifica se há dados no cache
     if (linhas.length > 0) {
-      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para manter os equipamentos padrão.');
+      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
       
       if (carregar) {
         // Primeiro carrega todos os equipamentos padrão
@@ -650,16 +653,19 @@ window.addEventListener('load', () => {
         
         alert('📂 Dados carregados do cache local.');
       } else {
-        // Remove o cache se o usuário escolher manter equipamentos padrão
+        // Remove o cache se o usuário escolher começar em branco
         localStorage.removeItem('rde_offline_cache');
-        alert('📄 Mantendo equipamentos padrão.');
+        // Carrega a lista padrão
+        equipamentos.forEach(tag => addRow(tag));
+        alert('📄 Iniciando formulário em branco.');
       }
     } else {
-      // Cache vazio, remove
+      // Cache vazio, remove e carrega lista padrão
       localStorage.removeItem('rde_offline_cache');
+      equipamentos.forEach(tag => addRow(tag));
     }
   } else {
-    // Se não houver cache, carrega os equipamentos padrão
+    // Não há cache, carrega a lista padrão
     equipamentos.forEach(tag => addRow(tag));
   }
 });
