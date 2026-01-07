@@ -98,7 +98,7 @@
   /* NOVO: Fonte monoespaçada para TAG em DESKTOP também */
   #tblEquipamentos td:nth-child(1) input {
     font-family: monospace; /* Padroniza fonte monoespaçada */
-    font-size: 17px; /* AUMENTADO: de 12px para 13px (tamanho original) */
+    font-size: 13px;
     text-align: center;
   }
   
@@ -131,7 +131,7 @@
     /* TAG input - fonte monoespaçada para melhor leitura (celular mantém 11px) */
     #tblEquipamentos td:nth-child(1) input {
       font-family: monospace; /* JÁ ESTÁ APLICADO ACIMA, MAS REFORÇA PARA CELULAR */
-      font-size: 13px; /* Celular mantém 11px (menor para caber melhor) */
+      font-size: 13px; /* Celular mantém 13px */
       padding: 6px 2px;
       width: 100%;
       text-align: center;
@@ -212,16 +212,17 @@
     </div>
 
     <div class="actions">
-      <button id="btnSalvarLocal" class="btn gray">Salvar Localmente</button>
+      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
       <button id="btnServidor" class="btn">Enviar para o Servidor</button>
-      <button id="btnGerarPDF" class="btn">Gerar PDF</button>
+      <button id="btnGerarPDF" class="btn gray">Gerar PDF</button>
+      <button id="btnExcelRDE" class="btn gray">Gerar Excel</button>
       <button id="btnLimpar" class="btn gray">Limpar</button>
     </div>
 
   </div>
 </div>
 
-<div id="paper" style="display:none">
+<div id="paper" style="visibility:hidden; position:absolute; left:-9999px; top:0">
   <div class="rds-paper" id="rde_report">
     <div style="display:flex;justify-content:space-between;">
       <div>
@@ -264,7 +265,6 @@ window.addEventListener('DOMContentLoaded', () => {
   $('rde_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 });
 
-// LISTA ORIGINAL DE EQUIPAMENTOS (34 equipamentos) - CORRIGIDA
 const equipamentos = [
   "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
   "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
@@ -345,17 +345,27 @@ function addRow(tag="") {
   tblBody.appendChild(tr);
 }
 
-// CARREGA OS EQUIPAMENTOS APENAS UMA VEZ - REMOVIDA A DUPLICAÇÃO
+// CARREGA OS EQUIPAMENTOS APENAS UMA VEZ
 equipamentos.forEach(tag => addRow(tag));
 
 $('btnLimpar').onclick = () => {
-  tblBody.innerHTML = "";
-  equipamentos.forEach(tag => addRow(tag));
-  alert('🧹 Formulário limpo!');
+  if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
+    // Reseta todos os campos, mas mantém as linhas
+    const rows = tblBody.querySelectorAll('tr');
+    rows.forEach(row => {
+      const inputs = row.querySelectorAll('input, select');
+      // TAG mantém o valor original
+      inputs[1].value = ""; // Área
+      inputs[2].checked = false; // SIM
+      inputs[3].checked = false; // NÃO
+      inputs[4].value = ""; // Observação
+    });
+    alert('🧹 Formulário limpo!');
+  }
 };
 
-// --- FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR ---
-async function enviarParaServidorRDE(limparCache = true, mostrarAlerta = true) {
+// --- FUNÇÃO PARA ENVIAR PARA O SERVIDOR (SEM LIMPAR AUTOMATICAMENTE) ---
+async function enviarParaServidorRDE(mostrarAlerta = true) {
   const dataIso = $('rde_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
   const horaDoc = $('rde_hora_doc').value;
@@ -408,10 +418,8 @@ async function enviarParaServidorRDE(limparCache = true, mostrarAlerta = true) {
       console.log('✅ Dados enviados para o Servidor com sucesso!');
       
       // Limpa o cache local se o envio foi bem sucedido
-      if (limparCache) {
-        localStorage.removeItem('rde_offline_cache');
-        console.log('🗑️ Cache local limpo após envio bem-sucedido');
-      }
+      localStorage.removeItem('rde_offline_cache');
+      console.log('🗑️ Cache local limpo após envio bem-sucedido');
       
       return true;
     } else {
@@ -431,65 +439,118 @@ async function enviarParaServidorRDE(limparCache = true, mostrarAlerta = true) {
   }
 }
 
-// --- GERAR PDF (envia para servidor automaticamente) ---
+// --- GERAR PDF (PRIMEIRO GERA PDF, DEPOIS PERGUNTA SE QUER ENVIAR) ---
 $('btnGerarPDF').onclick = async () => {
-  // Primeiro tenta enviar para o servidor
-  const enviadoComSucesso = await enviarParaServidorRDE(true, false); // Não mostrar alerta aqui ainda
+  // Primeiro gera o PDF
+  const { jsPDF } = window.jspdf;
+  const [yyyy,mm,dd] = $('rde_data').value.split('-');
+  const dataFormatada = `${dd}/${mm}/${yyyy}`;
+  const horaFormatada = $('rde_hora_doc').value;
+  $('meta_data').innerText = "DATA: " + dataFormatada;
+  $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
+
+  const tbody = $('rde_equip_rows');
+  tbody.innerHTML = "";
+  Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
+    const inputs=r.querySelectorAll('input,select');
+    const sim=inputs[2].checked?"X":"";
+    const nao=inputs[3].checked?"X":"";
+    const obs=inputs[4].value;
+    const tr2=document.createElement('tr');
+    tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
+    tbody.appendChild(tr2);
+  });
   
-  if (enviadoComSucesso) {
-    // Se enviou com sucesso, gera o PDF
-    const { jsPDF } = window.jspdf;
-    const [yyyy,mm,dd] = $('rde_data').value.split('-');
-    const dataFormatada = `${dd}/${mm}/${yyyy}`;
-    const horaFormatada = $('rde_hora_doc').value;
-    $('meta_data').innerText = "DATA: " + dataFormatada;
-    $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
+  const wrapper = $('rde_report').cloneNode(true);
+  wrapper.style.visibility = 'visible';
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  document.body.appendChild(wrapper);
 
-    const tbody = $('rde_equip_rows');
-    tbody.innerHTML = "";
-    Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
-      const inputs=r.querySelectorAll('input,select');
-      const sim=inputs[2].checked?"X":"";
-      const nao=inputs[3].checked?"X":"";
-      const obs=inputs[4].value;
-      const tr2=document.createElement('tr');
-      tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
-      tbody.appendChild(tr2);
-    });
+  // 🔥 FORÇA O BROWSER A RENDERIZAR
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-    const wrapper=$('rde_report').cloneNode(true);
-    wrapper.style.position='fixed';wrapper.style.left='-9999px';
-    document.body.appendChild(wrapper);
-    const canvas=await html2canvas(wrapper,{scale:2});
-    const pdf=new jsPDF({unit:'pt',format:'a4'});
-    const img=canvas.toDataURL('image/png');
-    const w=pdf.internal.pageSize.width;
-    const h=(canvas.height*w)/canvas.width;
-    pdf.addImage(img,'PNG',0,0,w,h);
-    pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
-    document.body.removeChild(wrapper);
-    
-    // Limpa o formulário após gerar PDF e enviar
-    tblBody.innerHTML = "";
-    equipamentos.forEach(tag => addRow(tag));
-    
-    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
-    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
-  } else {
-    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
+  const canvas = await html2canvas(wrapper, {
+    scale: 1.2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    logging: false
+  });
+  
+  const pdf = new jsPDF({unit:'pt',format:'a4'});
+  const img = canvas.toDataURL('image/png');
+  const w = pdf.internal.pageSize.width;
+  const h = (canvas.height * w) / canvas.width;
+  pdf.addImage(img, 'PNG', 20, 20, w - 40, h);
+  pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
+  document.body.removeChild(wrapper);
+  
+  // ✅ AGORA PERGUNTA SE QUER ENVIAR PARA O SERVIDOR
+  const enviarAgora = confirm('✅ PDF gerado com sucesso!\n\nDeseja enviar os dados para o servidor agora?');
+  
+  if (enviarAgora) {
+    const enviadoComSucesso = await enviarParaServidorRDE(true);
+    if (enviadoComSucesso) {
+      // PERGUNTA SE QUER LIMPAR OS CAMPOS DEPOIS DO ENVIO
+      const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja limpar os campos preenchidos?');
+      if (limparCampos) {
+        // Apenas limpa os campos, não as linhas
+        const rows = tblBody.querySelectorAll('tr');
+        rows.forEach(row => {
+          const inputs = row.querySelectorAll('input, select');
+          inputs[1].value = ""; // Área
+          inputs[2].checked = false; // SIM
+          inputs[3].checked = false; // NÃO
+          inputs[4].value = ""; // Observação
+        });
+      }
+    }
   }
+};
+
+// --- GERAR EXCEL ---
+$('btnExcelRDE').onclick = () => {
+  const data = $('rde_data').value.split('-').reverse().join('/');
+  const horaDoc = $('rde_hora_doc').value;
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Data: data,
+      HoraDocumento: horaDoc,
+      TAG: i[0].value,
+      Area: i[1].value,
+      Sim: i[2].checked ? "X" : "",
+      Nao: i[3].checked ? "X" : "",
+      Observacao: i[4].value
+    };
+  });
+  
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'RDE');
+  XLSX.writeFile(wb, `RDE_${data.replace(/\//g,'-')}_${horaDoc.replace(':','')}.xlsx`);
+  alert("✅ Excel gerado com sucesso!");
 };
 
 // --- ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF) ---
 document.getElementById('btnServidor').onclick = async () => {
-  const enviadoComSucesso = await enviarParaServidorRDE(true, true);
+  const enviadoComSucesso = await enviarParaServidorRDE(true);
   
   if (enviadoComSucesso) {
-    alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
-    
-    // Limpa o formulário após envio bem-sucedido
-    tblBody.innerHTML = "";
-    equipamentos.forEach(tag => addRow(tag));
+    // PERGUNTA SE QUER LIMPAR OS CAMPOS DEPOIS DO ENVIO
+    const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja limpar os campos preenchidos?');
+    if (limparCampos) {
+      // Apenas limpa os campos, não as linhas
+      const rows = tblBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input, select');
+        inputs[1].value = ""; // Área
+        inputs[2].checked = false; // SIM
+        inputs[3].checked = false; // NÃO
+        inputs[4].value = ""; // Observação
+      });
+    }
   } else {
     alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
     
@@ -535,15 +596,12 @@ function salvarLocalmente() {
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rde_offline_cache');
   
-  // SEMPRE LIMPA A TABELA PRIMEIRO
-  tblBody.innerHTML = "";
-  
   if (cache) {
     const linhas = JSON.parse(cache);
     
     // Verifica se há dados no cache
     if (linhas.length > 0) {
-      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
+      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para manter os equipamentos padrão.');
       
       if (carregar) {
         linhas.forEach(l => {
@@ -593,20 +651,14 @@ window.addEventListener('load', () => {
         
         alert('📂 Dados carregados do cache local.');
       } else {
-        // Remove o cache se o usuário escolher começar em branco
+        // Remove o cache se o usuário escolher manter equipamentos padrão
         localStorage.removeItem('rde_offline_cache');
-        // Carrega a lista padrão
-        equipamentos.forEach(tag => addRow(tag));
-        alert('📄 Iniciando formulário em branco.');
+        alert('📄 Mantendo equipamentos padrão.');
       }
     } else {
-      // Cache vazio, remove e carrega lista padrão
+      // Cache vazio, remove
       localStorage.removeItem('rde_offline_cache');
-      equipamentos.forEach(tag => addRow(tag));
     }
-  } else {
-    // Não há cache, carrega a lista padrão
-    equipamentos.forEach(tag => addRow(tag));
   }
 });
 
@@ -614,17 +666,15 @@ window.addEventListener('load', () => {
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rde_offline_cache');
   if (cache) {
-    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
     const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
     
     if (acao) {
-      // Cria um formulário temporário apenas com os dados do cache para enviar
-      const enviado = await enviarParaServidorRDE(true, false);
+      // Tenta enviar os dados do cache
+      const enviado = await enviarParaServidorRDE(false);
       if (enviado) {
-        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
+        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para remover do cache.\nClique em Cancelar para manter no cache.');
         if (limpar) {
-          tblBody.innerHTML = "";
-          equipamentos.forEach(tag => addRow(tag));
+          localStorage.removeItem('rde_offline_cache');
         }
       } else {
         alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
@@ -641,6 +691,3 @@ document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
 </script>
 </body>
 </html>
-
-
-
