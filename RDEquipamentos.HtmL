@@ -214,7 +214,7 @@
     <div class="actions">
       <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
       <button id="btnServidor" class="btn">Enviar para o Servidor</button>
-      <button id="btnGerarPDF" class="btn gray">Gerar PDF</button>
+      <button id="btnGerarPDF" class="btn">Gerar PDF</button>
       <button id="btnExcelRDE" class="btn gray">Gerar Excel</button>
       <button id="btnLimpar" class="btn gray">Limpar</button>
     </div>
@@ -343,6 +343,7 @@ function addRow(tag="") {
 
   tr.append(tdTag, tdArea, tdSim, tdNao, tdObs);
   tblBody.appendChild(tr);
+  return tr;
 }
 
 // CARREGA OS EQUIPAMENTOS APENAS UMA VEZ
@@ -604,48 +605,46 @@ window.addEventListener('load', () => {
       const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para manter os equipamentos padrão.');
       
       if (carregar) {
-        linhas.forEach(l => {
-          const tr = document.createElement('tr');
-          const select = criarSelectArea(l.TAG || '');
-          select.value = l.Area || '';
-          
-          const inputTag = document.createElement('input');
-          inputTag.type = 'text';
-          inputTag.value = l.TAG || '';
-          inputTag.style.textAlign = "center";
-          inputTag.readOnly = true;
-          
-          const inputSim = document.createElement('input');
-          inputSim.type = 'checkbox';
-          inputSim.checked = l.Sim === "X";
-          
-          const inputNao = document.createElement('input');
-          inputNao.type = 'checkbox';
-          inputNao.checked = l.Nao === "X";
-          
-          const inputObs = document.createElement('input');
-          inputObs.type = 'text';
-          inputObs.value = l.Observacao || '';
-          
-          // Adiciona os eventos para os checkboxes
-          inputSim.addEventListener('change', () => gerenciarCheckboxes(inputSim, tr));
-          inputNao.addEventListener('change', () => gerenciarCheckboxes(inputNao, tr));
-          
-          tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td>`;
-          tr.children[0].appendChild(inputTag);
-          tr.children[1].appendChild(select);
-          tr.children[2].appendChild(inputSim);
-          tr.children[3].appendChild(inputNao);
-          tr.children[4].appendChild(inputObs);
-          
-          tblBody.appendChild(tr);
-        });
+        // Primeiro carrega todos os equipamentos padrão
+        equipamentos.forEach(tag => addRow(tag));
         
-        // Completa com equipamentos que não estão no cache
-        const tagsExistentes = linhas.map(l => l.TAG);
-        equipamentos.forEach(tag => {
-          if (!tagsExistentes.includes(tag)) {
-            addRow(tag);
+        // Agora preenche os dados do cache nas linhas correspondentes
+        const rows = tblBody.querySelectorAll('tr');
+        
+        linhas.forEach(dado => {
+          // Procura a linha com o mesmo TAG
+          for (let row of rows) {
+            const tagInput = row.querySelector('td:nth-child(1) input');
+            if (tagInput && tagInput.value === dado.TAG) {
+              // Encontrou a linha correspondente, preenche os dados
+              const inputs = row.querySelectorAll('input, select');
+              
+              // Área
+              if (inputs[1] && dado.Area) {
+                inputs[1].value = dado.Area;
+              }
+              
+              // SIM
+              if (inputs[2] && dado.Sim === "X") {
+                inputs[2].checked = true;
+                // Garante que apenas um checkbox está marcado
+                if (inputs[3]) inputs[3].checked = false;
+              }
+              
+              // NÃO
+              if (inputs[3] && dado.Nao === "X") {
+                inputs[3].checked = true;
+                // Garante que apenas um checkbox está marcado
+                if (inputs[2]) inputs[2].checked = false;
+              }
+              
+              // Observação
+              if (inputs[4] && dado.Observacao) {
+                inputs[4].value = dado.Observacao;
+              }
+              
+              break; // Sai do loop quando encontrar
+            }
           }
         });
         
@@ -659,6 +658,9 @@ window.addEventListener('load', () => {
       // Cache vazio, remove
       localStorage.removeItem('rde_offline_cache');
     }
+  } else {
+    // Se não houver cache, carrega os equipamentos padrão
+    equipamentos.forEach(tag => addRow(tag));
   }
 });
 
