@@ -387,8 +387,8 @@
                             <th style="width: 300px;">NOME DO ITEM</th>
                             <th style="width: 70px;">UNIDADE</th>
                             <th style="width: 80px;">CONTA</th>
-                            <th style="width: 90px;">MÉDIA SAÍDAS/MÊS</th>
-                            <th style="width: 90px;">QUANTIDADE</th>
+                            <th style="width: 90px;">QUANTIDADE</th> <!-- MOVIDA PARA ANTES DA MÉDIA -->
+                            <th style="width: 90px;">MÉDIA SAÍDAS/MÊS</th> <!-- AGORA É A ÚLTIMA -->
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -558,13 +558,14 @@
                     (mediaSaidas % 1 === 0 ? mediaSaidas.toFixed(0) : mediaSaidas.toFixed(1)) : 
                     '0';
                 
+                // ATUALIZADO: QUANTIDADE antes da MÉDIA
                 row.innerHTML = `
                     <td class="codigo-cell">${codigo}</td>
                     <td class="nome-cell">${nome}</td>
                     <td class="unidade-cell">${unidade}</td>
                     <td class="conta-cell">${conta}</td>
-                    <td class="media-cell">${mediaFormatada}</td>
                     <td class="${quantidadeClass}">${quantidade.toFixed(0)}</td>
+                    <td class="media-cell">${mediaFormatada}</td>
                 `;
                 
                 tableBody.appendChild(row);
