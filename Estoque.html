@@ -341,7 +341,7 @@
             <h1>📦 ITENS EM ESTOQUE CONTABILIZADOS - CONSULTA</h1>
             
             <div class="info-box">
-                🔍 <strong>Como usar:</strong> Digite o nome do item para pesquisar ou deixe em branco para ver todos os cadastros. 
+                🔍 <strong>Como usar:</strong> Digite o código, nome do item ou conta para pesquisar ou deixe em branco para ver todos os cadastros. 
                 Os dados são sincronizados automaticamente com o sistema principal.
             </div>
             
@@ -360,7 +360,7 @@
                 <input type="text" 
                        id="searchInput" 
                        class="search-input" 
-                       placeholder="Digite o nome do item ou conta (ex: Vassouras, Saco de Lixo, Limpeza, Epi, Luva)..."
+                       placeholder="Digite código, nome do item ou conta (ex: 001, Vassouras, Limpeza)..."
                        autocomplete="off">
                 <button id="searchBtn" class="search-btn">
                     🔎 Pesquisar
@@ -387,7 +387,7 @@
                             <th style="width: 300px;">NOME DO ITEM</th>
                             <th style="width: 70px;">UNIDADE</th>
                             <th style="width: 80px;">CONTA</th>
-                            <th style="width: 90px;">MÉDIA SAÍDAS/MÊS</th> <!-- NOME ATUALIZADO -->
+                            <th style="width: 90px;">MÉDIA SAÍDAS/MÊS</th>
                             <th style="width: 90px;">QUANTIDADE</th>
                         </tr>
                     </thead>
@@ -490,7 +490,7 @@
             }
         }
 
-        // Filtrar itens (busca por nome do item e conta)
+        // Filtrar itens (busca por nome do item, conta E AGORA TAMBÉM CÓDIGO)
         function applyFilter() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             
@@ -498,10 +498,14 @@
                 filteredItems = [...allItems];
             } else {
                 filteredItems = allItems.filter(item => {
+                    // Busca pelo nome do item, conta E AGORA CÓDIGO
                     const nomeItem = item["NOME DO ITEM"] || '';
                     const conta = item["CONTA"] || '';
+                    const codigo = item["CÓDIGO"] ? item["CÓDIGO"].toString().toLowerCase() : '';
+                    
                     return nomeItem.toLowerCase().includes(searchTerm) || 
-                           conta.toLowerCase().includes(searchTerm);
+                           conta.toLowerCase().includes(searchTerm) ||
+                           codigo.includes(searchTerm); // NOVA LINHA: busca por código
                 });
             }
             
