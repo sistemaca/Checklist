@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
@@ -393,7 +393,7 @@
           <option>LIMP INDUSTRIAL FORNOS MAERZ</option>
           <option>LIMP INDUSTRIAL BRITAGEM</option>
           <option>LIMP INDUSTRIAL MOAGEM 01 e 02 CARBONATOS</option>
-          <option>LIMP. INDUSTRIAL DRS</option>
+          <option>LIMP INDUSTRIAL DRS</option>
           <option>LIMPEZA INDUSTRIAL - SPOT</option>
           <option>LIMPEZA INDUSTRIAL - ALMOXARIFADO</option>
           <option>TECNICO LABORATORIO</option>
@@ -1039,6 +1039,8 @@ $('btnLimpar').onclick=()=>{
   }
   tblBody.innerHTML='';
   for(let i=0;i<20;i++) addRow({});
+  // RESET DO PREENCHEDOR AUTOMÁTICO - ADICIONEI ESTA LINHA
+  proximaLinhaParaPreencher = 0;
   alert('🧹 Formulário limpo!');
 };
 
@@ -1164,7 +1166,7 @@ function obterHorarioTrabalhoTexto() {
 // FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR
 // ======================================================
 
-async function enviarParaServidorRDS(limparCache = true, mostrarAlerta = true) {
+async function enviarParaServidorRDS(mostrarAlerta = true) {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
     return false;
@@ -1233,12 +1235,9 @@ async function enviarParaServidorRDS(limparCache = true, mostrarAlerta = true) {
     if (resPut.ok) {
       console.log('✅ Dados enviados para o Servidor com sucesso!');
       
-      // Limpa o cache local se o envio foi bem sucedido
-      if (limparCache) {
-        localStorage.removeItem('rds_offline_cache');
-        localStorage.removeItem('rds_pendentes');
-        console.log('🗑️ Cache local limpo após envio bem-sucedido');
-      }
+      // APAGAR CACHE LOCAL APÓS ENVIO BEM-SUCEDIDO
+      localStorage.removeItem('rds_offline_cache');
+      console.log('🗑️ Cache local apagado após envio bem-sucedido');
       
       return true;
     } else {
@@ -1259,7 +1258,7 @@ async function enviarParaServidorRDS(limparCache = true, mostrarAlerta = true) {
 }
 
 // ======================================================
-// GERAR PDF (envia para servidor automaticamente)
+// GERAR PDF (AGORA ENVIA AUTOMATICAMENTE PARA O SERVIDOR)
 // ======================================================
 
 $('btnGerarPDF').onclick = async () => {
@@ -1268,74 +1267,94 @@ $('btnGerarPDF').onclick = async () => {
     return;
   }
   
-  // Primeiro tenta enviar para o servidor
-  const enviadoComSucesso = await enviarParaServidorRDS(true, false); // Não mostrar alerta aqui ainda
+  // Primeiro, verificar se há dados para gerar PDF
+  const linhasComDados = Array.from(tblBody.querySelectorAll('tr')).filter(tr => {
+    const inputs = tr.querySelectorAll('input, select');
+    const entrada = inputs[2]?.value.trim();
+    const saida = inputs[3]?.value.trim();
+    const observacao = inputs[4]?.value.trim();
+    return entrada || saida || observacao;
+  });
+  
+  if (linhasComDados.length === 0) {
+    alert('⚠️ Nenhum dado de funcionário preenchido para gerar PDF!');
+    return;
+  }
+  
+  // Gerar o PDF primeiro
+  const {jsPDF}=window.jspdf;
+  const dataISO = $('rds_data').value;
+  const [yyyy, mm, dd] = dataISO.split('-');
+  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+  $('meta_data').innerText='DATA: '+dataFormatada;
+  $('meta_hora_doc').innerText=$('rds_hora_doc').value;
+  $('meta_contratante').innerText=$('rds_contratante').value;
+  $('meta_servico').innerText=$('rds_servico').value;
+  $('meta_fabrica').innerText=$('rds_fabrica').value;
+  
+  $('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
+  
+  $('meta_tema').innerText=$('rds_tema').value;
+  $('rds_dds').innerText=$('rds_tema').value;
+
+  const tbody=$('rds_func_rows');
+  tbody.innerHTML='';
+  Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
+    const tds=r.querySelectorAll('input,select');
+    const entrada = tds[2].value.trim();
+    const saida = tds[3].value.trim();
+    const observacao = tds[4].value.trim();
+    if(entrada || saida || observacao){
+      const tr2=document.createElement('tr');
+      tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
+      tbody.appendChild(tr2);
+    }
+  });
+
+  const wrapper=$('rds_report').cloneNode(true);
+  wrapper.style.position='fixed';wrapper.style.left='-9999px';
+  document.body.appendChild(wrapper);
+  const canvas=await html2canvas(wrapper,{scale:2});
+  const img=canvas.toDataURL('image/png');
+  const pdf=new jsPDF({unit:'pt',format:'a4'});
+  const w=pdf.internal.pageSize.width;
+  const h=(canvas.height*w)/canvas.width;
+  let pos=0, heightLeft=h;
+  pdf.addImage(img,'PNG',0,pos,w,h);
+  heightLeft-=pdf.internal.pageSize.height;
+  while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
+  
+  // NOME DO ARQUIVO COM DATA E HORA
+  const dataArquivo = `${dd}-${mm}-${yyyy}`;
+  const horaArquivo = $('rds_hora_doc').value.replace(':', '-');
+  const nomeServico = $('rds_servico').value.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
+  pdf.save(`RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.pdf`);
+  
+  document.body.removeChild(wrapper);
+  
+  // ENVIA AUTOMATICAMENTE PARA O SERVIDOR SEM PERGUNTAR
+  const enviadoComSucesso = await enviarParaServidorRDS(false);
   
   if (enviadoComSucesso) {
-    // Se enviou com sucesso, gera o PDF
-    const {jsPDF}=window.jspdf;
-    const dataISO = $('rds_data').value;
-    const [yyyy, mm, dd] = dataISO.split('-');
-    const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
-    $('meta_data').innerText='DATA: '+dataFormatada;
-    $('meta_hora_doc').innerText=$('rds_hora_doc').value;
-    $('meta_contratante').innerText=$('rds_contratante').value;
-    $('meta_servico').innerText=$('rds_servico').value;
-    $('meta_fabrica').innerText=$('rds_fabrica').value;
+    alert('✅ PDF gerado com sucesso!');
     
-    $('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
+    // Limpar formulário após envio bem-sucedido
+    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja manter os dados no formulário para fazer ajustes?\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
     
-    $('meta_tema').innerText=$('rds_tema').value;
-    $('rds_dds').innerText=$('rds_tema').value;
-
-    const tbody=$('rds_func_rows');
-    tbody.innerHTML='';
-    Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
-      const tds=r.querySelectorAll('input,select');
-      const entrada = tds[2].value.trim();
-      const saida = tds[3].value.trim();
-      const observacao = tds[4].value.trim();
-      if(entrada || saida || observacao){
-        const tr2=document.createElement('tr');
-        tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
-        tbody.appendChild(tr2);
-      }
-    });
-
-    const wrapper=$('rds_report').cloneNode(true);
-    wrapper.style.position='fixed';wrapper.style.left='-9999px';
-    document.body.appendChild(wrapper);
-    const canvas=await html2canvas(wrapper,{scale:2});
-    const img=canvas.toDataURL('image/png');
-    const pdf=new jsPDF({unit:'pt',format:'a4'});
-    const w=pdf.internal.pageSize.width;
-    const h=(canvas.height*w)/canvas.width;
-    let pos=0, heightLeft=h;
-    pdf.addImage(img,'PNG',0,pos,w,h);
-    heightLeft-=pdf.internal.pageSize.height;
-    while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
-    
-    // NOME DO ARQUIVO COM DATA E HORA
-    const dataArquivo = `${dd}-${mm}-${yyyy}`;
-    const horaArquivo = $('rds_hora_doc').value.replace(':', '-');
-    const nomeServico = $('rds_servico').value.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
-    pdf.save(`RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.pdf`);
-    
-    document.body.removeChild(wrapper);
-    
-    // Limpa o formulário após gerar PDF e enviar
-    tblBody.innerHTML = '';
-    for(let i=0;i<20;i++) addRow({});
-    
-    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
-    alert('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
+    if (!manterDados) {
+      tblBody.innerHTML = '';
+      for(let i=0;i<20;i++) addRow({});
+      // RESET DO PREENCHEDOR AUTOMÁTICO
+      proximaLinhaParaPreencher = 0;
+      alert('🧹 Formulário limpo!');
+    }
   } else {
-    alert('❌ Não foi possível enviar para o servidor. O PDF não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
+    alert('❌ PDF gerado, mas não foi possível enviar para o servidor.\nOs dados permanecem no formulário.\nTente usar "Enviar para Servidor" mais tarde.');
   }
 };
 
 // ======================================================
-// ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF)
+// ENVIAR APENAS PARA O SERVIDOR (PERGUNTA SE MANTÉM DADOS)
 // ======================================================
 
 document.getElementById('btnServidor').onclick = async () => {
@@ -1344,24 +1363,33 @@ document.getElementById('btnServidor').onclick = async () => {
     return;
   }
   
-  const enviadoComSucesso = await enviarParaServidorRDS(true, true);
+  const enviadoComSucesso = await enviarParaServidorRDS(true);
   
   if (enviadoComSucesso) {
-    alert('✅ Dados enviados para o servidor com sucesso!\nFormulário limpo para novo registro.');
+    // Perguntar se deseja manter os dados no formulário
+    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja manter os dados no formulário para fazer ajustes?\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
     
-    // Limpa o formulário após envio bem-sucedido
-    tblBody.innerHTML = '';
-    for(let i=0;i<20;i++) addRow({});
+    if (!manterDados) {
+      tblBody.innerHTML = '';
+      for(let i=0;i<20;i++) addRow({});
+      // RESET DO PREENCHEDOR AUTOMÁTICO
+      proximaLinhaParaPreencher = 0;
+      alert('🧹 Formulário limpo!');
+    }
   } else {
-    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
+    alert('❌ Não foi possível enviar para o servidor.\nOs dados permanecem no formulário.\nTente novamente mais tarde ou use "Salvar Localmente".');
     
-    // Se não conseguiu enviar, salva localmente
-    salvarLocalmenteRDS();
+    // Perguntar se deseja salvar localmente
+    const salvarLocal = confirm('⚠️ Falha no envio para o servidor.\n\nDeseja salvar os dados localmente como backup?');
+    
+    if (salvarLocal) {
+      salvarLocalmenteRDS();
+    }
   }
 };
 
 // ======================================================
-// GERAR EXCEL (funciona igual ao PDF - envia e limpa)
+// GERAR EXCEL (AGORA ENVIA AUTOMATICAMENTE PARA O SERVIDOR)
 // ======================================================
 
 document.getElementById('btnExcelRDS').addEventListener('click', async function() {
@@ -1370,86 +1398,101 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
     return;
   }
   
-  // Primeiro tenta enviar para o servidor (igual ao PDF)
-  const enviadoComSucesso = await enviarParaServidorRDS(true, false); // Não mostrar alerta aqui ainda
+  // Primeiro, verificar se há dados para gerar Excel
+  const linhasComDados = Array.from(tblBody.querySelectorAll('tr')).filter(tr => {
+    const inputs = tr.querySelectorAll('input, select');
+    const entrada = inputs[2]?.value.trim();
+    const saida = inputs[3]?.value.trim();
+    const observacao = inputs[4]?.value.trim();
+    return entrada || saida || observacao;
+  });
+  
+  if (linhasComDados.length === 0) {
+    alert('⚠️ Nenhum dado de funcionário preenchido para gerar Excel!');
+    return;
+  }
+  
+  // Gerar o Excel primeiro
+  const data = $('rds_data').value;
+  const hora = $('rds_hora_doc').value;
+  const contratante = $('rds_contratante').value;
+  const servico = $('rds_servico').value;
+  const fabrica = $('rds_fabrica').value;
+  
+  const horarioTrabalho = obterHorarioTrabalhoTexto();
+  
+  const tema = $('rds_tema').value;
+
+  const linhasFunc = Array.from(tblBody.querySelectorAll('tr')).map(tr => {
+      const cells = tr.querySelectorAll('td');
+      const entrada = cells[2].querySelector('input').value.trim();
+      const saida = cells[3].querySelector('input').value.trim();
+      const observacao = cells[4].querySelector('input').value.trim();
+      const inputCodigo = cells[0].querySelector('input');
+      const selectNome = cells[1].querySelector('select');
+      const codigo = (entrada || saida) ? (inputCodigo ? inputCodigo.value.trim() : '') : '';
+      const nome = (entrada || saida) ? (selectNome?.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
+
+      return { Codigo: codigo, Nome: nome, Entrada: entrada, Saida: saida, Observacao: observacao };
+  }).filter(f => f.Entrada || f.Saida || f.Observacao);
+
+  const [yyyy, mm, dd] = data.split('-');
+  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+
+  const linhas = linhasFunc.map(f => ({
+      Data: dataFormatada,
+      Hora: hora,
+      Contratante: contratante,
+      Servico: servico,
+      Fabrica: fabrica,
+      HorarioTrabalho: horarioTrabalho,
+      TemaDDS: tema,
+      Codigo: f.Codigo,
+      Nome: f.Nome,
+      Entrada: f.Entrada,
+      Saida: f.Saida,
+      Observacao: f.Observacao
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'RDS');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  
+  // NOME DO ARQUIVO COM DATA E HORA (igual ao PDF)
+  const dataArquivo = `${dd}-${mm}-${yyyy}`;
+  const horaArquivo = hora.replace(':', '-');
+  const nomeServico = servico.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
+  a.download = `RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.xlsx`;
+  
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  // ENVIA AUTOMATICAMENTE PARA O SERVIDOR SEM PERGUNTAR
+  const enviadoComSucesso = await enviarParaServidorRDS(false);
   
   if (enviadoComSucesso) {
-    // Se enviou com sucesso, gera o Excel
-    const data = $('rds_data').value;
-    const hora = $('rds_hora_doc').value;
-    const contratante = $('rds_contratante').value;
-    const servico = $('rds_servico').value;
-    const fabrica = $('rds_fabrica').value;
+    alert('✅ Excel gerado com sucesso!');
     
-    const horarioTrabalho = obterHorarioTrabalhoTexto();
+    // Limpar formulário após envio bem-sucedido
+    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja manter os dados no formulário para fazer ajustes?\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
     
-    const tema = $('rds_tema').value;
-
-    const linhasFunc = Array.from(tblBody.querySelectorAll('tr')).map(tr => {
-        const cells = tr.querySelectorAll('td');
-        const entrada = cells[2].querySelector('input').value.trim();
-        const saida = cells[3].querySelector('input').value.trim();
-        const observacao = cells[4].querySelector('input').value.trim();
-        const inputCodigo = cells[0].querySelector('input');
-        const selectNome = cells[1].querySelector('select');
-        const codigo = (entrada || saida) ? (inputCodigo ? inputCodigo.value.trim() : '') : '';
-        const nome = (entrada || saida) ? (selectNome?.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
-
-        return { Codigo: codigo, Nome: nome, Entrada: entrada, Saida: saida, Observacao: observacao };
-    }).filter(f => f.Entrada || f.Saida || f.Observacao);
-
-    if (linhasFunc.length === 0) {
-        alert('⚠️ Nenhum dado de funcionário preenchido!');
-        return;
+    if (!manterDados) {
+      tblBody.innerHTML = '';
+      for(let i=0;i<20;i++) addRow({});
+      // RESET DO PREENCHEDOR AUTOMÁTICO
+      proximaLinhaParaPreencher = 0;
+      alert('🧹 Formulário limpo!');
     }
-
-    const [yyyy, mm, dd] = data.split('-');
-    const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
-
-    const linhas = linhasFunc.map(f => ({
-        Data: dataFormatada,
-        Hora: hora,
-        Contratante: contratante,
-        Servico: servico,
-        Fabrica: fabrica,
-        HorarioTrabalho: horarioTrabalho,
-        TemaDDS: tema,
-        Codigo: f.Codigo,
-        Nome: f.Nome,
-        Entrada: f.Entrada,
-        Saida: f.Saida,
-        Observacao: f.Observacao
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(linhas);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'RDS');
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/octet-stream' });
-    
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    
-    // NOME DO ARQUIVO COM DATA E HORA (igual ao PDF)
-    const dataArquivo = `${dd}-${mm}-${yyyy}`;
-    const horaArquivo = hora.replace(':', '-');
-    const nomeServico = servico.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
-    a.download = `RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.xlsx`;
-    
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    // Limpa o formulário após gerar Excel e enviar (igual ao PDF)
-    tblBody.innerHTML = '';
-    for(let i=0;i<20;i++) addRow({});
-    
-    // ✅ AGORA AVISA O USUÁRIO QUE FEZ TUDO
-    alert('✅ Excel gerado e dados enviados para o servidor com sucesso!\n\nFormulário limpo para novo registro.');
   } else {
-    alert('❌ Não foi possível enviar para o servidor. O Excel não será gerado.\n\nTente usar "Salvar Localmente" ou verifique sua conexão.');
+    alert('❌ Excel gerado, mas não foi possível enviar para o servidor.\nOs dados permanecem no formulário.\nTente usar "Enviar para Servidor" mais tarde.');
   }
 });
 
@@ -1494,6 +1537,8 @@ function salvarLocalmenteRDS() {
   } else {
     alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
   }
+  
+  // **NOTA: NÃO PERGUNTA SE DESEJA MANTER OS DADOS - apenas salva e mantém no formulário**
 }
 
 // ======================================================
@@ -1562,17 +1607,24 @@ window.addEventListener('load', () => {
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rds_offline_cache');
   if (cache) {
-    // ✅ CONTINUA PERGUNTANDO COMO VOCÊ QUER
-    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
+    // Perguntar se deseja enviar dados pendentes
+    const enviarAgora = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nDeseja enviá-los para o servidor agora?');
     
-    if (acao) {
-      const enviado = await enviarParaServidorRDS(true, false);
+    if (enviarAgora) {
+      const enviado = await enviarParaServidorRDS(false);
       if (enviado) {
-        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar formulário e começar novo.\nClique em Cancelar para manter os dados no formulário.');
-        if (limpar) {
+        // Perguntar se deseja manter os dados no formulário
+        const manterDados = confirm('✅ Dados enviados com sucesso!\n\nDeseja manter os dados no formulário para fazer ajustes?\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
+        
+        if (!manterDados) {
           tblBody.innerHTML = '';
           for(let i=0;i<20;i++) addRow({});
+          // RESET DO PREENCHEDOR AUTOMÁTICO
+          proximaLinhaParaPreencher = 0;
+          alert('🧹 Formulário limpo!');
         }
+        
+        // Remover cache após envio bem-sucedido (já é feito na função enviarParaServidorRDS)
       } else {
         alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
       }
