@@ -346,9 +346,6 @@ function addRow(tag="") {
   return tr;
 }
 
-// REMOVI A LINHA QUE CARREGA OS EQUIPAMENTOS AQUI!
-// equipamentos.forEach(tag => addRow(tag)); // ← REMOVER ESTA LINHA
-
 $('btnLimpar').onclick = () => {
   if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
     // Reseta todos os campos, mas mantém as linhas
@@ -440,7 +437,7 @@ async function enviarParaServidorRDE(mostrarAlerta = true) {
   }
 }
 
-// --- GERAR PDF (PRIMEIRO GERA PDF, DEPOIS PERGUNTA SE QUER ENVIAR) ---
+// --- GERAR PDF (PRIMEIRO GERA PDF, DEPOIS ENVIA SEMPRE, DEPOIS PERGUNTA SE QUER MANTER) ---
 $('btnGerarPDF').onclick = async () => {
   // Primeiro gera o PDF
   const { jsPDF } = window.jspdf;
@@ -487,33 +484,45 @@ $('btnGerarPDF').onclick = async () => {
   pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
   document.body.removeChild(wrapper);
   
-  // ✅ AGORA PERGUNTA SE QUER ENVIAR PARA O SERVIDOR
-  const enviarAgora = confirm('✅ PDF gerado com sucesso!\n\nDeseja enviar os dados para o servidor agora?');
+  // ✅ AVISA QUE GEROU O PDF
+  alert('✅ PDF gerado com sucesso!');
   
-  if (enviarAgora) {
-    const enviadoComSucesso = await enviarParaServidorRDE(true);
-    if (enviadoComSucesso) {
-      // PERGUNTA SE QUER LIMPAR OS CAMPOS DEPOIS DO ENVIO
-      const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja limpar os campos preenchidos?');
-      if (limparCampos) {
-        // Apenas limpa os campos, não as linhas
-        const rows = tblBody.querySelectorAll('tr');
-        rows.forEach(row => {
-          const inputs = row.querySelectorAll('input, select');
-          inputs[1].value = ""; // Área
-          inputs[2].checked = false; // SIM
-          inputs[3].checked = false; // NÃO
-          inputs[4].value = ""; // Observação
-        });
-      }
+  // ✅ AGORA ENVIA SEMPRE PARA O SERVIDOR
+  const enviadoComSucesso = await enviarParaServidorRDE(false); // false para não mostrar alerta aqui
+  
+  if (enviadoComSucesso) {
+    // ABRE UMA JANELA AVISANDO QUE ENVIOU E PERGUNTANDO SE QUER MANTER OS DADOS
+    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados no formulário.\nClique em Cancelar para limpar os campos.');
+    
+    if (manterDados) {
+      alert('📋 Dados mantidos no formulário!');
+    } else {
+      // Apenas limpa os campos, não as linhas
+      const rows = tblBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input, select');
+        inputs[1].value = ""; // Área
+        inputs[2].checked = false; // SIM
+        inputs[3].checked = false; // NÃO
+        inputs[4].value = ""; // Observação
+      });
+      alert('🧹 Campos limpos!');
     }
+  } else {
+    // Se não conseguiu enviar, mostra mensagem
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
+    
+    // Se não conseguiu enviar, salva localmente
+    salvarLocalmente();
   }
 };
 
-// --- GERAR EXCEL ---
-$('btnExcelRDE').onclick = () => {
+// --- GERAR EXCEL (PRIMEIRO GERA EXCEL, DEPOIS ENVIA SEMPRE, DEPOIS PERGUNTA SE QUER MANTER) ---
+$('btnExcelRDE').onclick = async () => {
   const data = $('rde_data').value.split('-').reverse().join('/');
   const horaDoc = $('rde_hora_doc').value;
+  
+  // Primeiro gera o Excel
   const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
     const i = r.querySelectorAll('input,select');
     return {
@@ -531,16 +540,47 @@ $('btnExcelRDE').onclick = () => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'RDE');
   XLSX.writeFile(wb, `RDE_${data.replace(/\//g,'-')}_${horaDoc.replace(':','')}.xlsx`);
+  
+  // ✅ AVISA QUE GEROU O EXCEL
   alert("✅ Excel gerado com sucesso!");
+  
+  // ✅ AGORA ENVIA SEMPRE PARA O SERVIDOR
+  const enviadoComSucesso = await enviarParaServidorRDE(false); // false para não mostrar alerta aqui
+  
+  if (enviadoComSucesso) {
+    // ABRE UMA JANELA AVISANDO QUE ENVIOU E PERGUNTANDO SE QUER MANTER OS DADOS
+    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados no formulário.\nClique em Cancelar para limpar os campos.');
+    
+    if (manterDados) {
+      alert('📋 Dados mantidos no formulário!');
+    } else {
+      // Apenas limpa os campos, não as linhas
+      const rows = tblBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input, select');
+        inputs[1].value = ""; // Área
+        inputs[2].checked = false; // SIM
+        inputs[3].checked = false; // NÃO
+        inputs[4].value = ""; // Observação
+      });
+      alert('🧹 Campos limpos!');
+    }
+  } else {
+    // Se não conseguiu enviar, mostra mensagem
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
+    
+    // Se não conseguiu enviar, salva localmente
+    salvarLocalmente();
+  }
 };
 
-// --- ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF) ---
+// --- ENVIAR APENAS PARA O SERVIDOR (SEM GERAR PDF OU EXCEL) ---
 document.getElementById('btnServidor').onclick = async () => {
   const enviadoComSucesso = await enviarParaServidorRDE(true);
   
   if (enviadoComSucesso) {
     // PERGUNTA SE QUER LIMPAR OS CAMPOS DEPOIS DO ENVIO
-    const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nDeseja limpar os campos preenchidos?');
+    const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos preenchidos.\nClique em Cancelar para manter os dados.');
     if (limparCampos) {
       // Apenas limpa os campos, não as linhas
       const rows = tblBody.querySelectorAll('tr');
@@ -551,6 +591,9 @@ document.getElementById('btnServidor').onclick = async () => {
         inputs[3].checked = false; // NÃO
         inputs[4].value = ""; // Observação
       });
+      alert('🧹 Campos limpos!');
+    } else {
+      alert('📋 Dados mantidos no formulário!');
     }
   } else {
     alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
