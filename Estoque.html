@@ -98,7 +98,7 @@
 
         .legend {
             background: #f8f9fa;
-            border-left: 4px solid var(--warning-color);
+            border-left: 4px solid var(--danger-color);
             padding: 8px 15px;
             margin-bottom: 15px;
             font-size: 13px;
@@ -210,13 +210,12 @@
             font-weight: bold;
             font-family: monospace;
             font-size: 15px;
-            color: #0d6efd; /* AZUL padrão (maior ou igual à média) */
+            color: #0d6efd; /* AZUL padrão (maior ou igual ao estoque mínimo) */
         }
 
-        /* AMARELO quando quantidade MENOR que média de saídas */
-        .quantidade-abaixo-media {
-            color: var(--warning-color) !important;
-            background-color: rgba(255, 193, 7, 0.15);
+        /* VERMELHO quando quantidade MENOR que estoque mínimo */
+        .quantidade-abaixo-minimo {
+            color: var(--danger-color) !important;
             font-weight: bold !important;
         }
 
@@ -347,12 +346,12 @@
             
             <div class="legend">
                 <div class="legend-item">
-                    <span class="legend-color" style="background-color: rgba(255, 193, 7, 0.15);"></span>
-                    <span>Quantidade menor que a média de saídas mensais</span>
+                    <span class="legend-color" style="background-color: transparent; border: 1px solid var(--danger-color);"></span>
+                    <span>Quantidade menor que o estoque mínimo</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-color" style="background-color: transparent; border: 1px solid #0d6efd;"></span>
-                    <span>Quantidade normal ou acima da média</span>
+                    <span>Quantidade normal ou acima do estoque mínimo</span>
                 </div>
             </div>
             
@@ -387,8 +386,8 @@
                             <th style="width: 300px;">NOME DO ITEM</th>
                             <th style="width: 70px;">UNIDADE</th>
                             <th style="width: 80px;">CONTA</th>
-                            <th style="width: 90px;">QUANTIDADE EM ESTOQUE</th> <!-- MOVIDA PARA ANTES DA MÉDIA -->
-                            <th style="width: 90px;">MÉDIA SAÍDAS/MÊS</th> <!-- AGORA É A ÚLTIMA -->
+                            <th style="width: 90px;">QUANTIDADE EM ESTOQUE</th>
+                            <th style="width: 90px;">ESTOQUE MÍNIMO</th> <!-- NOME ALTERADO -->
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -438,14 +437,14 @@
             return date.toLocaleString('pt-BR', options);
         }
 
-        // Verificar se quantidade está abaixo da média de saídas
-        function isQuantidadeAbaixoMedia(quantidade, mediaSaidas) {
-            if (!mediaSaidas || mediaSaidas <= 0) {
-                return false; // Se não houver média, não mostra como amarelo
+        // Verificar se quantidade está abaixo do estoque mínimo
+        function isQuantidadeAbaixoMinimo(quantidade, estoqueMinimo) {
+            if (!estoqueMinimo || estoqueMinimo <= 0) {
+                return false; // Se não houver estoque mínimo, não mostra como vermelho
             }
             
-            // Se a quantidade for MENOR que a média mensal de saídas
-            return quantidade < mediaSaidas;
+            // Se a quantidade for MENOR que o estoque mínimo
+            return quantidade < estoqueMinimo;
         }
 
         // Buscar dados do BIN
@@ -540,46 +539,45 @@
                 const conta = item["CONTA"] || 'Não definida';
                 const quantidade = parseFloat(item["QUANTIDADE EM ESTOQUE"]) || 0;
                 
-                // Buscar média de saídas mensais (tenta diferentes nomes possíveis)
-                const mediaSaidas = parseFloat(item["MÉDIA DE SAÍDAS MÊS"]) || 
-                                   parseFloat(item["MEDIA SAIDAS MES"]) || 
-                                   parseFloat(item["MEDIA DE SAIDAS MES"]) || 
-                                   parseFloat(item["MÉDIA SAÍDAS MÊS"]) || 
-                                   parseFloat(item["Média Saídas Mês"]) || 0;
+                // Buscar estoque mínimo (tenta diferentes nomes possíveis)
+                const estoqueMinimo = parseFloat(item["MÉDIA DE SAÍDAS MÊS"]) || 
+                                     parseFloat(item["MEDIA SAIDAS MES"]) || 
+                                     parseFloat(item["MEDIA DE SAIDAS MES"]) || 
+                                     parseFloat(item["MÉDIA SAÍDAS MÊS"]) || 
+                                     parseFloat(item["Média Saídas Mês"]) || 0;
                 
-                // Verificar se quantidade está abaixo da média
-                const estaAbaixoMedia = isQuantidadeAbaixoMedia(quantidade, mediaSaidas);
-                const quantidadeClass = estaAbaixoMedia ? 
-                    'quantidade-cell quantidade-abaixo-media' : 
+                // Verificar se quantidade está abaixo do estoque mínimo
+                const estaAbaixoMinimo = isQuantidadeAbaixoMinimo(quantidade, estoqueMinimo);
+                const quantidadeClass = estaAbaixoMinimo ? 
+                    'quantidade-cell quantidade-abaixo-minimo' : 
                     'quantidade-cell';
                 
-                // Formatar a média de saídas
-                const mediaFormatada = mediaSaidas > 0 ? 
-                    (mediaSaidas % 1 === 0 ? mediaSaidas.toFixed(0) : mediaSaidas.toFixed(1)) : 
+                // Formatar o estoque mínimo
+                const minimoFormatado = estoqueMinimo > 0 ? 
+                    (estoqueMinimo % 1 === 0 ? estoqueMinimo.toFixed(0) : estoqueMinimo.toFixed(1)) : 
                     '0';
                 
-                // ATUALIZADO: QUANTIDADE antes da MÉDIA
                 row.innerHTML = `
                     <td class="codigo-cell">${codigo}</td>
                     <td class="nome-cell">${nome}</td>
                     <td class="unidade-cell">${unidade}</td>
                     <td class="conta-cell">${conta}</td>
                     <td class="${quantidadeClass}">${quantidade.toFixed(0)}</td>
-                    <td class="media-cell">${mediaFormatada}</td>
+                    <td class="media-cell">${minimoFormatado}</td>
                 `;
                 
                 tableBody.appendChild(row);
             });
             
-            // Contar itens abaixo da média para estatísticas
-            const itensAbaixoMedia = filteredItems.filter(item => {
+            // Contar itens abaixo do estoque mínimo para estatísticas
+            const itensAbaixoMinimo = filteredItems.filter(item => {
                 const quantidade = parseFloat(item["QUANTIDADE EM ESTOQUE"]) || 0;
-                const mediaSaidas = parseFloat(item["MÉDIA DE SAÍDAS MÊS"]) || 
-                                   parseFloat(item["MEDIA SAIDAS MES"]) || 
-                                   parseFloat(item["MEDIA DE SAIDAS MES"]) || 
-                                   parseFloat(item["MÉDIA SAÍDAS MÊS"]) || 
-                                   parseFloat(item["Média Saídas Mês"]) || 0;
-                return isQuantidadeAbaixoMedia(quantidade, mediaSaidas);
+                const estoqueMinimo = parseFloat(item["MÉDIA DE SAÍDAS MÊS"]) || 
+                                     parseFloat(item["MEDIA SAIDAS MES"]) || 
+                                     parseFloat(item["MEDIA DE SAIDAS MES"]) || 
+                                     parseFloat(item["MÉDIA SAÍDAS MÊS"]) || 
+                                     parseFloat(item["Média Saídas Mês"]) || 0;
+                return isQuantidadeAbaixoMinimo(quantidade, estoqueMinimo);
             }).length;
             
             // Atualizar contador com informação adicional
@@ -589,9 +587,9 @@
                 `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}` :
                 `${filtrados} de ${totalItens} itens`;
             
-            // Adicionar informação sobre itens abaixo da média
-            if (itensAbaixoMedia > 0) {
-                textoContador += ` (${itensAbaixoMedia} abaixo da média)`;
+            // Adicionar informação sobre itens abaixo do estoque mínimo
+            if (itensAbaixoMinimo > 0) {
+                textoContador += ` (${itensAbaixoMinimo} abaixo do mínimo)`;
             }
             
             itemCountEl.textContent = textoContador;
@@ -641,4 +639,3 @@
     </script>
 </body>
 </html>
-
