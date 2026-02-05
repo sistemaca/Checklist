@@ -51,10 +51,12 @@
             gap: 10px;
             margin-bottom: 20px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .search-input {
             flex: 1;
+            min-width: 200px;
             padding: 12px 15px;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -77,13 +79,39 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: bold;
-            transition: background 0.3s;
+            transition: all 0.3s;
             white-space: nowrap;
         }
 
         .search-btn:hover {
             background: #0959a8;
             transform: translateY(-1px);
+        }
+
+        .filter-btn {
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .filter-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .filter-btn.active {
+            background: #28a745;
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
         }
 
         .info-box {
@@ -297,6 +325,7 @@
             
             .search-input,
             .search-btn,
+            .filter-btn,
             .refresh-btn {
                 width: 100%;
             }
@@ -341,7 +370,7 @@
             
             <div class="info-box">
                 🔍 <strong>Como usar:</strong> Digite o código, nome do item ou conta para pesquisar ou deixe em branco para ver todos os cadastros. 
-                Os dados são sincronizados automaticamente com o sistema principal.
+                Clique no botão "🔻 Filtrar Abaixo do Mínimo" para ver apenas os itens que precisam de reposição.
             </div>
             
             <div class="legend">
@@ -363,6 +392,9 @@
                        autocomplete="off">
                 <button id="searchBtn" class="search-btn">
                     🔎 Pesquisar
+                </button>
+                <button id="filterBtn" class="filter-btn">
+                    🔻 Filtrar Abaixo do Mínimo
                 </button>
                 <button id="refreshBtn" class="refresh-btn">
                     🔄 Atualizar Dados
@@ -412,6 +444,7 @@
         // Elementos DOM
         const searchInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('searchBtn');
+        const filterBtn = document.getElementById('filterBtn');
         const refreshBtn = document.getElementById('refreshBtn');
         const tableBody = document.getElementById('tableBody');
         const loadingEl = document.getElementById('loading');
@@ -423,6 +456,7 @@
         let allItems = [];
         let filteredItems = [];
         let lastUpdateTime = null;
+        let isFilteringBelowMin = false;
 
         // Formatar data
         function formatDateTime(date) {
@@ -492,23 +526,51 @@
         // Filtrar itens (busca por nome do item, conta E AGORA TAMBÉM CÓDIGO)
         function applyFilter() {
             const searchTerm = searchInput.value.toLowerCase().trim();
+            let tempFilteredItems = [...allItems];
             
-            if (searchTerm === '') {
-                filteredItems = [...allItems];
-            } else {
-                filteredItems = allItems.filter(item => {
-                    // Busca pelo nome do item, conta E AGORA CÓDIGO
+            // Aplicar filtro de pesquisa
+            if (searchTerm !== '') {
+                tempFilteredItems = tempFilteredItems.filter(item => {
                     const nomeItem = item["NOME DO ITEM"] || '';
                     const conta = item["CONTA"] || '';
                     const codigo = item["CÓDIGO"] ? item["CÓDIGO"].toString().toLowerCase() : '';
                     
                     return nomeItem.toLowerCase().includes(searchTerm) || 
                            conta.toLowerCase().includes(searchTerm) ||
-                           codigo.includes(searchTerm); // NOVA LINHA: busca por código
+                           codigo.includes(searchTerm);
                 });
             }
             
+            // Aplicar filtro de estoque abaixo do mínimo
+            if (isFilteringBelowMin) {
+                tempFilteredItems = tempFilteredItems.filter(item => {
+                    const quantidade = parseFloat(item["QUANTIDADE EM ESTOQUE"]) || 0;
+                    const estoqueMinimo = parseFloat(item["MÉDIA DE SAÍDAS MÊS"]) || 
+                                         parseFloat(item["MEDIA SAIDAS MES"]) || 
+                                         parseFloat(item["MEDIA DE SAIDAS MES"]) || 
+                                         parseFloat(item["MÉDIA SAÍDAS MÊS"]) || 
+                                         parseFloat(item["Média Saídas Mês"]) || 0;
+                    return isQuantidadeAbaixoMinimo(quantidade, estoqueMinimo);
+                });
+            }
+            
+            filteredItems = tempFilteredItems;
             renderTable();
+        }
+
+        // Alternar filtro de estoque abaixo do mínimo
+        function toggleFilterBelowMin() {
+            isFilteringBelowMin = !isFilteringBelowMin;
+            
+            if (isFilteringBelowMin) {
+                filterBtn.classList.add('active');
+                filterBtn.innerHTML = '✅ Mostrar Todos';
+            } else {
+                filterBtn.classList.remove('active');
+                filterBtn.innerHTML = '🔻 Filtrar Abaixo do Mínimo';
+            }
+            
+            applyFilter();
         }
 
         // Renderizar tabela
@@ -516,7 +578,11 @@
             tableBody.innerHTML = '';
             
             if (filteredItems.length === 0) {
-                showNoData('Nenhum item encontrado. Tente outra pesquisa.');
+                if (isFilteringBelowMin) {
+                    showNoData('Não há itens abaixo do estoque mínimo. Ótimo trabalho!');
+                } else {
+                    showNoData('Nenhum item encontrado. Tente outra pesquisa.');
+                }
                 return;
             }
             
@@ -580,16 +646,35 @@
                 return isQuantidadeAbaixoMinimo(quantidade, estoqueMinimo);
             }).length;
             
-            // Atualizar contador com informação adicional
+            // Contar total de itens abaixo do mínimo em todos os itens (não apenas nos filtrados)
+            const totalItensAbaixoMinimo = allItems.filter(item => {
+                const quantidade = parseFloat(item["QUANTIDADE EM ESTOQUE"]) || 0;
+                const estoqueMinimo = parseFloat(item["MÉDIA DE SAÍDAS MÊS"]) || 
+                                     parseFloat(item["MEDIA SAIDAS MES"]) || 
+                                     parseFloat(item["MEDIA DE SAIDAS MES"]) || 
+                                     parseFloat(item["MÉDIA SAÍDAS MÊS"]) || 
+                                     parseFloat(item["Média Saídas Mês"]) || 0;
+                return isQuantidadeAbaixoMinimo(quantidade, estoqueMinimo);
+            }).length;
+            
+            // Atualizar contador
             const totalItens = allItems.length;
             const filtrados = filteredItems.length;
-            let textoContador = filtrados === totalItens ? 
-                `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}` :
-                `${filtrados} de ${totalItens} itens`;
             
-            // Adicionar informação sobre itens abaixo do estoque mínimo
-            if (itensAbaixoMinimo > 0) {
-                textoContador += ` (${itensAbaixoMinimo} abaixo do mínimo)`;
+            let textoContador = '';
+            
+            if (isFilteringBelowMin) {
+                textoContador = `${filtrados} ${filtrados === 1 ? 'item' : 'itens'} abaixo do estoque mínimo`;
+            } else if (filtrados === totalItens) {
+                textoContador = `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}`;
+                if (totalItensAbaixoMinimo > 0) {
+                    textoContador += ` (${totalItensAbaixoMinimo} abaixo do mínimo)`;
+                }
+            } else {
+                textoContador = `${filtrados} de ${totalItens} itens`;
+                if (itensAbaixoMinimo > 0) {
+                    textoContador += ` (${itensAbaixoMinimo} abaixo do mínimo)`;
+                }
             }
             
             itemCountEl.textContent = textoContador;
@@ -608,9 +693,13 @@
 
         // Event Listeners
         searchBtn.addEventListener('click', applyFilter);
+        filterBtn.addEventListener('click', toggleFilterBelowMin);
         refreshBtn.addEventListener('click', () => {
             fetchData();
             searchInput.value = ''; // Limpa pesquisa ao atualizar
+            if (isFilteringBelowMin) {
+                toggleFilterBelowMin(); // Desativa o filtro se estiver ativo
+            }
         });
 
         // Pesquisar ao pressionar Enter
