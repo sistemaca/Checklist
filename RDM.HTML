@@ -158,24 +158,55 @@
     .btn { width: 100%; }
     .actions { flex-direction: column; }
     
+    .table-container {
+      margin: 8px 0;
+      border-radius: 6px;
+    }
+    
+    .table {
+      min-width: 550px;
+    }
+    
     .table th, .table td { 
       font-size: 12px; 
-      padding: 8px 5px;
+      padding: 8px 2px;
+      white-space: nowrap;
+    }
+    
+    /* Ajuste específico para a coluna do horímetro */
+    .table td:nth-child(4) input {
+      max-width: 70px;
+      padding: 6px 4px;
+      font-size: 11px;
+    }
+    
+    /* Ajuste para a coluna de data */
+    .table td:nth-child(3) input {
+      max-width: 110px;
+    }
+    
+    /* Ajuste para o select de equipamento */
+    .table td:first-child select {
+      max-width: 100px;
+      font-size: 11px;
+      padding: 6px 4px;
     }
     
     .tipo-wrapper {
-      min-width: 160px;
+      min-width: 140px;
+      gap: 3px;
     }
     
     .tipo-select, .tipo-input {
-      font-size: 12px;
-      padding: 8px;
-      height: 36px;
+      font-size: 11px;
+      padding: 6px 4px;
+      height: 32px;
+      min-width: 70px;
     }
     
     .remove-row {
-      padding: 6px 10px;
-      font-size: 12px;
+      padding: 4px 8px;
+      font-size: 11px;
     }
   }
 </style>
