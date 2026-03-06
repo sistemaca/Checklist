@@ -37,6 +37,18 @@
     background: #fff; width: 100%;
     box-sizing: border-box;
   }
+  /* Garantir que o input date mostre a data corretamente no celular */
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="date"]::-webkit-datetime-edit-month-field,
+  input[type="date"]::-webkit-datetime-edit-day-field,
+  input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #000;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    padding: 4px;
+    cursor: pointer;
+  }
   input[readonly] {
     background-color: #f8f9fa;
     cursor: not-allowed;
@@ -318,7 +330,7 @@ function criarTipoManutencao() {
   optionVazia.textContent = '-- Selecione --';
   select.appendChild(optionVazia);
   
-  // Opção OUTROS (mantida como OUTROS no select, mas botão é Digitar)
+  // Opção OUTROS
   const optionOutros = document.createElement('option');
   optionOutros.value = 'OUTROS';
   optionOutros.textContent = 'OUTROS (digitar)';
@@ -421,7 +433,15 @@ function addRow() {
   const tdData = document.createElement('td');
   const inputData = document.createElement('input');
   inputData.type = 'date';
-  inputData.value = new Date().toISOString().split('T')[0];
+  
+  // Garantir que a data seja definida corretamente no formato ISO
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  inputData.value = `${ano}-${mes}-${dia}`;
+  inputData.setAttribute('data-original', inputData.value);
+  
   tdData.appendChild(inputData);
   
   // Observação
@@ -471,7 +491,7 @@ function getValorTipo(container) {
   return '';
 }
 
-// Função para obter todos os dados
+// Função para obter todos os dados - CORRIGIDA: data_manutencao em DD/MM/AAAA
 function getDadosFormulario() {
   const dataIso = $('rdm_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
@@ -483,12 +503,19 @@ function getDadosFormulario() {
     const tipoContainer = r.querySelector('.tipo-container');
     const tipoManutencao = getValorTipo(tipoContainer);
     
+    // CONVERTER data_manutencao de YYYY-MM-DD para DD/MM/AAAA
+    let dataManutencao = inputs[0] ? inputs[0].value : '';
+    if (dataManutencao && dataManutencao.includes('-')) {
+      const [ano, mes, dia] = dataManutencao.split('-');
+      dataManutencao = `${dia}/${mes}/${ano}`;
+    }
+    
     return {
       data_documento: data,
       hora_documento: horaDoc,
       equipamento: selectEquip ? selectEquip.value : '',
       tipo_manutencao: tipoManutencao,
-      data_manutencao: inputs[0] ? inputs[0].value : '',
+      data_manutencao: dataManutencao, // Agora está no formato DD/MM/AAAA
       observacao: inputs[1] ? inputs[1].value : ''
     };
   }).filter(l => l.equipamento || l.tipo_manutencao || l.observacao);
@@ -497,7 +524,11 @@ function getDadosFormulario() {
 // Event Listeners
 window.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
-  $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const ano = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, '0');
+  const dia = String(now.getDate()).padStart(2, '0');
+  
+  $('rdm_data').value = `${ano}-${mes}-${dia}`;
   $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   
   // Criar 10 linhas
@@ -527,7 +558,7 @@ $('btnLimpar').onclick = () => {
   }
 };
 
-// Função para enviar para o servidor
+// Função para enviar para o servidor - CORRIGIDA: preserva registros anteriores
 async function enviarParaServidorRDM(mostrarAlerta = true) {
   const linhas = getDadosFormulario();
 
@@ -542,20 +573,46 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
     const GET_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}/latest`;
     const PUT_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}`;
 
-    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
+    console.log('Enviando dados...', linhas);
+    
+    // Primeiro, buscar os dados existentes
+    const resGet = await fetch(GET_URL, { 
+      headers: { 
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Meta': 'false'
+      } 
+    });
+    
     let dadosExistentes = [];
     
     if(resGet.ok){
       const json = await resGet.json();
-      if (Array.isArray(json.record)) {
+      console.log('Dados existentes:', json);
+      
+      // Verificar o formato dos dados existentes
+      if (json.record && json.record.rdm_registros) {
+        // Formato: { "rdm_registros": [...] }
+        dadosExistentes = json.record.rdm_registros || [];
+      } else if (json.rdm_registros) {
+        // Formato direto: { "rdm_registros": [...] }
+        dadosExistentes = json.rdm_registros || [];
+      } else if (Array.isArray(json.record)) {
+        // Formato: array direto
         dadosExistentes = json.record;
-      } else if (json.record && json.record.rdm_registros) {
-        dadosExistentes = json.record.rdm_registros;
+      } else if (Array.isArray(json)) {
+        // Formato: array direto
+        dadosExistentes = json;
       }
     }
+    
+    // Combinar registros existentes com os novos
+    const todosRegistros = [...dadosExistentes, ...linhas];
+    console.log('Total de registros:', todosRegistros.length);
+    
+    // Manter o formato { "rdm_registros": [...] }
+    const dadosParaSalvar = { rdm_registros: todosRegistros };
 
-    const dadosAtualizados = [...dadosExistentes, ...linhas];
-
+    // Enviar todos os registros de volta (antigos + novos)
     const resPut = await fetch(PUT_URL, {
       method:'PUT',
       headers:{
@@ -563,15 +620,15 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
         'X-Master-Key':MASTER_KEY,
         'X-Bin-Versioning':'false'
       },
-      body:JSON.stringify({ rdm_registros: dadosAtualizados })
+      body:JSON.stringify(dadosParaSalvar)
     });
 
     if(resPut.ok) {
-      console.log('✅ Dados enviados com sucesso!');
+      console.log('✅ Dados enviados com sucesso! Total de registros:', todosRegistros.length);
       localStorage.removeItem('rdm_offline_cache');
       return true;
     } else {
-      console.log('❌ Erro ao enviar para o servidor.');
+      console.log('❌ Erro ao enviar para o servidor. Status:', resPut.status);
       return false;
     }
   } catch(err){
@@ -582,79 +639,98 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
 
 // Gerar PDF
 $('btnGerarPDF').onclick = async () => {
-  const { jsPDF } = window.jspdf;
-  const [yyyy,mm,dd] = $('rdm_data').value.split('-');
-  const dataFormatada = `${dd}/${mm}/${yyyy}`;
-  const horaFormatada = $('rdm_hora_doc').value;
-  $('meta_data').innerText = "DATA: " + dataFormatada;
-  $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
+  try {
+    const { jsPDF } = window.jspdf;
+    const [yyyy,mm,dd] = $('rdm_data').value.split('-');
+    const dataFormatada = `${dd}/${mm}/${yyyy}`;
+    const horaFormatada = $('rdm_hora_doc').value;
+    $('meta_data').innerText = "DATA: " + dataFormatada;
+    $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
 
-  const tbody = $('rdm_equip_rows');
-  tbody.innerHTML = "";
-  
-  Array.from(tblBody.querySelectorAll('tr')).forEach(r => {
-    const selectEquip = r.querySelector('td:first-child select');
-    const tipoContainer = r.querySelector('.tipo-container');
-    const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
-    const tipoManutencao = getValorTipo(tipoContainer);
+    const tbody = $('rdm_equip_rows');
+    tbody.innerHTML = "";
     
-    if (selectEquip.value || tipoManutencao || inputs[0]?.value || inputs[1]?.value) {
-      const tr2 = document.createElement('tr');
+    let hasData = false;
+    
+    Array.from(tblBody.querySelectorAll('tr')).forEach(r => {
+      const selectEquip = r.querySelector('td:first-child select');
+      const tipoContainer = r.querySelector('.tipo-container');
+      const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+      const tipoManutencao = getValorTipo(tipoContainer);
       
-      // Corrigir a formatação da data da manutenção para DD/MM/AAAA
-      let dataManutencaoFormatada = inputs[0] ? inputs[0].value : '';
-      if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
-        const [ano, mes, dia] = dataManutencaoFormatada.split('-');
-        dataManutencaoFormatada = `${dia}/${mes}/${ano}`;
+      const equipValue = selectEquip ? selectEquip.value : '';
+      const tipoValue = tipoManutencao;
+      const dataValue = inputs[0] ? inputs[0].value : '';
+      const obsValue = inputs[1] ? inputs[1].value : '';
+      
+      if (equipValue || tipoValue || dataValue || obsValue) {
+        hasData = true;
+        const tr2 = document.createElement('tr');
+        
+        // Corrigir a formatação da data da manutenção para DD/MM/AAAA
+        let dataManutencaoFormatada = dataValue;
+        if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
+          const [ano, mes, dia] = dataManutencaoFormatada.split('-');
+          dataManutencaoFormatada = `${dia}/${mes}/${ano}`;
+        }
+        
+        tr2.innerHTML = `
+          <td>${equipValue}</td>
+          <td>${tipoValue}</td>
+          <td>${dataManutencaoFormatada}</td>
+          <td>${obsValue}</td>
+        `;
+        tbody.appendChild(tr2);
       }
-      
-      tr2.innerHTML = `
-        <td>${selectEquip ? selectEquip.value : ''}</td>
-        <td>${tipoManutencao}</td>
-        <td>${dataManutencaoFormatada}</td>
-        <td>${inputs[1] ? inputs[1].value : ''}</td>
-      `;
-      tbody.appendChild(tr2);
-    }
-  });
-  
-  const wrapper = $('rdm_report').cloneNode(true);
-  wrapper.style.visibility = 'visible';
-  wrapper.style.position = 'absolute';
-  wrapper.style.left = '-9999px';
-  wrapper.style.top = '0';
-  document.body.appendChild(wrapper);
-
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-  const canvas = await html2canvas(wrapper, {
-    scale: 1.2,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    logging: false
-  });
-  
-  const pdf = new jsPDF({unit:'pt',format:'a4'});
-  const img = canvas.toDataURL('image/png');
-  const w = pdf.internal.pageSize.width;
-  const h = (canvas.height * w) / canvas.width;
-  pdf.addImage(img, 'PNG', 20, 20, w - 40, h);
-  pdf.save(`RDM_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
-  document.body.removeChild(wrapper);
-  
-  alert('✅ PDF gerado com sucesso!');
-  
-  const enviadoComSucesso = await enviarParaServidorRDM(false);
-  
-  if (enviadoComSucesso) {
-    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar.');
+    });
     
-    if (!manterDados) {
-      $('btnLimpar').click();
+    if (!hasData) {
+      alert('⚠️ Não há dados para gerar o PDF!');
+      return;
     }
-  } else {
-    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente.');
-    salvarLocalmente();
+    
+    const wrapper = $('rdm_report').cloneNode(true);
+    wrapper.style.visibility = 'visible';
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '-9999px';
+    wrapper.style.top = '0';
+    document.body.appendChild(wrapper);
+  
+    await new Promise(resolve => setTimeout(resolve, 500));
+  
+    const canvas = await html2canvas(wrapper, {
+      scale: 1.5,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      allowTaint: false
+    });
+    
+    const pdf = new jsPDF({unit:'pt',format:'a4'});
+    const img = canvas.toDataURL('image/png');
+    const w = pdf.internal.pageSize.width - 40;
+    const h = (canvas.height * w) / canvas.width;
+    pdf.addImage(img, 'PNG', 20, 20, w, h);
+    pdf.save(`RDM_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
+    document.body.removeChild(wrapper);
+    
+    alert('✅ PDF gerado com sucesso!');
+    
+    const enviadoComSucesso = await enviarParaServidorRDM(false);
+    
+    if (enviadoComSucesso) {
+      const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar.');
+      
+      if (!manterDados) {
+        $('btnLimpar').click();
+      }
+    } else {
+      alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente.');
+      salvarLocalmente();
+    }
+  } catch (error) {
+    console.error('Erro ao gerar PDF:', error);
+    alert('❌ Erro ao gerar PDF. Tente novamente.');
   }
 };
 
@@ -697,52 +773,65 @@ window.addEventListener('load', () => {
   const cache = localStorage.getItem('rdm_offline_cache');
   
   if (cache) {
-    const linhas = JSON.parse(cache);
-    if (linhas.length > 0) {
-      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar.\nClique em Cancelar para começar em branco.');
-      
-      if (carregar) {
-        tblBody.innerHTML = '';
-        linhas.forEach(dado => {
-          const tr = addRow();
-          const selectEquip = tr.querySelector('td:first-child select');
-          const tipoContainer = tr.querySelector('.tipo-container');
-          const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
-          
-          if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
-          if (inputs[0] && dado.data_manutencao) inputs[0].value = dado.data_manutencao;
-          if (inputs[1] && dado.observacao) inputs[1].value = dado.observacao;
-          
-          if (tipoContainer && dado.tipo_manutencao) {
-            const select = tipoContainer.querySelector('select');
-            const input = tipoContainer.querySelector('input[type="text"]');
-            const btnDigitar = tipoContainer.querySelector('.btn-small');
+    try {
+      const linhas = JSON.parse(cache);
+      if (linhas.length > 0) {
+        const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar.\nClique em Cancelar para começar em branco.');
+        
+        if (carregar) {
+          tblBody.innerHTML = '';
+          linhas.forEach(dado => {
+            const tr = addRow();
+            const selectEquip = tr.querySelector('td:first-child select');
+            const tipoContainer = tr.querySelector('.tipo-container');
+            const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
             
-            const optionExists = Array.from(select.options).some(opt => opt.value === dado.tipo_manutencao);
+            if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
             
-            if (optionExists) {
-              select.value = dado.tipo_manutencao;
-            } else {
-              select.value = 'OUTROS';
-              input.value = dado.tipo_manutencao;
-              input.style.display = 'block';
-              select.style.display = 'none';
-              btnDigitar.style.display = 'none';
+            // Converter data_manutencao de DD/MM/AAAA para YYYY-MM-DD no input
+            if (inputs[0] && dado.data_manutencao) {
+              if (dado.data_manutencao.includes('/')) {
+                const [dia, mes, ano] = dado.data_manutencao.split('/');
+                inputs[0].value = `${ano}-${mes}-${dia}`;
+              } else {
+                inputs[0].value = dado.data_manutencao;
+              }
             }
-          }
-        });
-        
-        // Garantir que os tipos estejam carregados
-        setTimeout(() => {
-          if (!tiposCarregados) {
-            carregarTiposManutencao(false);
-          } else {
-            atualizarTodosOsSelects();
-          }
-        }, 500);
-        
-        alert('📂 Dados carregados!');
+            
+            if (inputs[1] && dado.observacao) inputs[1].value = dado.observacao;
+            
+            if (tipoContainer && dado.tipo_manutencao) {
+              const select = tipoContainer.querySelector('select');
+              const input = tipoContainer.querySelector('input[type="text"]');
+              const btnDigitar = tipoContainer.querySelector('.btn-small');
+              
+              const optionExists = Array.from(select.options).some(opt => opt.value === dado.tipo_manutencao);
+              
+              if (optionExists) {
+                select.value = dado.tipo_manutencao;
+              } else {
+                select.value = 'OUTROS';
+                input.value = dado.tipo_manutencao;
+                input.style.display = 'block';
+                select.style.display = 'none';
+                btnDigitar.style.display = 'none';
+              }
+            }
+          });
+          
+          setTimeout(() => {
+            if (!tiposCarregados) {
+              carregarTiposManutencao(false);
+            } else {
+              atualizarTodosOsSelects();
+            }
+          }, 500);
+          
+          alert('📂 Dados carregados!');
+        }
       }
+    } catch (e) {
+      console.error('Erro ao carregar cache:', e);
     }
   }
 });
