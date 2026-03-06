@@ -178,11 +178,11 @@
     </table>
 
     <div class="actions">
-      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
       <button id="btnServidor" class="btn">Enviar para o Servidor</button>
       <button id="btnGerarPDF" class="btn">Gerar PDF</button>
       <button id="btnLimpar" class="btn gray">Limpar</button>
       <button id="btnRecarregarTipos" class="btn warning">Recarregar Tipos</button>
+      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
     </div>
 
   </div>
@@ -318,15 +318,15 @@ function criarTipoManutencao() {
   optionVazia.textContent = '-- Selecione --';
   select.appendChild(optionVazia);
   
-  // Opção OUTROS (agora chamada DIGITAR)
-  const optionDigitar = document.createElement('option');
-  optionDigitar.value = 'DIGITAR';
-  optionDigitar.textContent = 'DIGITAR (digitar)';
-  select.appendChild(optionDigitar);
+  // Opção OUTROS (mantida como OUTROS no select, mas botão é Digitar)
+  const optionOutros = document.createElement('option');
+  optionOutros.value = 'OUTROS';
+  optionOutros.textContent = 'OUTROS (digitar)';
+  select.appendChild(optionOutros);
   
   // Evento para alternar entre select e input
   select.addEventListener('change', () => {
-    if (select.value === 'DIGITAR') {
+    if (select.value === 'OUTROS') {
       input.style.display = 'block';
       select.style.display = 'none';
       btnDigitar.style.display = 'none';
@@ -335,7 +335,7 @@ function criarTipoManutencao() {
   });
   
   btnDigitar.addEventListener('click', () => {
-    select.value = 'DIGITAR';
+    select.value = 'OUTROS';
     input.style.display = 'block';
     select.style.display = 'none';
     btnDigitar.style.display = 'none';
@@ -370,7 +370,7 @@ function atualizarTodosOsSelects() {
       const valorAtual = select.value;
       const isOutrosMode = select.style.display === 'none';
       
-      // Limpar opções (mantendo as duas primeiras: vazia e DIGITAR)
+      // Limpar opções (mantendo as duas primeiras: vazia e OUTROS)
       while (select.options.length > 2) {
         select.remove(2);
       }
@@ -390,8 +390,8 @@ function atualizarTodosOsSelects() {
         });
       }
       
-      // Restaurar valor se possível e não estiver no modo DIGITAR
-      if (!isOutrosMode && valorAtual && valorAtual !== 'DIGITAR') {
+      // Restaurar valor se possível e não estiver no modo OUTROS
+      if (!isOutrosMode && valorAtual && valorAtual !== 'OUTROS') {
         const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
         if (optionExists) {
           select.value = valorAtual;
@@ -458,13 +458,13 @@ function getValorTipo(container) {
   const select = container.querySelector('select');
   const input = container.querySelector('input[type="text"]');
   
-  // Verificar se está no modo DIGITAR (input visível)
+  // Verificar se está no modo OUTROS (input visível)
   if (input && input.style.display !== 'none' && input.value.trim() !== '') {
     return input.value.trim();
   }
   
   // Verificar select
-  if (select && select.style.display !== 'none' && select.value && select.value !== 'DIGITAR' && select.value !== '') {
+  if (select && select.style.display !== 'none' && select.value && select.value !== 'OUTROS' && select.value !== '') {
     return select.value;
   }
   
@@ -723,7 +723,7 @@ window.addEventListener('load', () => {
             if (optionExists) {
               select.value = dado.tipo_manutencao;
             } else {
-              select.value = 'DIGITAR';
+              select.value = 'OUTROS';
               input.value = dado.tipo_manutencao;
               input.style.display = 'block';
               select.style.display = 'none';
