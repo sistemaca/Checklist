@@ -1,0 +1,760 @@
+<!DOCTYPE html> 
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RDM — Relatório de Manutenção Mecânica</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  :root { --paper-w: 794px; --muted: #666; }
+  body {
+    font-family: "Arial", Helvetica, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 18px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .col {
+    flex: 1; min-width: 150px;
+    display: flex; flex-direction: column;
+    margin-bottom: 8px;
+  }
+  label { font-size: 13px; margin-bottom: 6px; color: #222; }
+  input[type=text], input[type=date], select {
+    padding: 8px; border: 1px solid #ddd;
+    border-radius: 6px; font-size: 14px;
+    background: #fff; width: 100%;
+    box-sizing: border-box;
+  }
+  input[readonly] {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+  }
+  .btn {
+    display: inline-block; background: #0b73d6; color: #fff;
+    border: none; padding: 10px 14px;
+    border-radius: 8px; font-size: 14px;
+    cursor: pointer; transition: background 0.3s;
+  }
+  .btn:hover { background: #0959a8; }
+  .btn.gray { background: #6c757d; }
+  .btn.success { background: #28a745; }
+  .btn.warning { background: #ffc107; color: #000; }
+  .btn.add-row { background: #28a745; margin-bottom: 10px; }
+  .table {
+    width: 100%; border-collapse: collapse; margin-top: 12px;
+    background: #f8f9fa; border-radius: 8px; overflow: hidden;
+  }
+  .table th, .table td {
+    border: 1px solid #dcdcdc; padding: 8px;
+    font-size: 13px; text-align: center;
+    vertical-align: middle;
+  }
+  .table th { background: #f1f3f5; }
+  .actions {
+    margin-top: 12px; display: flex; gap: 8px;
+    flex-wrap: wrap; align-items: center; justify-content: flex-start;
+  }
+  .muted { color: var(--muted); font-size: 13px; }
+  .rds-paper {
+    width: var(--paper-w); padding: 24px; background: #fff;
+    color: #111; box-sizing: border-box; font-size: 13px;
+  }
+  .rds-table {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
+  }
+  .rds-table td, .rds-table th {
+    border: 1px solid #333; padding: 6px;
+    font-size: 12px; text-align: center;
+  }
+  
+  /* Estilo para o campo de tipo de manutenção */
+  .tipo-container {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+  .tipo-container select {
+    flex: 2;
+    min-width: 180px;
+  }
+  .tipo-container input {
+    flex: 1;
+    min-width: 120px;
+    display: none;
+  }
+  .tipo-container .btn-small {
+    padding: 6px 10px;
+    font-size: 12px;
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tipo-container .btn-small:hover {
+    background: #138496;
+  }
+  
+  .remove-row {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .remove-row:hover {
+    background: #c82333;
+  }
+  
+  @media (max-width: 768px) {
+    .row { flex-direction: column; gap: 8px; }
+    .btn { width: 100%; }
+    .table { 
+      display: block; 
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .container { padding: 8px; }
+    .card { padding: 14px; }
+    h1 { font-size: 16px; text-align: center; }
+    .table th, .table td { 
+      font-size: 12px; 
+      padding: 6px;
+      white-space: nowrap;
+    }
+    .actions { flex-direction: column; align-items: stretch; }
+    .tipo-container {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .tipo-container .btn-small {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+    <h1>RDM — Relatório de Manutenção Mecânica</h1>
+
+    <div class="row">
+      <div class="col"><label>Data do Documento</label><input id="rdm_data" type="date" readonly></div>
+      <div class="col"><label>Hora do Documento</label><input id="rdm_hora_doc" type="text" readonly></div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
+      <div class="muted">Registros de Manutenção (10 linhas)</div>
+      <button id="btnAdicionarLinha" class="btn add-row">+ Adicionar Linha</button>
+    </div>
+    
+    <table class="table" id="tblEquipamentos">
+      <thead>
+        <tr>
+          <th>EQUIPAMENTO</th>
+          <th>TIPO DE MANUTENÇÃO</th>
+          <th>DATA DA MANUTENÇÃO</th>
+          <th>OBSERVAÇÃO</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="actions">
+      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
+      <button id="btnServidor" class="btn">Enviar para o Servidor</button>
+      <button id="btnGerarPDF" class="btn">Gerar PDF</button>
+      <button id="btnLimpar" class="btn gray">Limpar</button>
+      <button id="btnRecarregarTipos" class="btn warning">Recarregar Tipos</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="paper" style="visibility:hidden; position:absolute; left:-9999px; top:0">
+  <div class="rds-paper" id="rdm_report">
+    <div style="display:flex;justify-content:space-between;">
+      <div>
+        <div style="font-size:12px">COMERCIAL ARCOS LTDA</div>
+        <div style="font-size:11px;margin-top:4px">ROD BR 354, KM 474, Nº 749 - VILA CALCITA - ARCOS/MG</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700">RELATÓRIO DE MANUTENÇÃO MECÂNICA (RDM)</div>
+        <div id="meta_data"></div>
+        <div id="meta_hora_doc"></div>
+      </div>
+    </div>
+
+    <table class="rds-table" id="rdm_table_equip" style="margin-top:12px">
+      <thead>
+        <tr>
+          <th>EQUIPAMENTO</th>
+          <th>TIPO DE MANUTENÇÃO</th>
+          <th>DATA DA MANUTENÇÃO</th>
+          <th>OBSERVAÇÃO</th>
+        </tr>
+      </thead>
+      <tbody id="rdm_equip_rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Configurações da API
+const BIN_MANUTENCAO = '69aac5b043b1c97be9b9b4ee';
+const BIN_RELATORIO = '69ab07aa43b1c97be9ba9d4c';
+const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+const API_MANUTENCAO = `https://api.jsonbin.io/v3/b/${BIN_MANUTENCAO}/latest`;
+
+// Lista de equipamentos
+const equipamentos = [
+  "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
+  "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
+  "MC002","MC004","MC005","MC006",
+  "PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"
+];
+
+let tiposManutencao = {};
+let tiposCarregados = false;
+
+// Função para criar select de equipamentos
+function criarSelectEquipamento() {
+  const select = document.createElement('select');
+  
+  const optionVazia = document.createElement('option');
+  optionVazia.value = '';
+  optionVazia.textContent = '-- Selecione o equipamento --';
+  select.appendChild(optionVazia);
+  
+  equipamentos.forEach(equip => {
+    const option = document.createElement('option');
+    option.value = equip;
+    option.textContent = equip;
+    select.appendChild(option);
+  });
+  
+  return select;
+}
+
+// Função para carregar tipos de manutenção da API
+async function carregarTiposManutencao(mostrarAlerta = false) {
+  try {
+    const response = await fetch(API_MANUTENCAO, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      tiposManutencao = data.record.descricao || {};
+      tiposCarregados = true;
+      console.log('Tipos de manutenção carregados:', Object.keys(tiposManutencao).length);
+      atualizarTodosOsSelects();
+      if (mostrarAlerta) {
+        alert('✅ Tipos de manutenção recarregados com sucesso!');
+      }
+    } else {
+      console.error('Erro ao carregar tipos:', response.status);
+      if (mostrarAlerta) {
+        alert('⚠️ Erro ao carregar tipos da API. Usando lista padrão.');
+      }
+      // Fallback
+      tiposManutencao = {
+        "PREVENTIVA": 28,
+        "CORRETIVA": 1,
+        "TROCA DE ÓLEO": 7,
+        "REVISÃO GERAL": 6,
+        "TROCA DE FILTROS": 49,
+        "LUBRIFICAÇÃO": 15,
+        "LIMPEZA GERAL": 17
+      };
+      atualizarTodosOsSelects();
+    }
+  } catch (error) {
+    console.error('Erro de conexão:', error);
+    if (mostrarAlerta) {
+      alert('⚠️ Erro de conexão ao carregar tipos.');
+    }
+  }
+}
+
+// Função para criar o container de tipo de manutenção
+function criarTipoManutencao() {
+  const container = document.createElement('div');
+  container.className = 'tipo-container';
+  
+  const select = document.createElement('select');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Digite o tipo...';
+  input.style.display = 'none';
+  
+  const btnOutros = document.createElement('button');
+  btnOutros.className = 'btn-small';
+  btnOutros.textContent = 'Outros';
+  btnOutros.type = 'button';
+  
+  // Opção vazia
+  const optionVazia = document.createElement('option');
+  optionVazia.value = '';
+  optionVazia.textContent = '-- Selecione --';
+  select.appendChild(optionVazia);
+  
+  // Opção OUTROS
+  const optionOutros = document.createElement('option');
+  optionOutros.value = 'OUTROS';
+  optionOutros.textContent = 'OUTROS (digitar)';
+  select.appendChild(optionOutros);
+  
+  // Evento para alternar entre select e input
+  select.addEventListener('change', () => {
+    if (select.value === 'OUTROS') {
+      input.style.display = 'block';
+      select.style.display = 'none';
+      btnOutros.style.display = 'none';
+      input.focus();
+    }
+  });
+  
+  btnOutros.addEventListener('click', () => {
+    select.value = 'OUTROS';
+    input.style.display = 'block';
+    select.style.display = 'none';
+    btnOutros.style.display = 'none';
+    input.focus();
+  });
+  
+  input.addEventListener('blur', () => {
+    if (!input.value) {
+      input.style.display = 'none';
+      select.style.display = 'block';
+      btnOutros.style.display = 'block';
+      select.value = '';
+    }
+  });
+  
+  container.appendChild(select);
+  container.appendChild(input);
+  container.appendChild(btnOutros);
+  
+  return { container, select, input, btnOutros };
+}
+
+// Função para atualizar todos os selects com os novos tipos
+function atualizarTodosOsSelects() {
+  const rows = tblBody.querySelectorAll('tr');
+  rows.forEach(row => {
+    const tipoContainer = row.querySelector('.tipo-container');
+    if (tipoContainer) {
+      const select = tipoContainer.querySelector('select');
+      
+      // Guardar valor atual
+      const valorAtual = select.value;
+      const isOutrosMode = select.style.display === 'none';
+      
+      // Limpar opções (mantendo as duas primeiras: vazia e OUTROS)
+      while (select.options.length > 2) {
+        select.remove(2);
+      }
+      
+      // Adicionar novas opções
+      if (tiposManutencao && typeof tiposManutencao === 'object') {
+        // Ordenar as descrições
+        const descricoes = Object.keys(tiposManutencao)
+          .filter(key => key !== '0' && key !== '151')
+          .sort();
+        
+        descricoes.forEach(descricao => {
+          const option = document.createElement('option');
+          option.value = descricao;
+          option.textContent = descricao;
+          select.appendChild(option);
+        });
+      }
+      
+      // Restaurar valor se possível e não estiver no modo OUTROS
+      if (!isOutrosMode && valorAtual && valorAtual !== 'OUTROS') {
+        const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
+        if (optionExists) {
+          select.value = valorAtual;
+        }
+      }
+    }
+  });
+}
+
+const tblBody = document.querySelector('#tblEquipamentos tbody');
+
+// Função para adicionar uma nova linha
+function addRow() {
+  const tr = document.createElement('tr');
+  
+  // Equipamento
+  const tdEquip = document.createElement('td');
+  const selectEquip = criarSelectEquipamento();
+  tdEquip.appendChild(selectEquip);
+  
+  // Tipo de Manutenção
+  const tdTipo = document.createElement('td');
+  const { container } = criarTipoManutencao();
+  tdTipo.appendChild(container);
+  
+  // Data da Manutenção
+  const tdData = document.createElement('td');
+  const inputData = document.createElement('input');
+  inputData.type = 'date';
+  inputData.value = new Date().toISOString().split('T')[0];
+  tdData.appendChild(inputData);
+  
+  // Observação
+  const tdObs = document.createElement('td');
+  const inputObs = document.createElement('input');
+  inputObs.type = 'text';
+  inputObs.placeholder = 'Observação...';
+  tdObs.appendChild(inputObs);
+  
+  // Botão Remover
+  const tdRemove = document.createElement('td');
+  const btnRemove = document.createElement('button');
+  btnRemove.className = 'remove-row';
+  btnRemove.textContent = '✕';
+  btnRemove.onclick = () => {
+    if (tblBody.children.length > 1) {
+      tr.remove();
+    } else {
+      alert('Mantenha pelo menos uma linha!');
+    }
+  };
+  tdRemove.appendChild(btnRemove);
+  
+  tr.append(tdEquip, tdTipo, tdData, tdObs, tdRemove);
+  tblBody.appendChild(tr);
+  
+  return tr;
+}
+
+// Função para obter o valor do tipo de manutenção
+function getValorTipo(container) {
+  if (!container) return '';
+  
+  const select = container.querySelector('select');
+  const input = container.querySelector('input[type="text"]');
+  
+  // Verificar se está no modo OUTROS (input visível)
+  if (input && input.style.display !== 'none' && input.value.trim() !== '') {
+    return input.value.trim();
+  }
+  
+  // Verificar select
+  if (select && select.style.display !== 'none' && select.value && select.value !== 'OUTROS' && select.value !== '') {
+    return select.value;
+  }
+  
+  return '';
+}
+
+// Função para obter todos os dados
+function getDadosFormulario() {
+  const dataIso = $('rdm_data').value;
+  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
+  const horaDoc = $('rdm_hora_doc').value;
+
+  return Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const selectEquip = r.querySelector('td:first-child select');
+    const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+    const tipoContainer = r.querySelector('.tipo-container');
+    const tipoManutencao = getValorTipo(tipoContainer);
+    
+    return {
+      data_documento: data,
+      hora_documento: horaDoc,
+      equipamento: selectEquip ? selectEquip.value : '',
+      tipo_manutencao: tipoManutencao,
+      data_manutencao: inputs[0] ? inputs[0].value : '',
+      observacao: inputs[1] ? inputs[1].value : ''
+    };
+  }).filter(l => l.equipamento || l.tipo_manutencao || l.observacao);
+}
+
+// Event Listeners
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  
+  // Criar 10 linhas
+  for (let i = 0; i < 10; i++) {
+    addRow();
+  }
+  
+  // Carregar tipos automaticamente
+  carregarTiposManutencao(false);
+});
+
+// Botão Adicionar Linha
+$('btnAdicionarLinha').onclick = () => addRow();
+
+// Botão Limpar
+$('btnLimpar').onclick = () => {
+  if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
+    tblBody.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+      addRow();
+    }
+    // Recarregar tipos nas novas linhas
+    setTimeout(() => {
+      atualizarTodosOsSelects();
+    }, 100);
+    alert('🧹 Formulário limpo!');
+  }
+};
+
+// Função para enviar para o servidor
+async function enviarParaServidorRDM(mostrarAlerta = true) {
+  const linhas = getDadosFormulario();
+
+  if (linhas.length === 0) {
+    if (mostrarAlerta) {
+      alert("⚠️ Não há dados para enviar!");
+    }
+    return false;
+  }
+
+  try {
+    const GET_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}/latest`;
+    const PUT_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}`;
+
+    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
+    let dadosExistentes = [];
+    
+    if(resGet.ok){
+      const json = await resGet.json();
+      if (Array.isArray(json.record)) {
+        dadosExistentes = json.record;
+      } else if (json.record && json.record.rdm_registros) {
+        dadosExistentes = json.record.rdm_registros;
+      }
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...linhas];
+
+    const resPut = await fetch(PUT_URL, {
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':MASTER_KEY,
+        'X-Bin-Versioning':'false'
+      },
+      body:JSON.stringify({ rdm_registros: dadosAtualizados })
+    });
+
+    if(resPut.ok) {
+      console.log('✅ Dados enviados com sucesso!');
+      localStorage.removeItem('rdm_offline_cache');
+      return true;
+    } else {
+      console.log('❌ Erro ao enviar para o servidor.');
+      return false;
+    }
+  } catch(err){
+    console.log('❌ Erro: ' + err.message);
+    return false;
+  }
+}
+
+// Gerar PDF
+$('btnGerarPDF').onclick = async () => {
+  const { jsPDF } = window.jspdf;
+  const [yyyy,mm,dd] = $('rdm_data').value.split('-');
+  const dataFormatada = `${dd}/${mm}/${yyyy}`;
+  const horaFormatada = $('rdm_hora_doc').value;
+  $('meta_data').innerText = "DATA: " + dataFormatada;
+  $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
+
+  const tbody = $('rdm_equip_rows');
+  tbody.innerHTML = "";
+  
+  Array.from(tblBody.querySelectorAll('tr')).forEach(r => {
+    const selectEquip = r.querySelector('td:first-child select');
+    const tipoContainer = r.querySelector('.tipo-container');
+    const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+    const tipoManutencao = getValorTipo(tipoContainer);
+    
+    if (selectEquip.value || tipoManutencao || inputs[0]?.value || inputs[1]?.value) {
+      const tr2 = document.createElement('tr');
+      tr2.innerHTML = `
+        <td>${selectEquip ? selectEquip.value : ''}</td>
+        <td>${tipoManutencao}</td>
+        <td>${inputs[0] ? inputs[0].value : ''}</td>
+        <td>${inputs[1] ? inputs[1].value : ''}</td>
+      `;
+      tbody.appendChild(tr2);
+    }
+  });
+  
+  const wrapper = $('rdm_report').cloneNode(true);
+  wrapper.style.visibility = 'visible';
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  document.body.appendChild(wrapper);
+
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  const canvas = await html2canvas(wrapper, {
+    scale: 1.2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    logging: false
+  });
+  
+  const pdf = new jsPDF({unit:'pt',format:'a4'});
+  const img = canvas.toDataURL('image/png');
+  const w = pdf.internal.pageSize.width;
+  const h = (canvas.height * w) / canvas.width;
+  pdf.addImage(img, 'PNG', 20, 20, w - 40, h);
+  pdf.save(`RDM_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
+  document.body.removeChild(wrapper);
+  
+  alert('✅ PDF gerado com sucesso!');
+  
+  const enviadoComSucesso = await enviarParaServidorRDM(false);
+  
+  if (enviadoComSucesso) {
+    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar.');
+    
+    if (!manterDados) {
+      $('btnLimpar').click();
+    }
+  } else {
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente.');
+    salvarLocalmente();
+  }
+};
+
+// Botão Enviar para Servidor
+document.getElementById('btnServidor').onclick = async () => {
+  const enviadoComSucesso = await enviarParaServidorRDM(true);
+  
+  if (enviadoComSucesso) {
+    const limparCampos = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar.\nClique em Cancelar para manter.');
+    if (limparCampos) {
+      $('btnLimpar').click();
+    }
+  } else {
+    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente.');
+    salvarLocalmente();
+  }
+};
+
+// Salvar localmente
+function salvarLocalmente() {
+  const linhas = getDadosFormulario();
+
+  if (linhas.length === 0) {
+    alert("⚠️ Não há dados para salvar!");
+    return;
+  }
+
+  localStorage.setItem('rdm_offline_cache', JSON.stringify(linhas));
+  alert('💾 Dados salvos localmente!');
+}
+
+// Botão Recarregar Tipos
+$('btnRecarregarTipos').onclick = () => carregarTiposManutencao(true);
+
+// Associar botão de salvar local
+document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
+
+// Carregar cache se existir
+window.addEventListener('load', () => {
+  const cache = localStorage.getItem('rdm_offline_cache');
+  
+  if (cache) {
+    const linhas = JSON.parse(cache);
+    if (linhas.length > 0) {
+      const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar.\nClique em Cancelar para começar em branco.');
+      
+      if (carregar) {
+        tblBody.innerHTML = '';
+        linhas.forEach(dado => {
+          const tr = addRow();
+          const selectEquip = tr.querySelector('td:first-child select');
+          const tipoContainer = tr.querySelector('.tipo-container');
+          const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+          
+          if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
+          if (inputs[0] && dado.data_manutencao) inputs[0].value = dado.data_manutencao;
+          if (inputs[1] && dado.observacao) inputs[1].value = dado.observacao;
+          
+          if (tipoContainer && dado.tipo_manutencao) {
+            const select = tipoContainer.querySelector('select');
+            const input = tipoContainer.querySelector('input[type="text"]');
+            const btnOutros = tipoContainer.querySelector('.btn-small');
+            
+            const optionExists = Array.from(select.options).some(opt => opt.value === dado.tipo_manutencao);
+            
+            if (optionExists) {
+              select.value = dado.tipo_manutencao;
+            } else {
+              select.value = 'OUTROS';
+              input.value = dado.tipo_manutencao;
+              input.style.display = 'block';
+              select.style.display = 'none';
+              btnOutros.style.display = 'none';
+            }
+          }
+        });
+        
+        // Garantir que os tipos estejam carregados
+        setTimeout(() => {
+          if (!tiposCarregados) {
+            carregarTiposManutencao(false);
+          } else {
+            atualizarTodosOsSelects();
+          }
+        }, 500);
+        
+        alert('📂 Dados carregados!');
+      }
+    }
+  }
+});
+
+// Detectar online
+window.addEventListener('online', async () => {
+  const cache = localStorage.getItem('rdm_offline_cache');
+  if (cache) {
+    const acao = confirm('🌐 Conexão restaurada! Enviar dados salvos?');
+    
+    if (acao) {
+      const enviado = await enviarParaServidorRDM(false);
+      if (enviado) {
+        localStorage.removeItem('rdm_offline_cache');
+        alert('✅ Dados enviados com sucesso!');
+      }
+    }
+  }
+});
+
+</script>
+</body>
+</html>
