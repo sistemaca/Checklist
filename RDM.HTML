@@ -307,10 +307,10 @@ function criarTipoManutencao() {
   input.placeholder = 'Digite o tipo...';
   input.style.display = 'none';
   
-  const btnOutros = document.createElement('button');
-  btnOutros.className = 'btn-small';
-  btnOutros.textContent = 'Outros';
-  btnOutros.type = 'button';
+  const btnDigitar = document.createElement('button');
+  btnDigitar.className = 'btn-small';
+  btnDigitar.textContent = 'Digitar';
+  btnDigitar.type = 'button';
   
   // Opção vazia
   const optionVazia = document.createElement('option');
@@ -318,27 +318,27 @@ function criarTipoManutencao() {
   optionVazia.textContent = '-- Selecione --';
   select.appendChild(optionVazia);
   
-  // Opção OUTROS
-  const optionOutros = document.createElement('option');
-  optionOutros.value = 'OUTROS';
-  optionOutros.textContent = 'OUTROS (digitar)';
-  select.appendChild(optionOutros);
+  // Opção OUTROS (agora chamada DIGITAR)
+  const optionDigitar = document.createElement('option');
+  optionDigitar.value = 'DIGITAR';
+  optionDigitar.textContent = 'DIGITAR (digitar)';
+  select.appendChild(optionDigitar);
   
   // Evento para alternar entre select e input
   select.addEventListener('change', () => {
-    if (select.value === 'OUTROS') {
+    if (select.value === 'DIGITAR') {
       input.style.display = 'block';
       select.style.display = 'none';
-      btnOutros.style.display = 'none';
+      btnDigitar.style.display = 'none';
       input.focus();
     }
   });
   
-  btnOutros.addEventListener('click', () => {
-    select.value = 'OUTROS';
+  btnDigitar.addEventListener('click', () => {
+    select.value = 'DIGITAR';
     input.style.display = 'block';
     select.style.display = 'none';
-    btnOutros.style.display = 'none';
+    btnDigitar.style.display = 'none';
     input.focus();
   });
   
@@ -346,16 +346,16 @@ function criarTipoManutencao() {
     if (!input.value) {
       input.style.display = 'none';
       select.style.display = 'block';
-      btnOutros.style.display = 'block';
+      btnDigitar.style.display = 'block';
       select.value = '';
     }
   });
   
   container.appendChild(select);
   container.appendChild(input);
-  container.appendChild(btnOutros);
+  container.appendChild(btnDigitar);
   
-  return { container, select, input, btnOutros };
+  return { container, select, input, btnOutros: btnDigitar };
 }
 
 // Função para atualizar todos os selects com os novos tipos
@@ -370,7 +370,7 @@ function atualizarTodosOsSelects() {
       const valorAtual = select.value;
       const isOutrosMode = select.style.display === 'none';
       
-      // Limpar opções (mantendo as duas primeiras: vazia e OUTROS)
+      // Limpar opções (mantendo as duas primeiras: vazia e DIGITAR)
       while (select.options.length > 2) {
         select.remove(2);
       }
@@ -390,8 +390,8 @@ function atualizarTodosOsSelects() {
         });
       }
       
-      // Restaurar valor se possível e não estiver no modo OUTROS
-      if (!isOutrosMode && valorAtual && valorAtual !== 'OUTROS') {
+      // Restaurar valor se possível e não estiver no modo DIGITAR
+      if (!isOutrosMode && valorAtual && valorAtual !== 'DIGITAR') {
         const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
         if (optionExists) {
           select.value = valorAtual;
@@ -458,13 +458,13 @@ function getValorTipo(container) {
   const select = container.querySelector('select');
   const input = container.querySelector('input[type="text"]');
   
-  // Verificar se está no modo OUTROS (input visível)
+  // Verificar se está no modo DIGITAR (input visível)
   if (input && input.style.display !== 'none' && input.value.trim() !== '') {
     return input.value.trim();
   }
   
   // Verificar select
-  if (select && select.style.display !== 'none' && select.value && select.value !== 'OUTROS' && select.value !== '') {
+  if (select && select.style.display !== 'none' && select.value && select.value !== 'DIGITAR' && select.value !== '') {
     return select.value;
   }
   
@@ -600,10 +600,18 @@ $('btnGerarPDF').onclick = async () => {
     
     if (selectEquip.value || tipoManutencao || inputs[0]?.value || inputs[1]?.value) {
       const tr2 = document.createElement('tr');
+      
+      // Corrigir a formatação da data da manutenção para DD/MM/AAAA
+      let dataManutencaoFormatada = inputs[0] ? inputs[0].value : '';
+      if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
+        const [ano, mes, dia] = dataManutencaoFormatada.split('-');
+        dataManutencaoFormatada = `${dia}/${mes}/${ano}`;
+      }
+      
       tr2.innerHTML = `
         <td>${selectEquip ? selectEquip.value : ''}</td>
         <td>${tipoManutencao}</td>
-        <td>${inputs[0] ? inputs[0].value : ''}</td>
+        <td>${dataManutencaoFormatada}</td>
         <td>${inputs[1] ? inputs[1].value : ''}</td>
       `;
       tbody.appendChild(tr2);
@@ -708,18 +716,18 @@ window.addEventListener('load', () => {
           if (tipoContainer && dado.tipo_manutencao) {
             const select = tipoContainer.querySelector('select');
             const input = tipoContainer.querySelector('input[type="text"]');
-            const btnOutros = tipoContainer.querySelector('.btn-small');
+            const btnDigitar = tipoContainer.querySelector('.btn-small');
             
             const optionExists = Array.from(select.options).some(opt => opt.value === dado.tipo_manutencao);
             
             if (optionExists) {
               select.value = dado.tipo_manutencao;
             } else {
-              select.value = 'OUTROS';
+              select.value = 'DIGITAR';
               input.value = dado.tipo_manutencao;
               input.style.display = 'block';
               select.style.display = 'none';
-              btnOutros.style.display = 'none';
+              btnDigitar.style.display = 'none';
             }
           }
         });
@@ -757,4 +765,5 @@ window.addEventListener('online', async () => {
 
 </script>
 </body>
+
 </html>
