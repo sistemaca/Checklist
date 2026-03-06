@@ -14,39 +14,32 @@
     font-family: "Arial", Helvetica, sans-serif;
     background: #f2f4f7;
     margin: 0;
-    padding: 18px;
+    padding: 12px;
   }
   .container { max-width: 1200px; margin: 0 auto; }
   .card {
     background: #fff;
-    border-radius: 10px;
-    padding: 18px;
+    border-radius: 12px;
+    padding: 16px;
     box-shadow: 0 6px 18px rgba(0,0,0,0.08);
   }
-  h1 { font-size: 18px; margin: 0 0 12px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
   .row { display: flex; gap: 12px; flex-wrap: wrap; }
   .col {
-    flex: 1; min-width: 150px;
+    flex: 1; min-width: 140px;
     display: flex; flex-direction: column;
     margin-bottom: 8px;
   }
-  label { font-size: 13px; margin-bottom: 6px; color: #222; }
+  label { font-size: 13px; margin-bottom: 4px; color: #222; font-weight: 500; }
   input[type=text], input[type=date], select {
-    padding: 8px; border: 1px solid #ddd;
-    border-radius: 6px; font-size: 14px;
+    padding: 10px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 14px;
     background: #fff; width: 100%;
     box-sizing: border-box;
-  }
-  /* Garantir que o input date mostre a data corretamente no celular */
-  input[type="date"]::-webkit-datetime-edit-text,
-  input[type="date"]::-webkit-datetime-edit-month-field,
-  input[type="date"]::-webkit-datetime-edit-day-field,
-  input[type="date"]::-webkit-datetime-edit-year-field {
-    color: #000;
+    height: 42px;
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
-    background: transparent;
-    padding: 4px;
+    padding: 8px;
     cursor: pointer;
   }
   input[readonly] {
@@ -55,30 +48,83 @@
   }
   .btn {
     display: inline-block; background: #0b73d6; color: #fff;
-    border: none; padding: 10px 14px;
+    border: none; padding: 12px 16px;
     border-radius: 8px; font-size: 14px;
-    cursor: pointer; transition: background 0.3s;
+    cursor: pointer; font-weight: 500;
   }
   .btn:hover { background: #0959a8; }
   .btn.gray { background: #6c757d; }
-  .btn.success { background: #28a745; }
   .btn.warning { background: #ffc107; color: #000; }
-  .btn.add-row { background: #28a745; margin-bottom: 10px; }
+  .btn.add-row { background: #28a745; margin-bottom: 16px; }
+  
+  /* Container da tabela com scroll */
+  .table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 12px 0;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+  }
+  
   .table {
-    width: 100%; border-collapse: collapse; margin-top: 12px;
-    background: #f8f9fa; border-radius: 8px; overflow: hidden;
+    width: 100%; 
+    border-collapse: collapse; 
+    background: #fff;
+    min-width: 650px;
   }
   .table th, .table td {
-    border: 1px solid #dcdcdc; padding: 8px;
-    font-size: 13px; text-align: center;
+    border: 1px solid #e0e0e0; 
+    padding: 10px 8px;
+    font-size: 13px; 
+    text-align: center;
     vertical-align: middle;
   }
-  .table th { background: #f1f3f5; }
+  .table th { 
+    background: #f8f9fa; 
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  
+  /* Estilo simplificado para tipo de manutenção */
+  .tipo-wrapper {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    min-width: 180px;
+  }
+  
+  .tipo-select {
+    flex: 2;
+    min-width: 120px;
+    height: 38px;
+  }
+  
+  .tipo-input {
+    flex: 1;
+    min-width: 80px;
+    height: 38px;
+    display: none;
+  }
+  
+  .tipo-input.mostrar {
+    display: block;
+  }
+  
+  .tipo-select.ocultar {
+    display: none;
+  }
+  
   .actions {
-    margin-top: 12px; display: flex; gap: 8px;
-    flex-wrap: wrap; align-items: center; justify-content: flex-start;
+    margin-top: 20px; 
+    display: flex; 
+    gap: 10px;
+    flex-wrap: wrap; 
+    align-items: center; 
   }
   .muted { color: var(--muted); font-size: 13px; }
+  
+  /* PDF styles */
   .rds-paper {
     width: var(--paper-w); padding: 24px; background: #fff;
     color: #111; box-sizing: border-box; font-size: 13px;
@@ -91,71 +137,45 @@
     font-size: 12px; text-align: center;
   }
   
-  /* Estilo para o campo de tipo de manutenção */
-  .tipo-container {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-  }
-  .tipo-container select {
-    flex: 2;
-    min-width: 180px;
-  }
-  .tipo-container input {
-    flex: 1;
-    min-width: 120px;
-    display: none;
-  }
-  .tipo-container .btn-small {
-    padding: 6px 10px;
-    font-size: 12px;
-    background: #17a2b8;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .tipo-container .btn-small:hover {
-    background: #138496;
-  }
-  
   .remove-row {
     background: #dc3545;
     color: white;
     border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 12px;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
     cursor: pointer;
-  }
-  .remove-row:hover {
-    background: #c82333;
+    font-weight: bold;
   }
   
+  /* Media query para mobile */
   @media (max-width: 768px) {
+    body { padding: 8px; }
+    .card { padding: 12px; }
+    h1 { font-size: 16px; text-align: center; }
+    
     .row { flex-direction: column; gap: 8px; }
     .btn { width: 100%; }
-    .table { 
-      display: block; 
-      overflow-x: auto;
-      font-size: 12px;
-    }
-    .container { padding: 8px; }
-    .card { padding: 14px; }
-    h1 { font-size: 16px; text-align: center; }
+    .actions { flex-direction: column; }
+    
     .table th, .table td { 
       font-size: 12px; 
-      padding: 6px;
-      white-space: nowrap;
+      padding: 8px 5px;
     }
-    .actions { flex-direction: column; align-items: stretch; }
-    .tipo-container {
-      flex-direction: column;
-      align-items: stretch;
+    
+    .tipo-wrapper {
+      min-width: 160px;
     }
-    .tipo-container .btn-small {
-      width: 100%;
+    
+    .tipo-select, .tipo-input {
+      font-size: 12px;
+      padding: 8px;
+      height: 36px;
+    }
+    
+    .remove-row {
+      padding: 6px 10px;
+      font-size: 12px;
     }
   }
 </style>
@@ -171,23 +191,25 @@
       <div class="col"><label>Hora do Documento</label><input id="rdm_hora_doc" type="text" readonly></div>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-      <div class="muted">Registros de Manutenção (10 linhas)</div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px;">
+      <div class="muted">Registros de Manutenção</div>
       <button id="btnAdicionarLinha" class="btn add-row">+ Adicionar Linha</button>
     </div>
     
-    <table class="table" id="tblEquipamentos">
-      <thead>
-        <tr>
-          <th>EQUIPAMENTO</th>
-          <th>TIPO DE MANUTENÇÃO</th>
-          <th>DATA DA MANUTENÇÃO</th>
-          <th>OBSERVAÇÃO</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-container">
+      <table class="table" id="tblEquipamentos">
+        <thead>
+          <tr>
+            <th>EQUIPAMENTO</th>
+            <th>TIPO DE MANUTENÇÃO</th>
+            <th>DATA</th>
+            <th>HORÍMETRO</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
     <div class="actions">
       <button id="btnServidor" class="btn">Enviar para o Servidor</button>
@@ -219,8 +241,8 @@
         <tr>
           <th>EQUIPAMENTO</th>
           <th>TIPO DE MANUTENÇÃO</th>
-          <th>DATA DA MANUTENÇÃO</th>
-          <th>OBSERVAÇÃO</th>
+          <th>DATA</th>
+          <th>HORÍMETRO</th>
         </tr>
       </thead>
       <tbody id="rdm_equip_rows"></tbody>
@@ -251,10 +273,11 @@ let tiposCarregados = false;
 // Função para criar select de equipamentos
 function criarSelectEquipamento() {
   const select = document.createElement('select');
+  select.style.width = '100%';
   
   const optionVazia = document.createElement('option');
   optionVazia.value = '';
-  optionVazia.textContent = '-- Selecione o equipamento --';
+  optionVazia.textContent = '-- Selecione --';
   select.appendChild(optionVazia);
   
   equipamentos.forEach(equip => {
@@ -267,7 +290,65 @@ function criarSelectEquipamento() {
   return select;
 }
 
-// Função para carregar tipos de manutenção da API
+// Função simplificada para criar o campo de tipo
+function criarTipoManutencao() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tipo-wrapper';
+  
+  const select = document.createElement('select');
+  select.className = 'tipo-select';
+  
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tipo-input';
+  input.placeholder = 'Digite...';
+  
+  // Opções
+  const optionVazia = document.createElement('option');
+  optionVazia.value = '';
+  optionVazia.textContent = '-- Selecione --';
+  select.appendChild(optionVazia);
+  
+  const optionOutros = document.createElement('option');
+  optionOutros.value = 'OUTROS';
+  optionOutros.textContent = 'OUTROS (digitar)';
+  select.appendChild(optionOutros);
+  
+  // Evento: quando selecionar OUTROS, mostra o input
+  select.addEventListener('change', () => {
+    if (select.value === 'OUTROS') {
+      select.classList.add('ocultar');
+      input.classList.add('mostrar');
+      input.focus();
+    }
+  });
+  
+  // Evento: quando input perde foco e está vazio, volta ao select
+  input.addEventListener('blur', () => {
+    if (!input.value.trim()) {
+      input.classList.remove('mostrar');
+      select.classList.remove('ocultar');
+      select.value = '';
+    }
+  });
+  
+  // Enter no input confirma e mantém
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (input.value.trim()) {
+        // Mantém como está
+      }
+    }
+  });
+  
+  wrapper.appendChild(select);
+  wrapper.appendChild(input);
+  
+  return { wrapper, select, input };
+}
+
+// Função para carregar tipos
 async function carregarTiposManutencao(mostrarAlerta = false) {
   try {
     const response = await fetch(API_MANUTENCAO, {
@@ -278,220 +359,128 @@ async function carregarTiposManutencao(mostrarAlerta = false) {
       const data = await response.json();
       tiposManutencao = data.record.descricao || {};
       tiposCarregados = true;
-      console.log('Tipos de manutenção carregados:', Object.keys(tiposManutencao).length);
       atualizarTodosOsSelects();
-      if (mostrarAlerta) {
-        alert('✅ Tipos de manutenção recarregados com sucesso!');
-      }
+      if (mostrarAlerta) alert('✅ Tipos recarregados!');
     } else {
-      console.error('Erro ao carregar tipos:', response.status);
-      if (mostrarAlerta) {
-        alert('⚠️ Erro ao carregar tipos da API. Usando lista padrão.');
-      }
-      // Fallback
       tiposManutencao = {
         "PREVENTIVA": 28,
         "CORRETIVA": 1,
         "TROCA DE ÓLEO": 7,
         "REVISÃO GERAL": 6,
         "TROCA DE FILTROS": 49,
-        "LUBRIFICAÇÃO": 15,
-        "LIMPEZA GERAL": 17
+        "LUBRIFICAÇÃO": 15
       };
       atualizarTodosOsSelects();
+      if (mostrarAlerta) alert('⚠️ Usando lista padrão.');
     }
   } catch (error) {
-    console.error('Erro de conexão:', error);
-    if (mostrarAlerta) {
-      alert('⚠️ Erro de conexão ao carregar tipos.');
-    }
+    console.error('Erro:', error);
   }
 }
 
-// Função para criar o container de tipo de manutenção
-function criarTipoManutencao() {
-  const container = document.createElement('div');
-  container.className = 'tipo-container';
-  
-  const select = document.createElement('select');
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.placeholder = 'Digite o tipo...';
-  input.style.display = 'none';
-  
-  const btnDigitar = document.createElement('button');
-  btnDigitar.className = 'btn-small';
-  btnDigitar.textContent = 'Digitar';
-  btnDigitar.type = 'button';
-  
-  // Opção vazia
-  const optionVazia = document.createElement('option');
-  optionVazia.value = '';
-  optionVazia.textContent = '-- Selecione --';
-  select.appendChild(optionVazia);
-  
-  // Opção OUTROS
-  const optionOutros = document.createElement('option');
-  optionOutros.value = 'OUTROS';
-  optionOutros.textContent = 'OUTROS (digitar)';
-  select.appendChild(optionOutros);
-  
-  // Evento para alternar entre select e input
-  select.addEventListener('change', () => {
-    if (select.value === 'OUTROS') {
-      input.style.display = 'block';
-      select.style.display = 'none';
-      btnDigitar.style.display = 'none';
-      input.focus();
-    }
-  });
-  
-  btnDigitar.addEventListener('click', () => {
-    select.value = 'OUTROS';
-    input.style.display = 'block';
-    select.style.display = 'none';
-    btnDigitar.style.display = 'none';
-    input.focus();
-  });
-  
-  input.addEventListener('blur', () => {
-    if (!input.value) {
-      input.style.display = 'none';
-      select.style.display = 'block';
-      btnDigitar.style.display = 'block';
-      select.value = '';
-    }
-  });
-  
-  container.appendChild(select);
-  container.appendChild(input);
-  container.appendChild(btnDigitar);
-  
-  return { container, select, input, btnOutros: btnDigitar };
-}
-
-// Função para atualizar todos os selects com os novos tipos
+// Atualizar selects
 function atualizarTodosOsSelects() {
   const rows = tblBody.querySelectorAll('tr');
   rows.forEach(row => {
-    const tipoContainer = row.querySelector('.tipo-container');
-    if (tipoContainer) {
-      const select = tipoContainer.querySelector('select');
-      
-      // Guardar valor atual
-      const valorAtual = select.value;
-      const isOutrosMode = select.style.display === 'none';
-      
-      // Limpar opções (mantendo as duas primeiras: vazia e OUTROS)
-      while (select.options.length > 2) {
-        select.remove(2);
-      }
-      
-      // Adicionar novas opções
-      if (tiposManutencao && typeof tiposManutencao === 'object') {
-        // Ordenar as descrições
-        const descricoes = Object.keys(tiposManutencao)
-          .filter(key => key !== '0' && key !== '151')
-          .sort();
-        
-        descricoes.forEach(descricao => {
+    const select = row.querySelector('.tipo-select');
+    if (!select) return;
+    
+    const valorAtual = select.value;
+    
+    // Limpar opções (mantém as duas primeiras)
+    while (select.options.length > 2) {
+      select.remove(2);
+    }
+    
+    // Adicionar novas opções
+    if (tiposManutencao && typeof tiposManutencao === 'object') {
+      Object.keys(tiposManutencao)
+        .filter(key => key !== '0' && key !== '151')
+        .sort()
+        .forEach(descricao => {
           const option = document.createElement('option');
           option.value = descricao;
           option.textContent = descricao;
           select.appendChild(option);
         });
-      }
-      
-      // Restaurar valor se possível e não estiver no modo OUTROS
-      if (!isOutrosMode && valorAtual && valorAtual !== 'OUTROS') {
-        const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
-        if (optionExists) {
-          select.value = valorAtual;
-        }
-      }
+    }
+    
+    // Restaurar valor
+    if (valorAtual && valorAtual !== 'OUTROS') {
+      const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
+      if (optionExists) select.value = valorAtual;
     }
   });
 }
 
 const tblBody = document.querySelector('#tblEquipamentos tbody');
 
-// Função para adicionar uma nova linha
+// Adicionar linha
 function addRow() {
   const tr = document.createElement('tr');
   
   // Equipamento
   const tdEquip = document.createElement('td');
-  const selectEquip = criarSelectEquipamento();
-  tdEquip.appendChild(selectEquip);
+  tdEquip.appendChild(criarSelectEquipamento());
   
-  // Tipo de Manutenção
+  // Tipo
   const tdTipo = document.createElement('td');
-  const { container } = criarTipoManutencao();
-  tdTipo.appendChild(container);
+  const { wrapper } = criarTipoManutencao();
+  tdTipo.appendChild(wrapper);
   
-  // Data da Manutenção
+  // Data
   const tdData = document.createElement('td');
   const inputData = document.createElement('input');
   inputData.type = 'date';
-  
-  // Garantir que a data seja definida corretamente no formato ISO
+  inputData.style.width = '100%';
   const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-  const dia = String(hoje.getDate()).padStart(2, '0');
-  inputData.value = `${ano}-${mes}-${dia}`;
-  inputData.setAttribute('data-original', inputData.value);
-  
+  inputData.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
   tdData.appendChild(inputData);
   
-  // Observação
-  const tdObs = document.createElement('td');
-  const inputObs = document.createElement('input');
-  inputObs.type = 'text';
-  inputObs.placeholder = 'Observação...';
-  tdObs.appendChild(inputObs);
+  // Horímetro
+  const tdHorimetro = document.createElement('td');
+  const inputHorimetro = document.createElement('input');
+  inputHorimetro.type = 'text';
+  inputHorimetro.placeholder = 'Horímetro';
+  inputHorimetro.style.width = '100%';
+  tdHorimetro.appendChild(inputHorimetro);
   
-  // Botão Remover
+  // Remover
   const tdRemove = document.createElement('td');
   const btnRemove = document.createElement('button');
   btnRemove.className = 'remove-row';
   btnRemove.textContent = '✕';
   btnRemove.onclick = () => {
-    if (tblBody.children.length > 1) {
-      tr.remove();
-    } else {
-      alert('Mantenha pelo menos uma linha!');
-    }
+    if (tblBody.children.length > 1) tr.remove();
+    else alert('Mantenha pelo menos uma linha!');
   };
   tdRemove.appendChild(btnRemove);
   
-  tr.append(tdEquip, tdTipo, tdData, tdObs, tdRemove);
+  tr.append(tdEquip, tdTipo, tdData, tdHorimetro, tdRemove);
   tblBody.appendChild(tr);
   
   return tr;
 }
 
-// Função para obter o valor do tipo de manutenção
-function getValorTipo(container) {
-  if (!container) return '';
+// Obter valor do tipo
+function getValorTipo(wrapper) {
+  if (!wrapper) return '';
   
-  const select = container.querySelector('select');
-  const input = container.querySelector('input[type="text"]');
+  const select = wrapper.querySelector('.tipo-select');
+  const input = wrapper.querySelector('.tipo-input');
   
-  // Verificar se está no modo OUTROS (input visível)
-  if (input && input.style.display !== 'none' && input.value.trim() !== '') {
+  if (input.classList.contains('mostrar') && input.value.trim()) {
     return input.value.trim();
   }
   
-  // Verificar select
-  if (select && select.style.display !== 'none' && select.value && select.value !== 'OUTROS' && select.value !== '') {
+  if (select && select.value && select.value !== 'OUTROS') {
     return select.value;
   }
   
   return '';
 }
 
-// Função para obter todos os dados - CORRIGIDA: data_manutencao em DD/MM/AAAA
+// Obter dados
 function getDadosFormulario() {
   const dataIso = $('rdm_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
@@ -500,10 +489,8 @@ function getDadosFormulario() {
   return Array.from(tblBody.querySelectorAll('tr')).map(r => {
     const selectEquip = r.querySelector('td:first-child select');
     const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
-    const tipoContainer = r.querySelector('.tipo-container');
-    const tipoManutencao = getValorTipo(tipoContainer);
+    const tipoWrapper = r.querySelector('.tipo-wrapper');
     
-    // CONVERTER data_manutencao de YYYY-MM-DD para DD/MM/AAAA
     let dataManutencao = inputs[0] ? inputs[0].value : '';
     if (dataManutencao && dataManutencao.includes('-')) {
       const [ano, mes, dia] = dataManutencao.split('-');
@@ -514,105 +501,58 @@ function getDadosFormulario() {
       data_documento: data,
       hora_documento: horaDoc,
       equipamento: selectEquip ? selectEquip.value : '',
-      tipo_manutencao: tipoManutencao,
-      data_manutencao: dataManutencao, // Agora está no formato DD/MM/AAAA
-      observacao: inputs[1] ? inputs[1].value : ''
+      tipo_manutencao: getValorTipo(tipoWrapper),
+      data_manutencao: dataManutencao,
+      horimetro_atual: inputs[1] ? inputs[1].value : ''
     };
-  }).filter(l => l.equipamento || l.tipo_manutencao || l.observacao);
+  }).filter(l => l.equipamento || l.tipo_manutencao || l.horimetro_atual);
 }
 
 // Event Listeners
 window.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
-  const ano = now.getFullYear();
-  const mes = String(now.getMonth() + 1).padStart(2, '0');
-  const dia = String(now.getDate()).padStart(2, '0');
-  
-  $('rdm_data').value = `${ano}-${mes}-${dia}`;
+  $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   
-  // Criar 10 linhas
-  for (let i = 0; i < 10; i++) {
-    addRow();
-  }
-  
-  // Carregar tipos automaticamente
+  for (let i = 0; i < 10; i++) addRow();
   carregarTiposManutencao(false);
 });
 
-// Botão Adicionar Linha
 $('btnAdicionarLinha').onclick = () => addRow();
 
-// Botão Limpar
 $('btnLimpar').onclick = () => {
-  if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
+  if (confirm('🧹 Limpar todos os lançamentos?')) {
     tblBody.innerHTML = '';
-    for (let i = 0; i < 10; i++) {
-      addRow();
-    }
-    // Recarregar tipos nas novas linhas
-    setTimeout(() => {
-      atualizarTodosOsSelects();
-    }, 100);
-    alert('🧹 Formulário limpo!');
+    for (let i = 0; i < 10; i++) addRow();
+    setTimeout(atualizarTodosOsSelects, 100);
   }
 };
 
-// Função para enviar para o servidor - CORRIGIDA: preserva registros anteriores
+// Enviar para servidor
 async function enviarParaServidorRDM(mostrarAlerta = true) {
   const linhas = getDadosFormulario();
-
   if (linhas.length === 0) {
-    if (mostrarAlerta) {
-      alert("⚠️ Não há dados para enviar!");
-    }
+    if (mostrarAlerta) alert("⚠️ Não há dados!");
     return false;
   }
 
   try {
     const GET_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}/latest`;
     const PUT_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}`;
-
-    console.log('Enviando dados...', linhas);
     
-    // Primeiro, buscar os dados existentes
     const resGet = await fetch(GET_URL, { 
-      headers: { 
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Meta': 'false'
-      } 
+      headers: { 'X-Master-Key': MASTER_KEY, 'X-Bin-Meta': 'false' } 
     });
     
     let dadosExistentes = [];
-    
     if(resGet.ok){
       const json = await resGet.json();
-      console.log('Dados existentes:', json);
-      
-      // Verificar o formato dos dados existentes
-      if (json.record && json.record.rdm_registros) {
-        // Formato: { "rdm_registros": [...] }
-        dadosExistentes = json.record.rdm_registros || [];
-      } else if (json.rdm_registros) {
-        // Formato direto: { "rdm_registros": [...] }
-        dadosExistentes = json.rdm_registros || [];
-      } else if (Array.isArray(json.record)) {
-        // Formato: array direto
-        dadosExistentes = json.record;
-      } else if (Array.isArray(json)) {
-        // Formato: array direto
-        dadosExistentes = json;
-      }
+      if (json.record?.rdm_registros) dadosExistentes = json.record.rdm_registros;
+      else if (json.rdm_registros) dadosExistentes = json.rdm_registros;
+      else if (Array.isArray(json.record)) dadosExistentes = json.record;
+      else if (Array.isArray(json)) dadosExistentes = json;
     }
     
-    // Combinar registros existentes com os novos
-    const todosRegistros = [...dadosExistentes, ...linhas];
-    console.log('Total de registros:', todosRegistros.length);
-    
-    // Manter o formato { "rdm_registros": [...] }
-    const dadosParaSalvar = { rdm_registros: todosRegistros };
-
-    // Enviar todos os registros de volta (antigos + novos)
     const resPut = await fetch(PUT_URL, {
       method:'PUT',
       headers:{
@@ -620,19 +560,16 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
         'X-Master-Key':MASTER_KEY,
         'X-Bin-Versioning':'false'
       },
-      body:JSON.stringify(dadosParaSalvar)
+      body:JSON.stringify({ rdm_registros: [...dadosExistentes, ...linhas] })
     });
 
     if(resPut.ok) {
-      console.log('✅ Dados enviados com sucesso! Total de registros:', todosRegistros.length);
       localStorage.removeItem('rdm_offline_cache');
       return true;
-    } else {
-      console.log('❌ Erro ao enviar para o servidor. Status:', resPut.status);
-      return false;
     }
+    return false;
   } catch(err){
-    console.log('❌ Erro: ' + err.message);
+    console.log('Erro:', err);
     return false;
   }
 }
@@ -643,9 +580,8 @@ $('btnGerarPDF').onclick = async () => {
     const { jsPDF } = window.jspdf;
     const [yyyy,mm,dd] = $('rdm_data').value.split('-');
     const dataFormatada = `${dd}/${mm}/${yyyy}`;
-    const horaFormatada = $('rdm_hora_doc').value;
     $('meta_data').innerText = "DATA: " + dataFormatada;
-    $('meta_hora_doc').innerText = "HORA: " + horaFormatada;
+    $('meta_hora_doc').innerText = "HORA: " + $('rdm_hora_doc').value;
 
     const tbody = $('rdm_equip_rows');
     tbody.innerHTML = "";
@@ -654,38 +590,30 @@ $('btnGerarPDF').onclick = async () => {
     
     Array.from(tblBody.querySelectorAll('tr')).forEach(r => {
       const selectEquip = r.querySelector('td:first-child select');
-      const tipoContainer = r.querySelector('.tipo-container');
+      const tipoWrapper = r.querySelector('.tipo-wrapper');
       const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
-      const tipoManutencao = getValorTipo(tipoContainer);
       
       const equipValue = selectEquip ? selectEquip.value : '';
-      const tipoValue = tipoManutencao;
+      const tipoValue = getValorTipo(tipoWrapper);
       const dataValue = inputs[0] ? inputs[0].value : '';
-      const obsValue = inputs[1] ? inputs[1].value : '';
+      const horimetroValue = inputs[1] ? inputs[1].value : '';
       
-      if (equipValue || tipoValue || dataValue || obsValue) {
+      if (equipValue || tipoValue || dataValue || horimetroValue) {
         hasData = true;
-        const tr2 = document.createElement('tr');
-        
-        // Corrigir a formatação da data da manutenção para DD/MM/AAAA
         let dataManutencaoFormatada = dataValue;
         if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
           const [ano, mes, dia] = dataManutencaoFormatada.split('-');
           dataManutencaoFormatada = `${dia}/${mes}/${ano}`;
         }
         
-        tr2.innerHTML = `
-          <td>${equipValue}</td>
-          <td>${tipoValue}</td>
-          <td>${dataManutencaoFormatada}</td>
-          <td>${obsValue}</td>
-        `;
+        const tr2 = document.createElement('tr');
+        tr2.innerHTML = `<td>${equipValue}</td><td>${tipoValue}</td><td>${dataManutencaoFormatada}</td><td>${horimetroValue}</td>`;
         tbody.appendChild(tr2);
       }
     });
     
     if (!hasData) {
-      alert('⚠️ Não há dados para gerar o PDF!');
+      alert('⚠️ Não há dados!');
       return;
     }
     
@@ -693,161 +621,107 @@ $('btnGerarPDF').onclick = async () => {
     wrapper.style.visibility = 'visible';
     wrapper.style.position = 'absolute';
     wrapper.style.left = '-9999px';
-    wrapper.style.top = '0';
     document.body.appendChild(wrapper);
   
     await new Promise(resolve => setTimeout(resolve, 500));
   
-    const canvas = await html2canvas(wrapper, {
-      scale: 1.5,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      allowTaint: false
-    });
+    const canvas = await html2canvas(wrapper, { scale: 1.5, backgroundColor: '#ffffff' });
     
     const pdf = new jsPDF({unit:'pt',format:'a4'});
     const img = canvas.toDataURL('image/png');
     const w = pdf.internal.pageSize.width - 40;
     const h = (canvas.height * w) / canvas.width;
     pdf.addImage(img, 'PNG', 20, 20, w, h);
-    pdf.save(`RDM_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
+    pdf.save(`RDM_${dataFormatada.replace(/\//g,'-')}.pdf`);
     document.body.removeChild(wrapper);
     
-    alert('✅ PDF gerado com sucesso!');
+    alert('✅ PDF gerado!');
     
-    const enviadoComSucesso = await enviarParaServidorRDM(false);
-    
-    if (enviadoComSucesso) {
-      const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados.\nClique em Cancelar para limpar.');
-      
-      if (!manterDados) {
-        $('btnLimpar').click();
-      }
+    if (await enviarParaServidorRDM(false)) {
+      if (!confirm('✅ Enviado! Manter dados?')) $('btnLimpar').click();
     } else {
-      alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente.');
+      alert('❌ Falha no envio. Salvando localmente.');
       salvarLocalmente();
     }
   } catch (error) {
-    console.error('Erro ao gerar PDF:', error);
-    alert('❌ Erro ao gerar PDF. Tente novamente.');
+    alert('❌ Erro ao gerar PDF');
   }
 };
 
-// Botão Enviar para Servidor
-document.getElementById('btnServidor').onclick = async () => {
-  const enviadoComSucesso = await enviarParaServidorRDM(true);
-  
-  if (enviadoComSucesso) {
-    const limparCampos = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para limpar.\nClique em Cancelar para manter.');
-    if (limparCampos) {
-      $('btnLimpar').click();
-    }
+$('btnServidor').onclick = async () => {
+  if (await enviarParaServidorRDM(true)) {
+    if (confirm('✅ Enviado! Limpar?')) $('btnLimpar').click();
   } else {
-    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente.');
+    alert('❌ Falha no envio');
     salvarLocalmente();
   }
 };
 
-// Salvar localmente
 function salvarLocalmente() {
   const linhas = getDadosFormulario();
-
-  if (linhas.length === 0) {
-    alert("⚠️ Não há dados para salvar!");
-    return;
-  }
-
-  localStorage.setItem('rdm_offline_cache', JSON.stringify(linhas));
-  alert('💾 Dados salvos localmente!');
+  if (linhas.length) {
+    localStorage.setItem('rdm_offline_cache', JSON.stringify(linhas));
+    alert('💾 Salvo localmente!');
+  } else alert("⚠️ Não há dados!");
 }
 
-// Botão Recarregar Tipos
 $('btnRecarregarTipos').onclick = () => carregarTiposManutencao(true);
+$('btnSalvarLocal').onclick = salvarLocalmente;
 
-// Associar botão de salvar local
-document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
-
-// Carregar cache se existir
+// Carregar cache
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rdm_offline_cache');
-  
   if (cache) {
     try {
       const linhas = JSON.parse(cache);
-      if (linhas.length > 0) {
-        const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar.\nClique em Cancelar para começar em branco.');
-        
-        if (carregar) {
-          tblBody.innerHTML = '';
-          linhas.forEach(dado => {
-            const tr = addRow();
-            const selectEquip = tr.querySelector('td:first-child select');
-            const tipoContainer = tr.querySelector('.tipo-container');
-            const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
-            
-            if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
-            
-            // Converter data_manutencao de DD/MM/AAAA para YYYY-MM-DD no input
-            if (inputs[0] && dado.data_manutencao) {
-              if (dado.data_manutencao.includes('/')) {
-                const [dia, mes, ano] = dado.data_manutencao.split('/');
-                inputs[0].value = `${ano}-${mes}-${dia}`;
-              } else {
-                inputs[0].value = dado.data_manutencao;
-              }
-            }
-            
-            if (inputs[1] && dado.observacao) inputs[1].value = dado.observacao;
-            
-            if (tipoContainer && dado.tipo_manutencao) {
-              const select = tipoContainer.querySelector('select');
-              const input = tipoContainer.querySelector('input[type="text"]');
-              const btnDigitar = tipoContainer.querySelector('.btn-small');
-              
-              const optionExists = Array.from(select.options).some(opt => opt.value === dado.tipo_manutencao);
-              
-              if (optionExists) {
-                select.value = dado.tipo_manutencao;
-              } else {
-                select.value = 'OUTROS';
-                input.value = dado.tipo_manutencao;
-                input.style.display = 'block';
-                select.style.display = 'none';
-                btnDigitar.style.display = 'none';
-              }
-            }
-          });
+      if (linhas.length && confirm('📦 Carregar dados salvos?')) {
+        tblBody.innerHTML = '';
+        linhas.forEach(dado => {
+          const tr = addRow();
+          const selectEquip = tr.querySelector('td:first-child select');
+          const tipoWrapper = tr.querySelector('.tipo-wrapper');
+          const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
           
-          setTimeout(() => {
-            if (!tiposCarregados) {
-              carregarTiposManutencao(false);
+          if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
+          
+          if (inputs[0] && dado.data_manutencao) {
+            if (dado.data_manutencao.includes('/')) {
+              const [dia, mes, ano] = dado.data_manutencao.split('/');
+              inputs[0].value = `${ano}-${mes}-${dia}`;
+            }
+          }
+          
+          if (inputs[1] && dado.horimetro_atual) inputs[1].value = dado.horimetro_atual;
+          
+          if (tipoWrapper && dado.tipo_manutencao) {
+            const select = tipoWrapper.querySelector('.tipo-select');
+            const input = tipoWrapper.querySelector('.tipo-input');
+            
+            const optionExists = Array.from(select.options).some(opt => opt.value === dado.tipo_manutencao);
+            
+            if (optionExists) {
+              select.value = dado.tipo_manutencao;
             } else {
-              atualizarTodosOsSelects();
+              select.value = 'OUTROS';
+              select.classList.add('ocultar');
+              input.classList.add('mostrar');
+              input.value = dado.tipo_manutencao;
             }
-          }, 500);
-          
-          alert('📂 Dados carregados!');
-        }
+          }
+        });
+        setTimeout(atualizarTodosOsSelects, 500);
       }
-    } catch (e) {
-      console.error('Erro ao carregar cache:', e);
-    }
+    } catch (e) {}
   }
 });
 
-// Detectar online
+// Online detector
 window.addEventListener('online', async () => {
   const cache = localStorage.getItem('rdm_offline_cache');
-  if (cache) {
-    const acao = confirm('🌐 Conexão restaurada! Enviar dados salvos?');
-    
-    if (acao) {
-      const enviado = await enviarParaServidorRDM(false);
-      if (enviado) {
-        localStorage.removeItem('rdm_offline_cache');
-        alert('✅ Dados enviados com sucesso!');
-      }
+  if (cache && confirm('🌐 Conexão restaurada! Enviar dados?')) {
+    if (await enviarParaServidorRDM(false)) {
+      localStorage.removeItem('rdm_offline_cache');
+      alert('✅ Dados enviados!');
     }
   }
 });
