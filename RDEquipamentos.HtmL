@@ -278,7 +278,7 @@ function criarSelectArea(tagPrefix) {
   const select = document.createElement('select');
   const opcoesEMP = ["PRODUÇÃO","FAB. ARCOS","CAL","CAL EXTRA","HIDRATAÇÃO","SAFRA-CAL","CARBONATO","CALCIFERTIL","CARBONATO EXTRA","DRS","ALMOXARIFADO","MANUTENÇÃO","RESERVA","OFICINA MINA","GARAGEM"];
   const opcoesMC = ["CAL","CARBONATO","DRS","MANUTENÇÃO","RESERVA","GARAGEM"];
-  const opcoesPC = ["BIOMASSA","CAL","COQUE","BRITAGEM","MANUTENÇÃO","RESERVA","GARAGEM","BRITAGEM SAFRA"];
+  const opcoesPC = ["BIOMASSA","CAL","COQUE","BRITAGEM","MANUTENÇÃO","RESERVA","GARAGEM","BRITAGEM EXTRA"];
   const lista = tagPrefix.startsWith("EMP") ? opcoesEMP : tagPrefix.startsWith("MC") ? opcoesMC : opcoesPC;
 
   const vazio = document.createElement('option');
