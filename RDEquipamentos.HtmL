@@ -268,7 +268,7 @@ window.addEventListener('DOMContentLoaded', () => {
 const equipamentos = [
   "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
   "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
-  "MC002","MC004","MC005","MC006","MC007",
+  "MC002","MC004","MC005","MC006",
   "PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"
 ];
 
@@ -276,9 +276,9 @@ const tblBody = document.querySelector('#tblEquipamentos tbody');
 
 function criarSelectArea(tagPrefix) {
   const select = document.createElement('select');
-  const opcoesEMP = ["PRODUÇÃO","FAB. ARCOS","CAL","CAL EXTRA","HIDRATAÇÃO","SAFRA-CAL","CARBONATO","CALCIFERTIL","CARBONATO EXTRA","DRS","ALMOXARIFADO","MANUTENÇÃO","RESERVA","OFICINA MINA","GARAGEM"];
+  const opcoesEMP = ["FAB. ARCOS","CAL","CAL EXTRA","HIDRATAÇÃO","SAFRA-CAL","CARBONATO","CALCIFERTIL","CARBONATO EXTRA","DRS","ALMOXARIFADO","MANUTENÇÃO","RESERVA","OFICINA MINA","GARAGEM"];
   const opcoesMC = ["CAL","CARBONATO","DRS","MANUTENÇÃO","RESERVA","GARAGEM"];
-  const opcoesPC = ["BIOMASSA","CAL","COQUE","BRITAGEM","MANUTENÇÃO","RESERVA","GARAGEM","BRITAGEM EXTRA"];
+  const opcoesPC = ["BIOMASSA","CAL","COQUE","BRITAGEM","MANUTENÇÃO","RESERVA","GARAGEM"];
   const lista = tagPrefix.startsWith("EMP") ? opcoesEMP : tagPrefix.startsWith("MC") ? opcoesMC : opcoesPC;
 
   const vazio = document.createElement('option');
@@ -449,13 +449,23 @@ $('btnGerarPDF').onclick = async () => {
 
   const tbody = $('rde_equip_rows');
   tbody.innerHTML = "";
-  Array.from(tblBody.querySelectorAll('tr')).forEach(r=>{
-    const inputs=r.querySelectorAll('input,select');
-    const sim=inputs[2].checked?"X":"";
-    const nao=inputs[3].checked?"X":"";
-    const obs=inputs[4].value;
-    const tr2=document.createElement('tr');
-    tr2.innerHTML=`<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
+  
+  // 🔥 CORREÇÃO: FILTRA APENAS AS LINHAS QUE TÊM DADOS PREENCHIDOS (EXCLUINDO A TAG)
+  const linhasComDados = Array.from(tblBody.querySelectorAll('tr')).filter(row => {
+    const inputs = row.querySelectorAll('input, select');
+    // Verifica APENAS os campos de conteúdo (Área, SIM, NÃO, Observação)
+    // A TAG (inputs[0]) NÃO é considerada no filtro
+    return inputs[1].value || inputs[2].checked || inputs[3].checked || inputs[4].value;
+  });
+  
+  // Adiciona apenas as linhas com dados ao PDF
+  linhasComDados.forEach(row => {
+    const inputs = row.querySelectorAll('input,select');
+    const sim = inputs[2].checked ? "X" : "";
+    const nao = inputs[3].checked ? "X" : "";
+    const obs = inputs[4].value;
+    const tr2 = document.createElement('tr');
+    tr2.innerHTML = `<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
     tbody.appendChild(tr2);
   });
   
