@@ -96,8 +96,9 @@
   }
   
   /* NOVO: Fonte monoespaçada para TAG em DESKTOP também */
-  #tblEquipamentos td:nth-child(1) input {
-    font-family: monospace; /* Padroniza fonte monoespaçada */
+  #tblEquipamentos td:nth-child(1) input,
+  #tblEquipamentos td:nth-child(1) select {
+    font-family: monospace;
     font-size: 13px;
     text-align: center;
   }
@@ -122,27 +123,24 @@
     .actions { flex-direction: column; align-items: stretch; }
     
     /* AJUSTES ESPECÍFICOS PARA AS COLUNAS NO CELULAR */
-    /* TAG - aumenta para mostrar código completo (ex: PC001, EMP005) */
     #tblEquipamentos td:nth-child(1) {
-      min-width: 70px; /* Suficiente para mostrar PC001/EMP005 */
+      min-width: 70px;
       text-align: center;
     }
     
-    /* TAG input - fonte monoespaçada para melhor leitura (celular mantém 11px) */
-    #tblEquipamentos td:nth-child(1) input {
-      font-family: monospace; /* JÁ ESTÁ APLICADO ACIMA, MAS REFORÇA PARA CELULAR */
-      font-size: 13px; /* Celular mantém 13px */
+    #tblEquipamentos td:nth-child(1) input,
+    #tblEquipamentos td:nth-child(1) select {
+      font-family: monospace;
+      font-size: 13px;
       padding: 6px 2px;
       width: 100%;
       text-align: center;
     }
     
-    /* ÁREA - reduz um pouco (140px estava grande demais) */
     #tblEquipamentos td:nth-child(2) {
-      min-width: 120px; /* Reduzido de 140px para 120px */
+      min-width: 120px;
     }
     
-    /* ÁREA select - ajustado */
     #tblEquipamentos td:nth-child(2) select {
       width: 100% !important;
       font-size: 11px;
@@ -150,14 +148,12 @@
       max-width: 100%;
     }
     
-    /* SINISTRO SIM/NÃO - mantém pequeno */
     #tblEquipamentos td:nth-child(3),
     #tblEquipamentos td:nth-child(4) {
       min-width: 45px;
       text-align: center;
     }
     
-    /* Checkboxes um pouco maiores para toque fácil */
     #tblEquipamentos td:nth-child(3) input[type="checkbox"],
     #tblEquipamentos td:nth-child(4) input[type="checkbox"] {
       transform: scale(1.1);
@@ -165,7 +161,6 @@
       display: block;
     }
     
-    /* OBSERVAÇÃO - ocupa espaço restante */
     #tblEquipamentos td:nth-child(5) {
       min-width: 100px;
     }
@@ -265,12 +260,14 @@ window.addEventListener('DOMContentLoaded', () => {
   $('rde_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 });
 
-const equipamentos = [
-  "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
-  "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
-  "MC002","MC004","MC005","MC006",
-  "PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"
-];
+// EQUIPAMENTOS REORGANIZADOS: PC, MC, EMP
+const equipamentosPC = ["PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"];
+const equipamentosMC = ["MC002","MC004","MC005","MC006"];
+const equipamentosEMP = ["EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
+  "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025"];
+
+// Lista completa para compatibilidade (mantém a ordem antiga para funções existentes)
+const equipamentos = [...equipamentosPC, ...equipamentosMC, ...equipamentosEMP];
 
 const tblBody = document.querySelector('#tblEquipamentos tbody');
 
@@ -299,7 +296,6 @@ function gerenciarCheckboxes(checkboxClicado, linha) {
   const checkboxes = linha.querySelectorAll('input[type="checkbox"]');
   
   if (checkboxClicado.checked) {
-    // Desmarca o outro checkbox
     checkboxes.forEach(cb => {
       if (cb !== checkboxClicado) {
         cb.checked = false;
@@ -308,7 +304,62 @@ function gerenciarCheckboxes(checkboxClicado, linha) {
   }
 }
 
-function addRow(tag="") {
+// Função para atualizar as opções dos SELECTs de EMP
+function atualizarSelectsEMP(selectAlterado) {
+  const selectsEMP = document.querySelectorAll('#tblEquipamentos tbody tr td:nth-child(1) select');
+  const valoresSelecionados = [];
+  
+  // Coleta todos os valores atualmente selecionados
+  selectsEMP.forEach(sel => {
+    if (sel.value && sel !== selectAlterado) {
+      valoresSelecionados.push(sel.value);
+    }
+  });
+  
+  // Se o select alterado tem um valor, adiciona à lista de selecionados
+  if (selectAlterado && selectAlterado.value) {
+    valoresSelecionados.push(selectAlterado.value);
+  }
+  
+  // Atualiza cada select
+  selectsEMP.forEach(sel => {
+    const valorAtual = sel.value;
+    sel.innerHTML = '';
+    
+    // Adiciona opção vazia
+    const vazio = document.createElement('option');
+    vazio.textContent = "";
+    vazio.value = "";
+    sel.appendChild(vazio);
+    
+    // Adiciona todas as empilhadeiras, exceto as que estão selecionadas em outros selects
+    equipamentosEMP.forEach(emp => {
+      // Se esta empilhadeira está selecionada em outro select, não adiciona
+      if (valoresSelecionados.includes(emp) && emp !== valorAtual) {
+        return;
+      }
+      
+      const opt = document.createElement('option');
+      opt.value = emp;
+      opt.textContent = emp;
+      sel.appendChild(opt);
+    });
+    
+    // Restaura o valor se ainda estiver disponível
+    if (valorAtual) {
+      // Verifica se o valor ainda está disponível no select
+      const opcoes = Array.from(sel.options);
+      const existe = opcoes.some(opt => opt.value === valorAtual);
+      if (existe) {
+        sel.value = valorAtual;
+      } else {
+        sel.value = "";
+      }
+    }
+  });
+}
+
+function addRow(tag="", isEMPSelect=false) {
   const tr = document.createElement('tr');
   const tdTag = document.createElement('td');
   const tdArea = document.createElement('td');
@@ -316,14 +367,38 @@ function addRow(tag="") {
   const tdNao = document.createElement('td');
   const tdObs = document.createElement('td');
 
-  const inputTag = document.createElement('input');
-  inputTag.type = 'text';
-  inputTag.value = tag;
-  inputTag.style.textAlign = "center";
-  inputTag.readOnly = true; // COLUNA TAG NÃO EDITÁVEL
-  inputTag.title = "Campo TAG não é editável";
+  let inputTag;
+  if (isEMPSelect) {
+    // Para EMP, usa SELECT
+    inputTag = document.createElement('select');
+    // Adiciona opção vazia
+    const vazio = document.createElement('option');
+    vazio.textContent = "";
+    vazio.value = "";
+    inputTag.appendChild(vazio);
+    
+    // Adiciona todas as empilhadeiras
+    equipamentosEMP.forEach(emp => {
+      const opt = document.createElement('option');
+      opt.value = emp;
+      opt.textContent = emp;
+      inputTag.appendChild(opt);
+    });
+    
+    inputTag.addEventListener('change', function() {
+      atualizarSelectsEMP(this);
+    });
+  } else {
+    // Para PC e MC, usa INPUT readonly
+    inputTag = document.createElement('input');
+    inputTag.type = 'text';
+    inputTag.value = tag;
+    inputTag.style.textAlign = "center";
+    inputTag.readOnly = true;
+    inputTag.title = "Campo TAG não é editável";
+  }
 
-  const areaSelect = criarSelectArea(tag);
+  const areaSelect = criarSelectArea(tag.startsWith('EMP') ? 'EMP' : tag.startsWith('MC') ? 'MC' : 'PC');
   const inputSim = document.createElement('input');
   inputSim.type = 'checkbox';
   inputSim.addEventListener('change', () => gerenciarCheckboxes(inputSim, tr));
@@ -348,16 +423,20 @@ function addRow(tag="") {
 
 $('btnLimpar').onclick = () => {
   if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
-    // Reseta todos os campos, mas mantém as linhas
     const rows = tblBody.querySelectorAll('tr');
     rows.forEach(row => {
       const inputs = row.querySelectorAll('input, select');
-      // TAG mantém o valor original
+      // TAG: se for SELECT, reseta para vazio; se for INPUT, mantém
+      if (inputs[0].tagName === 'SELECT') {
+        inputs[0].value = "";
+      }
       inputs[1].value = ""; // Área
       inputs[2].checked = false; // SIM
       inputs[3].checked = false; // NÃO
       inputs[4].value = ""; // Observação
     });
+    // Atualiza os selects após limpar
+    atualizarSelectsEMP(null);
     alert('🧹 Formulário limpo!');
   }
 };
@@ -370,10 +449,12 @@ async function enviarParaServidorRDE(mostrarAlerta = true) {
 
   const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r=>{
     const i=r.querySelectorAll('input,select');
+    // Para SELECT, pega o value; para INPUT, pega o value
+    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
     return {
       Data:data,
       HoraDocumento:horaDoc,
-      TAG:i[0].value,
+      TAG:tagValue,
       Area:i[1].value,
       Sim:i[2].checked?"X":"",
       Nao:i[3].checked?"X":"",
@@ -414,11 +495,8 @@ async function enviarParaServidorRDE(mostrarAlerta = true) {
 
     if(resPut.ok) {
       console.log('✅ Dados enviados para o Servidor com sucesso!');
-      
-      // Limpa o cache local se o envio foi bem sucedido
       localStorage.removeItem('rde_offline_cache');
       console.log('🗑️ Cache local limpo após envio bem-sucedido');
-      
       return true;
     } else {
       console.log('❌ Erro ao enviar para o Servidor.');
@@ -461,11 +539,12 @@ $('btnGerarPDF').onclick = async () => {
   // Adiciona apenas as linhas com dados ao PDF
   linhasComDados.forEach(row => {
     const inputs = row.querySelectorAll('input,select');
+    const tagValue = inputs[0].tagName === 'SELECT' ? inputs[0].value : inputs[0].value;
     const sim = inputs[2].checked ? "X" : "";
     const nao = inputs[3].checked ? "X" : "";
     const obs = inputs[4].value;
     const tr2 = document.createElement('tr');
-    tr2.innerHTML = `<td>${inputs[0].value}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
+    tr2.innerHTML = `<td>${tagValue}</td><td>${inputs[1].value}</td><td>${sim}</td><td>${nao}</td><td>${obs}</td>`;
     tbody.appendChild(tr2);
   });
   
@@ -491,13 +570,19 @@ $('btnGerarPDF').onclick = async () => {
   const w = pdf.internal.pageSize.width;
   const h = (canvas.height * w) / canvas.width;
   pdf.addImage(img, 'PNG', 20, 20, w - 40, h);
+  
+  // 🔥 SALVA O PDF E AGUARDA O PROCESSO COMPLETAR
   pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
   document.body.removeChild(wrapper);
   
   // ✅ AVISA QUE GEROU O PDF
   alert('✅ PDF gerado com sucesso!');
   
-  // ✅ AGORA ENVIA SEMPRE PARA O SERVIDOR
+  // 🔥 ESPERA 2.5 SEGUNDOS ANTES DE ENVIAR PARA O SERVIDOR
+  // Isso garante que o navegador concluiu o processo de download do PDF
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  
+  // ✅ AGORA ENVIA SEMPRE PARA O SERVIDOR (após o delay)
   const enviadoComSucesso = await enviarParaServidorRDE(false); // false para não mostrar alerta aqui
   
   if (enviadoComSucesso) {
@@ -511,11 +596,16 @@ $('btnGerarPDF').onclick = async () => {
       const rows = tblBody.querySelectorAll('tr');
       rows.forEach(row => {
         const inputs = row.querySelectorAll('input, select');
+        if (inputs[0].tagName === 'SELECT') {
+          inputs[0].value = "";
+        }
         inputs[1].value = ""; // Área
         inputs[2].checked = false; // SIM
         inputs[3].checked = false; // NÃO
         inputs[4].value = ""; // Observação
       });
+      // Atualiza os selects após limpar
+      atualizarSelectsEMP(null);
       alert('🧹 Campos limpos!');
     }
   } else {
@@ -535,10 +625,11 @@ $('btnExcelRDE').onclick = async () => {
   // Primeiro gera o Excel
   const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
     const i = r.querySelectorAll('input,select');
+    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
     return {
       Data: data,
       HoraDocumento: horaDoc,
-      TAG: i[0].value,
+      TAG: tagValue,
       Area: i[1].value,
       Sim: i[2].checked ? "X" : "",
       Nao: i[3].checked ? "X" : "",
@@ -568,11 +659,15 @@ $('btnExcelRDE').onclick = async () => {
       const rows = tblBody.querySelectorAll('tr');
       rows.forEach(row => {
         const inputs = row.querySelectorAll('input, select');
-        inputs[1].value = ""; // Área
-        inputs[2].checked = false; // SIM
-        inputs[3].checked = false; // NÃO
-        inputs[4].value = ""; // Observação
+        if (inputs[0].tagName === 'SELECT') {
+          inputs[0].value = "";
+        }
+        inputs[1].value = "";
+        inputs[2].checked = false;
+        inputs[3].checked = false;
+        inputs[4].value = "";
       });
+      atualizarSelectsEMP(null);
       alert('🧹 Campos limpos!');
     }
   } else {
@@ -596,11 +691,15 @@ document.getElementById('btnServidor').onclick = async () => {
       const rows = tblBody.querySelectorAll('tr');
       rows.forEach(row => {
         const inputs = row.querySelectorAll('input, select');
-        inputs[1].value = ""; // Área
-        inputs[2].checked = false; // SIM
-        inputs[3].checked = false; // NÃO
-        inputs[4].value = ""; // Observação
+        if (inputs[0].tagName === 'SELECT') {
+          inputs[0].value = "";
+        }
+        inputs[1].value = "";
+        inputs[2].checked = false;
+        inputs[3].checked = false;
+        inputs[4].value = "";
       });
+      atualizarSelectsEMP(null);
       alert('🧹 Campos limpos!');
     } else {
       alert('📋 Dados mantidos no formulário!');
@@ -621,10 +720,11 @@ function salvarLocalmente() {
 
   const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
     const i = r.querySelectorAll('input,select');
+    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
     return {
       Data: data,
       HoraDocumento: horaDoc,
-      TAG: i[0].value,
+      TAG: tagValue,
       Area: i[1].value,
       Sim: i[2].checked ? "X" : "",
       Nao: i[3].checked ? "X" : "",
@@ -650,76 +750,76 @@ function salvarLocalmente() {
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rde_offline_cache');
   
-  // SEMPRE LIMPA A TABELA PRIMEIRO (importante!)
   tblBody.innerHTML = "";
+  
+  // Adiciona PC
+  equipamentosPC.forEach(tag => addRow(tag, false));
+  
+  // Adiciona MC
+  equipamentosMC.forEach(tag => addRow(tag, false));
+  
+  // Adiciona 3 linhas de EMP com SELECT
+  for (let i = 0; i < 3; i++) {
+    addRow("", true);
+  }
+  
+  // Atualiza os selects para sincronizar
+  atualizarSelectsEMP(null);
   
   if (cache) {
     const linhas = JSON.parse(cache);
     
-    // Verifica se há dados no cache
     if (linhas.length > 0) {
       const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
       
       if (carregar) {
-        // Primeiro carrega todos os equipamentos padrão
-        equipamentos.forEach(tag => addRow(tag));
-        
-        // Agora preenche os dados do cache nas linhas correspondentes
         const rows = tblBody.querySelectorAll('tr');
         
         linhas.forEach(dado => {
           // Procura a linha com o mesmo TAG
           for (let row of rows) {
-            const tagInput = row.querySelector('td:nth-child(1) input');
-            if (tagInput && tagInput.value === dado.TAG) {
-              // Encontrou a linha correspondente, preenche os dados
+            const tagElement = row.querySelector('td:nth-child(1) input, td:nth-child(1) select');
+            let tagValue = '';
+            if (tagElement.tagName === 'SELECT') {
+              tagValue = tagElement.value;
+            } else {
+              tagValue = tagElement.value;
+            }
+            
+            if (tagValue === dado.TAG) {
               const inputs = row.querySelectorAll('input, select');
               
-              // Área
               if (inputs[1] && dado.Area) {
                 inputs[1].value = dado.Area;
               }
               
-              // SIM
               if (inputs[2] && dado.Sim === "X") {
                 inputs[2].checked = true;
-                // Garante que apenas um checkbox está marcado
                 if (inputs[3]) inputs[3].checked = false;
               }
               
-              // NÃO
               if (inputs[3] && dado.Nao === "X") {
                 inputs[3].checked = true;
-                // Garante que apenas um checkbox está marcado
                 if (inputs[2]) inputs[2].checked = false;
               }
               
-              // Observação
               if (inputs[4] && dado.Observacao) {
                 inputs[4].value = dado.Observacao;
               }
               
-              break; // Sai do loop quando encontrar
+              break;
             }
           }
         });
         
+        // Atualiza os selects após carregar
+        atualizarSelectsEMP(null);
         alert('📂 Dados carregados do cache local.');
       } else {
-        // Remove o cache se o usuário escolher começar em branco
         localStorage.removeItem('rde_offline_cache');
-        // Carrega a lista padrão
-        equipamentos.forEach(tag => addRow(tag));
         alert('📄 Iniciando formulário em branco.');
       }
-    } else {
-      // Cache vazio, remove e carrega lista padrão
-      localStorage.removeItem('rde_offline_cache');
-      equipamentos.forEach(tag => addRow(tag));
     }
-  } else {
-    // Não há cache, carrega a lista padrão
-    equipamentos.forEach(tag => addRow(tag));
   }
 });
 
@@ -730,7 +830,6 @@ window.addEventListener('online', async () => {
     const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
     
     if (acao) {
-      // Tenta enviar os dados do cache
       const enviado = await enviarParaServidorRDE(false);
       if (enviado) {
         const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para remover do cache.\nClique em Cancelar para manter no cache.');
