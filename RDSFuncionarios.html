@@ -169,14 +169,13 @@
   }
   
   /* NOVOS ESTILOS PARA A TABELA RESPONSIVA */
-  #tblFuncionarios th:nth-child(1) { width: 70px; } /* Código */
-  #tblFuncionarios th:nth-child(2) { min-width: 155px; } /* Funcionário */
-  #tblFuncionarios th:nth-child(3) { width: 85px; } /* Entrada */
-  #tblFuncionarios th:nth-child(4) { width: 85px; } /* Saída */
-  #tblFuncionarios th:nth-child(5) { width: 125px; } /* Observação */
-  #tblFuncionarios th:nth-child(6) { width: 40px; } /* Ações */
+  #tblFuncionarios th:nth-child(1) { width: 70px; }
+  #tblFuncionarios th:nth-child(2) { min-width: 155px; }
+  #tblFuncionarios th:nth-child(3) { width: 85px; }
+  #tblFuncionarios th:nth-child(4) { width: 85px; }
+  #tblFuncionarios th:nth-child(5) { width: 125px; }
+  #tblFuncionarios th:nth-child(6) { width: 40px; }
   
-  /* Garantir que inputs ocupem toda a célula */
   #tblFuncionarios td input,
   #tblFuncionarios td select {
     width: 100%;
@@ -184,7 +183,6 @@
     box-sizing: border-box;
   }
   
-  /* Para horários - mesmo tamanho e centralizados */
   #tblFuncionarios td:nth-child(3),
   #tblFuncionarios td:nth-child(4) {
     text-align: center;
@@ -199,7 +197,6 @@
     font-size: 13px;
   }
   
-  /* Botão remover apenas X */
   .remove-btn-x {
     background: #dc3545;
     color: white;
@@ -221,7 +218,6 @@
     background: #c82333;
   }
 
-  /* Garantir que Observação ocupe espaço máximo disponível */
   #tblFuncionarios td:nth-child(5) {
     max-width: none !important;
   }
@@ -232,17 +228,16 @@
     box-sizing: border-box;
   }
 
-  /* NOVO: Alinhar código à direita (como no Excel) */
   #tblFuncionarios td:nth-child(1) {
     text-align: right !important;
   }
   
   #tblFuncionarios td:nth-child(1) input {
     text-align: right !important;
-    direction: ltr; /* Garante que números fiquem na ordem correta */
-    font-family: monospace; /* Melhora a leitura de números */
+    direction: ltr;
+    font-family: monospace;
     font-size: 13px;
-    padding-right: 8px; /* Dá um pouco de espaço à direita */
+    padding-right: 8px;
   }
 
   /* ESTILOS PARA FILA DE ENVIO */
@@ -301,7 +296,6 @@
     cursor: not-allowed;
   }
 
-  /* MODIFICAÇÕES PARA DESKTOP */
   @media (min-width: 769px) {
     .table { margin-top: 16px; }
     .actions { justify-content: space-between; }
@@ -327,7 +321,6 @@
     }
   }
   
-  /* MODIFICAÇÕES PARA CELULAR */
   @media (max-width: 768px) {
     .row { flex-direction: column; gap: 8px; }
     .btn { width: 100%; }
@@ -409,7 +402,6 @@
       font-size: 12px;
     }
 
-    /* Fila status no celular */
     .fila-status {
       flex-direction: column;
       align-items: stretch;
@@ -493,7 +485,6 @@
 
     <hr style="margin:12px 0">
 
-    <!-- Status dos funcionários carregados -->
     <div class="status-funcionarios" id="statusFuncionarios" style="display: none;">
       <div class="info">
         <span id="contadorFuncionarios">Carregando funcionários...</span>
@@ -503,12 +494,10 @@
       </button>
     </div>
 
-    <!-- Mensagem de carregamento -->
     <div class="loading-funcionarios" id="loadingFuncionarios">
       🔄 Carregando lista de funcionários do servidor...
     </div>
 
-    <!-- Mensagem de erro -->
     <div class="erro-funcionarios" id="erroFuncionarios" style="display: none;">
       <div style="font-weight: bold; margin-bottom: 5px;">⚠️ Não foi possível carregar a lista de funcionários</div>
       <div style="font-size: 12px; margin-bottom: 10px;">
@@ -629,7 +618,7 @@
 <script>
 // ============================================
 // SISTEMA DE FILA DE ENVIO OFFLINE (INDEXEDDB)
-// CORREÇÃO: Remoção imediata após confirmação do servidor
+// CORREÇÃO DEFINITIVA: Remoção imediata após confirmação do servidor
 // ============================================
 
 class FilaEnvioRDS {
@@ -641,7 +630,6 @@ class FilaEnvioRDS {
     this.processando = false;
   }
 
-  // Inicializar IndexedDB
   async init() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, 1);
@@ -671,9 +659,13 @@ class FilaEnvioRDS {
     });
   }
 
-  // Adicionar item à fila
+  // CORREÇÃO: Adicionar com LOG de debug para identificar chamadas indevidas
   async adicionar(dados) {
     await this.aguardarInicializacao();
+    
+    // LOG DE DEBUG PARA IDENTIFICAR CHAMADAS INDEVIDAS
+    console.log('🔍 ADICIONOU NA FILA - Dados:', dados);
+    console.trace('📍 Rastro da chamada:');
     
     const item = {
       dados: dados,
@@ -689,10 +681,12 @@ class FilaEnvioRDS {
       const request = store.add(item);
 
       request.onsuccess = () => {
+        console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
         resolve(request.result);
       };
 
       request.onerror = () => {
+        console.error('❌ Erro ao adicionar item:', request.error);
         reject(request.error);
       };
     });
@@ -718,7 +712,6 @@ class FilaEnvioRDS {
     });
   }
 
-  // Atualizar status de um item (para controle interno)
   async atualizarStatus(id, status, erro = null) {
     await this.aguardarInicializacao();
     
@@ -748,7 +741,6 @@ class FilaEnvioRDS {
     });
   }
 
-  // Obter todos os itens pendentes
   async getPendentes() {
     await this.aguardarInicializacao();
     
@@ -763,7 +755,6 @@ class FilaEnvioRDS {
     });
   }
 
-  // Obter todos os itens (para debug)
   async getTodos() {
     await this.aguardarInicializacao();
     
@@ -783,7 +774,6 @@ class FilaEnvioRDS {
     return pendentes.length;
   }
 
-  // Aguardar inicialização
   async aguardarInicializacao() {
     if (this.inicializado) return;
     
@@ -814,14 +804,12 @@ let temporizadorSincronizacao = null;
 
 // CORREÇÃO: Função principal de sincronização - remoção APÓS confirmação
 async function sincronizarFila() {
-  // Verificar se está online
   if (!navigator.onLine) {
     console.log('📡 Offline - sincronização agendada para quando a internet voltar');
     atualizarStatusFila('offline');
     return;
   }
 
-  // Evitar execução simultânea
   if (sincronizadorAtivo) {
     console.log('⏳ Sincronização já em andamento');
     return;
@@ -831,7 +819,6 @@ async function sincronizarFila() {
     sincronizadorAtivo = true;
     atualizarStatusFila('enviando');
 
-    // CORREÇÃO: Carregar pendentes diretamente da fila
     const pendentes = await filaRDS.getPendentes();
     
     if (pendentes.length === 0) {
@@ -843,7 +830,6 @@ async function sincronizarFila() {
 
     console.log(`📦 ${pendentes.length} item(ns) pendente(s) na fila`);
     
-    // CORREÇÃO: Processar um por vez, removendo APÓS confirmação
     let itensEnviados = 0;
     for (const item of pendentes) {
       try {
@@ -852,24 +838,20 @@ async function sincronizarFila() {
         
         if (enviado) {
           console.log(`✅ Item ${item.id} enviado com sucesso - removendo da fila`);
-          // CORREÇÃO: Remover IMEDIATAMENTE após confirmação
           await filaRDS.remover(item.id);
           itensEnviados++;
         } else {
           console.log(`❌ Falha ao enviar item ${item.id} - mantendo na fila`);
-          // CORREÇÃO: Manter na fila em caso de falha
           await filaRDS.atualizarStatus(item.id, 'pendente', 'Falha no envio');
-          break; // Para no primeiro erro para não sobrecarregar
+          break;
         }
       } catch (error) {
         console.error(`❌ Erro ao processar item ${item.id}:`, error);
-        // CORREÇÃO: Manter na fila em caso de erro
         await filaRDS.atualizarStatus(item.id, 'pendente', error.message);
-        break; // Para no primeiro erro
+        break;
       }
     }
 
-    // CORREÇÃO: Atualizar contador APÓS processamento
     const pendentesRestantes = await filaRDS.contarPendentes();
     if (pendentesRestantes === 0) {
       atualizarStatusFila('sincronizado', 0);
@@ -886,7 +868,6 @@ async function sincronizarFila() {
     atualizarStatusFila('erro');
   } finally {
     sincronizadorAtivo = false;
-    // CORREÇÃO: Atualizar contador final sempre a partir da fila
     const pendentesFinais = await filaRDS.contarPendentes();
     if (pendentesFinais === 0) {
       atualizarStatusFila('sincronizado', 0);
@@ -896,8 +877,6 @@ async function sincronizarFila() {
   }
 }
 
-// Enviar um item da fila para o servidor
-// CORREÇÃO: Retorna true apenas se o servidor confirmar (200 OK)
 async function enviarItemFila(item) {
   const dados = item.dados;
   
@@ -906,10 +885,9 @@ async function enviarItemFila(item) {
     const PUT_URL = 'https://api.jsonbin.io/v3/b/690247b0ae596e708f36195a';
     const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
 
-    // Buscar dados existentes
     const resGet = await fetch(GET_URL, { 
       headers: { 'X-Master-Key': MASTER_KEY },
-      signal: AbortSignal.timeout(15000) // 15 segundos timeout
+      signal: AbortSignal.timeout(15000)
     });
     
     let dadosExistentes = [];
@@ -918,7 +896,6 @@ async function enviarItemFila(item) {
       dadosExistentes = Array.isArray(json.record) ? json.record : [];
     }
 
-    // Adicionar novo dado (pode ser array ou objeto único)
     let dadosParaEnviar = [];
     if (Array.isArray(dados)) {
       dadosParaEnviar = dados;
@@ -928,7 +905,6 @@ async function enviarItemFila(item) {
     
     const dadosAtualizados = [...dadosExistentes, ...dadosParaEnviar];
     
-    // Enviar para o servidor
     const resPut = await fetch(PUT_URL, {
       method: 'PUT',
       headers: {
@@ -937,10 +913,9 @@ async function enviarItemFila(item) {
         'X-Bin-Versioning': 'false'
       },
       body: JSON.stringify(dadosAtualizados),
-      signal: AbortSignal.timeout(20000) // 20 segundos timeout
+      signal: AbortSignal.timeout(20000)
     });
 
-    // CORREÇÃO: Só retorna true se o servidor confirmar (status 200)
     if (resPut.ok) {
       console.log('✅ Dados enviados para o servidor com sucesso');
       return true;
@@ -966,7 +941,6 @@ async function atualizarStatusFila(status, pendentesCount = null) {
   const ultimoEnvioEl = document.getElementById('filaUltimoEnvio');
   const btnSincronizar = document.getElementById('btnSincronizarAgora');
 
-  // CORREÇÃO: Sempre recalcular o contador lendo da fila
   if (pendentesCount === null) {
     pendentesCount = await filaRDS.contarPendentes();
   }
@@ -1008,16 +982,14 @@ async function atualizarStatusFila(status, pendentesCount = null) {
 
 // ============================================
 // INICIAR SINCRONIZAÇÃO AUTOMÁTICA
-// CORREÇÃO: Sincronização automática em vários momentos
+// CORREÇÃO DEFINITIVA: NUNCA adicionar dados, apenas sincronizar
 // ============================================
 function iniciarSincronizacaoAutomatica() {
-  // CORREÇÃO: Evento de conexão restaurada - sincronizar automaticamente
   window.addEventListener('online', async () => {
     console.log('🌐 Conexão restaurada - iniciando sincronização automática');
     await sincronizarFila();
   });
 
-  // CORREÇÃO: Temporizador periódico (30 segundos) para tentar reenviar
   if (temporizadorSincronizacao) {
     clearInterval(temporizadorSincronizacao);
   }
@@ -1029,9 +1001,8 @@ function iniciarSincronizacaoAutomatica() {
         await sincronizarFila();
       }
     }
-  }, 30000); // 30 segundos
+  }, 30000);
 
-  // CORREÇÃO: Sincronizar ao carregar a página (se houver pendentes e estiver online)
   setTimeout(async () => {
     if (navigator.onLine) {
       const pendentes = await filaRDS.contarPendentes();
@@ -1042,7 +1013,6 @@ function iniciarSincronizacaoAutomatica() {
         atualizarStatusFila('sincronizado', 0);
       }
     } else {
-      // CORREÇÃO: Mostrar status offline mas manter contador
       const pendentes = await filaRDS.contarPendentes();
       if (pendentes > 0) {
         atualizarStatusFila('offline', pendentes);
@@ -1055,16 +1025,14 @@ function iniciarSincronizacaoAutomatica() {
 
 // ============================================
 // FUNÇÃO PARA ADICIONAR DADOS À FILA
-// CORREÇÃO: Adicionar e tentar enviar imediatamente se online
+// CORREÇÃO: ÚNICA função que deve adicionar dados à fila
 // ============================================
 async function adicionarDadosNaFila(dados) {
   try {
-    // Inicializar a fila se necessário
     if (!filaRDS.inicializado) {
       await filaRDS.init();
     }
     
-    // CORREÇÃO: Adicionar cada item individualmente
     const ids = [];
     if (Array.isArray(dados)) {
       for (const item of dados) {
@@ -1078,14 +1046,11 @@ async function adicionarDadosNaFila(dados) {
     
     console.log(`📦 ${ids.length} item(ns) adicionados à fila (IDs: ${ids.join(', ')})`);
     
-    // CORREÇÃO: Atualizar contador APÓS adicionar
     const pendentes = await filaRDS.contarPendentes();
     atualizarStatusFila('pendente', pendentes);
     
-    // CORREÇÃO: Tentar enviar imediatamente se estiver online
     if (navigator.onLine) {
       console.log('🌐 Online - tentando enviar imediatamente...');
-      // Usar setTimeout para não bloquear a UI
       setTimeout(async () => {
         await sincronizarFila();
       }, 500);
@@ -1101,80 +1066,33 @@ async function adicionarDadosNaFila(dados) {
 }
 
 // ============================================
-// FUNÇÃO PARA COLETAR DADOS DO FORMULÁRIO
+// FUNÇÃO PARA SALVAR NA FILA E ENVIAR (FLUXO UNIFICADO)
+// CORREÇÃO: ÚNICA função que deve ser chamada para salvar dados
 // ============================================
-function coletarDadosFormulario() {
-  const data = document.getElementById('rds_data').value;
-  const horaDoc = document.getElementById('rds_hora_doc').value;
-  const contratante = document.getElementById('rds_contratante').value;
-  const servico = document.getElementById('rds_servico').value;
-  const fabrica = document.getElementById('rds_fabrica').value;
-  const tema = document.getElementById('rds_tema').value;
+async function salvarNaFilaEEnviar(dadosServidor, mostrarAlerta = true) {
+  console.log('🔍 salvarNaFilaEEnviar chamada com dados:', dadosServidor);
+  console.trace('📍 Rastro da chamada:');
   
-  const horarioEntrada = document.getElementById('rds_horario_entrada').value.trim();
-  const horarioSaida = document.getElementById('rds_horario_saida').value.trim();
-  const horarioTrabalho = (horarioEntrada && horarioSaida) ? `${horarioEntrada} às ${horarioSaida}` : '';
-
-  const [yyyy, mm, dd] = data.split('-');
-  const dataFormatada = data ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
-
-  const linhas = Array.from(document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr')).map(r => {
-    const i = r.querySelectorAll('input,select');
-    return {
-      Codigo: i[0]?.value || '',
-      Nome: i[1]?.value || '',
-      Entrada: i[2]?.value || '',
-      Saida: i[3]?.value || '',
-      Observacao: i[4]?.value || ''
-    };
-  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
-
-  return {
-    data: dataFormatada,
-    horaDoc: horaDoc,
-    contratante: contratante,
-    servico: servico,
-    horarioTrabalho: horarioTrabalho,
-    fabrica: fabrica,
-    tema: tema,
-    linhas: linhas
-  };
-}
-
-// ============================================
-// FUNÇÃO PARA MONTAR DADOS NO FORMATO DO SERVIDOR
-// ============================================
-function montarDadosServidor(dados) {
-  const { data, horaDoc, contratante, servico, horarioTrabalho, fabrica, tema, linhas } = dados;
-  
-  return linhas.map(l => ({
-    Data: data,
-    HoraDocumento: horaDoc,
-    Contratante: contratante,
-    Servico: servico,
-    HorarioTrabalho: horarioTrabalho,
-    Fabrica: fabrica,
-    TemaDDS: tema,
-    Codigo: l.Codigo,
-    Nome: l.Nome,
-    Entrada: l.Entrada,
-    Saida: l.Saida,
-    Observacao: l.Observacao
-  }));
-}
-
-// ============================================
-// FUNÇÃO PARA VERIFICAR SE HÁ DADOS PREENCHIDOS
-// ============================================
-function temDadosPreenchidos() {
-  const linhas = document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr');
-  for (const tr of linhas) {
-    const inputs = tr.querySelectorAll('input');
-    if (inputs[2]?.value.trim() || inputs[3]?.value.trim() || inputs[4]?.value.trim()) {
-      return true;
+  try {
+    const ids = await adicionarDadosNaFila(dadosServidor);
+    
+    if (mostrarAlerta) {
+      const pendentes = await filaRDS.contarPendentes();
+      if (navigator.onLine) {
+        alert(`📦 Dados salvos na fila (${ids.length} registro(s)) e enviando para o servidor...`);
+      } else {
+        alert(`📦 Dados salvos na fila (${ids.length} registro(s)).\n\n📡 Você está offline. Os dados serão enviados automaticamente quando a internet voltar.\n\n📋 Pendentes: ${pendentes}`);
+      }
     }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar na fila:', error);
+    if (mostrarAlerta) {
+      alert('❌ Erro ao salvar dados: ' + error.message);
+    }
+    return false;
   }
-  return false;
 }
 
 // ============================================
@@ -1184,16 +1102,12 @@ const BIN_FUNCIONARIOS = '694ae37fae596e708face81b';
 const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
 const API_FUNCIONARIOS = `https://api.jsonbin.io/v3/b/${BIN_FUNCIONARIOS}/latest`;
 
-// ============================================
-// VARIÁVEIS GLOBAIS
-// ============================================
 let funcionarios = [];
 let funcionariosCarregados = false;
 
 // ============================================
-// FUNÇÕES PARA CARREGAR FUNCIONÁRIOS DO BIN
+// FUNÇÕES PARA CARREGAR FUNCIONÁRIOS
 // ============================================
-
 async function carregarFuncionariosDoBin() {
   try {
     document.getElementById('erroFuncionarios').style.display = 'none';
@@ -1474,49 +1388,10 @@ function habilitarTabela() {
 }
 
 // ============================================
-// FUNÇÕES ORIGINAIS DO RDS
+// FUNÇÕES DO RDS
 // ============================================
+function $(id){return document.getElementById(id)}
 
-// --- DATA E HORA AUTOMÁTICA ---
-window.addEventListener('DOMContentLoaded', () => {
-  function $(id){return document.getElementById(id)}
-
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  $('rds_data').value = `${yyyy}-${mm}-${dd}`;
-
-  $('rds_hora_doc').value = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-  
-  // Inicializar fila e sincronização
-  iniciarFilaESincronizacao();
-  
-  carregarFuncionariosDoBin();
-});
-
-async function iniciarFilaESincronizacao() {
-  try {
-    await filaRDS.init();
-    console.log('✅ Fila de envio inicializada');
-    
-    // Iniciar sincronização automática
-    iniciarSincronizacaoAutomatica();
-    
-    // Atualizar status inicial
-    const pendentes = await filaRDS.contarPendentes();
-    if (pendentes > 0) {
-      atualizarStatusFila('pendente', pendentes);
-    } else {
-      atualizarStatusFila('sincronizado', 0);
-    }
-  } catch (error) {
-    console.error('❌ Erro ao inicializar fila:', error);
-    alert('⚠️ Erro ao inicializar sistema de fila offline. Os dados podem não ser salvos corretamente.');
-  }
-}
-
-// --- FUNÇÃO PARA APLICAR MÁSCARA DE HORÁRIO ---
 function aplicarMascaraHorario(input) {
   input.addEventListener('input', function(e) {
     let value = e.target.value.replace(/\D/g, '');
@@ -1533,7 +1408,6 @@ function aplicarMascaraHorario(input) {
   });
 }
 
-// Função para criar dropdown de funcionários
 function criarSelectFuncionario(selected){
   const s = document.createElement('select');
   const opt = document.createElement('option');
@@ -1643,11 +1517,135 @@ function addRow(data={}) {
   document.querySelector('#tblFuncionarios tbody').appendChild(tr);
 }
 
-// cria 20 linhas iniciais
+function temDadosPreenchidos() {
+  const linhas = document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr');
+  for (const tr of linhas) {
+    const inputs = tr.querySelectorAll('input');
+    if (inputs[2]?.value.trim() || inputs[3]?.value.trim() || inputs[4]?.value.trim()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function coletarDadosFormulario() {
+  const data = document.getElementById('rds_data').value;
+  const horaDoc = document.getElementById('rds_hora_doc').value;
+  const contratante = document.getElementById('rds_contratante').value;
+  const servico = document.getElementById('rds_servico').value;
+  const fabrica = document.getElementById('rds_fabrica').value;
+  const tema = document.getElementById('rds_tema').value;
+  
+  const horarioEntrada = document.getElementById('rds_horario_entrada').value.trim();
+  const horarioSaida = document.getElementById('rds_horario_saida').value.trim();
+  const horarioTrabalho = (horarioEntrada && horarioSaida) ? `${horarioEntrada} às ${horarioSaida}` : '';
+
+  const [yyyy, mm, dd] = data.split('-');
+  const dataFormatada = data ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
+
+  const linhas = Array.from(document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    return {
+      Codigo: i[0]?.value || '',
+      Nome: i[1]?.value || '',
+      Entrada: i[2]?.value || '',
+      Saida: i[3]?.value || '',
+      Observacao: i[4]?.value || ''
+    };
+  }).filter(l => l.Codigo || l.Nome || l.Entrada || l.Saida || l.Observacao);
+
+  return {
+    data: dataFormatada,
+    horaDoc: horaDoc,
+    contratante: contratante,
+    servico: servico,
+    horarioTrabalho: horarioTrabalho,
+    fabrica: fabrica,
+    tema: tema,
+    linhas: linhas
+  };
+}
+
+function montarDadosServidor(dados) {
+  const { data, horaDoc, contratante, servico, horarioTrabalho, fabrica, tema, linhas } = dados;
+  
+  return linhas.map(l => ({
+    Data: data,
+    HoraDocumento: horaDoc,
+    Contratante: contratante,
+    Servico: servico,
+    HorarioTrabalho: horarioTrabalho,
+    Fabrica: fabrica,
+    TemaDDS: tema,
+    Codigo: l.Codigo,
+    Nome: l.Nome,
+    Entrada: l.Entrada,
+    Saida: l.Saida,
+    Observacao: l.Observacao
+  }));
+}
+
+function obterHorarioTrabalhoTexto() {
+  const entrada = document.getElementById('rds_horario_entrada').value.trim();
+  const saida = document.getElementById('rds_horario_saida').value.trim();
+  
+  if (entrada && saida) {
+    return `${entrada} às ${saida}`;
+  }
+  return '';
+}
+
+// ============================================
+// CORREÇÃO DEFINITIVA: INICIALIZAÇÃO DA PÁGINA
+// NUNCA adicionar dados, apenas inicializar e sincronizar
+// ============================================
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  $('rds_data').value = `${yyyy}-${mm}-${dd}`;
+  $('rds_hora_doc').value = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  
+  iniciarFilaESincronizacao();
+  carregarFuncionariosDoBin();
+});
+
+async function iniciarFilaESincronizacao() {
+  try {
+    await filaRDS.init();
+    console.log('✅ Fila de envio inicializada');
+    
+    iniciarSincronizacaoAutomatica();
+    
+    const pendentes = await filaRDS.contarPendentes();
+    if (pendentes > 0) {
+      atualizarStatusFila('pendente', pendentes);
+      if (navigator.onLine) {
+        console.log('🔄 Iniciando sincronização de pendentes existentes...');
+        await sincronizarFila();
+      }
+    } else {
+      atualizarStatusFila('sincronizado', 0);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao inicializar fila:', error);
+    alert('⚠️ Erro ao inicializar sistema de fila offline.');
+  }
+}
+
+// ============================================
+// BOTÕES E EVENTOS
+// ============================================
+
+// Criar 20 linhas iniciais
+const tblBody = document.querySelector('#tblFuncionarios tbody');
 for(let i=0;i<20;i++) addRow({});
 
-// Event listeners para botões
+// Adicionar linha
 document.getElementById('btnAdd').onclick=()=>addRow({});
+
+// Limpar
 document.getElementById('btnLimpar').onclick=()=>{
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
@@ -1659,21 +1657,17 @@ document.getElementById('btnLimpar').onclick=()=>{
   alert('🧹 Formulário limpo!');
 };
 
-// Botão para atualizar funcionários
+// Atualizar funcionários
 document.getElementById('btnAtualizarFuncionarios').onclick = async () => {
   if (!navigator.onLine) {
-    alert('⚠️ Você está SEM INTERNET\n\n' +
-          'Não é possível atualizar a lista sem conexão.\n' +
-          'Continue usando a lista atual até a internet voltar.');
+    alert('⚠️ Você está SEM INTERNET');
     return;
   }
   
   document.getElementById('btnAtualizarFuncionarios').disabled = true;
   document.getElementById('btnAtualizarFuncionarios').innerHTML = '🔄 Atualizando...';
   
-  const confirmar = confirm('🔄 ATUALIZAR LISTA DE FUNCIONÁRIOS\n\n' +
-                          'Isso buscará a lista mais recente do servidor.\n' +
-                          'Deseja continuar?');
+  const confirmar = confirm('🔄 ATUALIZAR LISTA DE FUNCIONÁRIOS\n\nDeseja continuar?');
   
   if (!confirmar) {
     document.getElementById('btnAtualizarFuncionarios').disabled = false;
@@ -1686,11 +1680,10 @@ document.getElementById('btnAtualizarFuncionarios').onclick = async () => {
   
   await carregarFuncionariosDoBin();
   
-  // CORREÇÃO: Sincronizar automaticamente após atualizar funcionários
   if (navigator.onLine) {
     const pendentes = await filaRDS.contarPendentes();
     if (pendentes > 0) {
-      console.log('🔄 Sincronizando após atualizar funcionários');
+      console.log('🔄 Sincronizando pendentes após atualizar funcionários');
       await sincronizarFila();
     }
   }
@@ -1701,12 +1694,10 @@ document.getElementById('btnAtualizarFuncionarios').onclick = async () => {
   }, 1000);
 };
 
-// Botão tentar novamente
+// Tentar novamente
 document.getElementById('btnTentarNovamente').onclick = async () => {
   if (!navigator.onLine) {
-    alert('⚠️ Você está SEM INTERNET\n\n' +
-          'Não é possível carregar a lista sem conexão.\n' +
-          'Verifique sua conexão e tente novamente.');
+    alert('⚠️ Você está SEM INTERNET');
     return;
   }
   
@@ -1721,15 +1712,8 @@ document.getElementById('btnTentarNovamente').onclick = async () => {
   }, 1000);
 };
 
-// --- APLICAR MÁSCARA NOS CAMPOS DE HORÁRIO PRINCIPAIS ---
-aplicarMascaraHorario(document.getElementById('rds_hora_doc'));
-aplicarMascaraHorario(document.getElementById('rds_horario_entrada'));
-aplicarMascaraHorario(document.getElementById('rds_horario_saida'));
-
-// --- VARIÁVEL PARA CONTROLAR A PRÓXIMA LINHA A SER PREENCHIDA ---
+// Preencher horário
 let proximaLinhaParaPreencher = 0;
-
-// --- FUNÇÃO PARA PREENCHER HORÁRIO AUTOMATICAMENTE ---
 document.getElementById('btnPreencherHorario').onclick = () => {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
@@ -1771,51 +1755,104 @@ document.getElementById('btnPreencherHorario').onclick = () => {
   }
 };
 
-// --- FUNÇÃO PARA OBTER HORÁRIO DE TRABALHO COMO TEXTO ---
-function obterHorarioTrabalhoTexto() {
-  const entrada = document.getElementById('rds_horario_entrada').value.trim();
-  const saida = document.getElementById('rds_horario_saida').value.trim();
+// ============================================
+// BOTÃO SALVAR LOCALMENTE - APENAS localStorage
+// CORREÇÃO: NUNCA adicionar à fila IndexedDB
+// ============================================
+document.getElementById('btnSalvarLocal').onclick = function() {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
   
-  if (entrada && saida) {
-    return `${entrada} às ${saida}`;
+  const dados = coletarDadosFormulario();
+  const dadosServidor = montarDadosServidor(dados);
+  
+  if (dadosServidor.length === 0) {
+    alert('⚠️ Nenhum dado para salvar!');
+    return;
   }
-  return '';
-}
+  
+  const pacote = {
+    cabecalho: {
+      data: document.getElementById('rds_data').value,
+      horaDoc: document.getElementById('rds_hora_doc').value,
+      contratante: document.getElementById('rds_contratante').value,
+      servico: document.getElementById('rds_servico').value,
+      horarioEntrada: document.getElementById('rds_horario_entrada').value,
+      horarioSaida: document.getElementById('rds_horario_saida').value,
+      fabrica: document.getElementById('rds_fabrica').value,
+      tema: document.getElementById('rds_tema').value
+    },
+    linhas: dados.linhas
+  };
 
-// ======================================================
-// FUNÇÃO PRINCIPAL PARA SALVAR NA FILA E ENVIAR
-// CORREÇÃO: Fluxo unificado - Adicionar à fila → Tentar enviar
-// ======================================================
+  localStorage.setItem('rds_offline_cache', JSON.stringify(pacote));
+  alert('💾 Dados salvos localmente como backup.\n\nUse "Enviar para o Servidor" para enviar.');
+};
 
-async function salvarNaFilaEEnviar(dadosServidor, mostrarAlerta = true) {
-  try {
-    // CORREÇÃO: Adicionar à fila primeiro (persistência garantida)
-    const ids = await adicionarDadosNaFila(dadosServidor);
-    
-    if (mostrarAlerta) {
-      const pendentes = await filaRDS.contarPendentes();
-      if (navigator.onLine) {
-        alert(`📦 Dados salvos na fila (${ids.length} registro(s)) e enviando para o servidor...`);
-      } else {
-        alert(`📦 Dados salvos na fila (${ids.length} registro(s)).\n\n📡 Você está offline. Os dados serão enviados automaticamente quando a internet voltar.\n\n📋 Pendentes: ${pendentes}`);
-      }
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Erro ao salvar na fila:', error);
-    if (mostrarAlerta) {
-      alert('❌ Erro ao salvar dados: ' + error.message);
-    }
-    return false;
+// ============================================
+// BOTÃO SINCRONIZAR - APENAS sincronizar
+// CORREÇÃO: NUNCA adicionar dados
+// ============================================
+document.getElementById('btnSincronizarAgora').onclick = async () => {
+  if (!navigator.onLine) {
+    alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+    return;
   }
-}
+  
+  console.log('🔄 Botão Sincronizar Agora clicado - APENAS sincronizando');
+  
+  document.getElementById('btnSincronizarAgora').disabled = true;
+  document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
+  
+  await sincronizarFila();
+  
+  document.getElementById('btnSincronizarAgora').disabled = false;
+  document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
+};
 
-// ======================================================
-// GERAR PDF
-// CORREÇÃO: Salvar na fila e tentar enviar automaticamente
-// ======================================================
+// ============================================
+// BOTÃO ENVIAR PARA SERVIDOR
+// ============================================
+document.getElementById('btnServidor').onclick = async () => {
+  if (!funcionariosCarregados) {
+    alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  if (!temDadosPreenchidos()) {
+    alert('⚠️ Nenhum dado de funcionário preenchido!');
+    return;
+  }
+  
+  const dados = coletarDadosFormulario();
+  const dadosServidor = montarDadosServidor(dados);
+  
+  if (dadosServidor.length === 0) {
+    alert('⚠️ Nenhum dado válido para enviar!');
+    return;
+  }
+  
+  const salvou = await salvarNaFilaEEnviar(dadosServidor, true);
+  
+  if (salvou) {
+    const manterDados = confirm('✅ Dados salvos na fila' + 
+                               (navigator.onLine ? ' e enviando para o servidor' : ' (aguardando conexão)') + 
+                               ' com sucesso!\n\nDeseja manter os dados no formulário?\n\nClique em OK para manter.\nClique em Cancelar para limpar.');
+    
+    if (!manterDados) {
+      document.querySelector('#tblFuncionarios tbody').innerHTML = '';
+      for(let i=0;i<20;i++) addRow({});
+      proximaLinhaParaPreencher = 0;
+      alert('🧹 Formulário limpo!');
+    }
+  }
+};
 
+// ============================================
+// BOTÃO GERAR PDF
+// ============================================
 document.getElementById('btnGerarPDF').onclick = async () => {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
@@ -1837,9 +1874,7 @@ document.getElementById('btnGerarPDF').onclick = async () => {
   document.getElementById('meta_contratante').innerText=document.getElementById('rds_contratante').value;
   document.getElementById('meta_servico').innerText=document.getElementById('rds_servico').value;
   document.getElementById('meta_fabrica').innerText=document.getElementById('rds_fabrica').value;
-  
   document.getElementById('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
-  
   document.getElementById('meta_tema').innerText=document.getElementById('rds_tema').value;
   document.getElementById('rds_dds').innerText=document.getElementById('rds_tema').value;
 
@@ -1877,7 +1912,7 @@ document.getElementById('btnGerarPDF').onclick = async () => {
   
   document.body.removeChild(wrapper);
   
-  // CORREÇÃO: Salvar na fila e tentar enviar automaticamente
+  // CORREÇÃO: Salvar na fila APENAS UMA VEZ
   const dados = coletarDadosFormulario();
   const dadosServidor = montarDadosServidor(dados);
   
@@ -1885,14 +1920,9 @@ document.getElementById('btnGerarPDF').onclick = async () => {
     const salvou = await salvarNaFilaEEnviar(dadosServidor, false);
     
     if (salvou) {
-      // CORREÇÃO: Verificar se há pendentes e atualizar contador
-      const pendentes = await filaRDS.contarPendentes();
-      
-      // Perguntar se deseja limpar o formulário
       const manterDados = confirm('✅ PDF gerado e dados salvos na fila' + 
                                  (navigator.onLine ? ' (enviando para o servidor...)' : ' (aguardando conexão)') +
-                                 '\n\nDeseja manter os dados no formulário para fazer ajustes?\n\n' +
-                                 'Clique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
+                                 '\n\nDeseja manter os dados no formulário?\n\nClique em OK para manter.\nClique em Cancelar para limpar.');
       
       if (!manterDados) {
         document.querySelector('#tblFuncionarios tbody').innerHTML = '';
@@ -1901,60 +1931,14 @@ document.getElementById('btnGerarPDF').onclick = async () => {
         alert('🧹 Formulário limpo!');
       }
     } else {
-      alert('❌ PDF gerado, mas não foi possível salvar os dados localmente.\nOs dados permanecem no formulário.');
+      alert('❌ PDF gerado, mas não foi possível salvar os dados localmente.');
     }
   }
 };
 
-// ======================================================
-// ENVIAR APENAS PARA O SERVIDOR (VIA FILA)
-// CORREÇÃO: Usar o novo fluxo unificado
-// ======================================================
-
-document.getElementById('btnServidor').onclick = async () => {
-  if (!funcionariosCarregados) {
-    alert('⚠️ Primeiro carregue a lista de funcionários');
-    return;
-  }
-  
-  if (!temDadosPreenchidos()) {
-    alert('⚠️ Nenhum dado de funcionário preenchido!');
-    return;
-  }
-  
-  const dados = coletarDadosFormulario();
-  const dadosServidor = montarDadosServidor(dados);
-  
-  if (dadosServidor.length === 0) {
-    alert('⚠️ Nenhum dado válido para enviar!');
-    return;
-  }
-  
-  const salvou = await salvarNaFilaEEnviar(dadosServidor, true);
-  
-  if (salvou) {
-    const pendentes = await filaRDS.contarPendentes();
-    
-    // Perguntar se deseja manter os dados no formulário
-    const manterDados = confirm('✅ Dados salvos na fila' + 
-                               (navigator.onLine ? ' e enviando para o servidor' : ' (aguardando conexão)') + 
-                               ' com sucesso!\n\nDeseja manter os dados no formulário para fazer ajustes?\n\n' +
-                               'Clique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
-    
-    if (!manterDados) {
-      document.querySelector('#tblFuncionarios tbody').innerHTML = '';
-      for(let i=0;i<20;i++) addRow({});
-      proximaLinhaParaPreencher = 0;
-      alert('🧹 Formulário limpo!');
-    }
-  }
-};
-
-// ======================================================
-// GERAR EXCEL
-// CORREÇÃO: Salvar na fila e tentar enviar automaticamente
-// ======================================================
-
+// ============================================
+// BOTÃO GERAR EXCEL
+// ============================================
 document.getElementById('btnExcelRDS').addEventListener('click', async function() {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
@@ -1966,7 +1950,7 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
     return;
   }
   
-  // Gerar o Excel
+  // Gerar Excel
   const data = document.getElementById('rds_data').value;
   const hora = document.getElementById('rds_hora_doc').value;
   const contratante = document.getElementById('rds_contratante').value;
@@ -2026,17 +2010,14 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  // CORREÇÃO: Salvar na fila e tentar enviar automaticamente
+  // CORREÇÃO: Salvar na fila APENAS UMA VEZ
   if (linhas.length > 0) {
     const salvou = await salvarNaFilaEEnviar(linhas, false);
     
     if (salvou) {
-      const pendentes = await filaRDS.contarPendentes();
-      
       const manterDados = confirm('✅ Excel gerado e dados salvos na fila' + 
                                  (navigator.onLine ? ' (enviando para o servidor...)' : ' (aguardando conexão)') +
-                                 '\n\nDeseja manter os dados no formulário para fazer ajustes?\n\n' +
-                                 'Clique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
+                                 '\n\nDeseja manter os dados no formulário?\n\nClique em OK para manter.\nClique em Cancelar para limpar.');
       
       if (!manterDados) {
         document.querySelector('#tblFuncionarios tbody').innerHTML = '';
@@ -2045,60 +2026,18 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
         alert('🧹 Formulário limpo!');
       }
     } else {
-      alert('❌ Excel gerado, mas não foi possível salvar os dados localmente.\nOs dados permanecem no formulário.');
+      alert('❌ Excel gerado, mas não foi possível salvar os dados localmente.');
     }
   }
 });
 
-// ======================================================
-// SALVAR LOCALMENTE (APENAS QUANDO OFFLINE OU PARA BACKUP)
-// CORREÇÃO: Usar o novo fluxo unificado
-// ======================================================
-
-function salvarLocalmenteRDS() {
-  if (!funcionariosCarregados) {
-    alert('⚠️ Primeiro carregue a lista de funcionários');
-    return;
-  }
-  
-  const dados = coletarDadosFormulario();
-  const dadosServidor = montarDadosServidor(dados);
-  
-  if (dadosServidor.length === 0) {
-    alert('⚠️ Nenhum dado para salvar!');
-    return;
-  }
-  
-  // Salvar no localStorage como backup (compatibilidade)
-  const pacote = {
-    cabecalho: {
-      data: document.getElementById('rds_data').value,
-      horaDoc: document.getElementById('rds_hora_doc').value,
-      contratante: document.getElementById('rds_contratante').value,
-      servico: document.getElementById('rds_servico').value,
-      horarioEntrada: document.getElementById('rds_horario_entrada').value,
-      horarioSaida: document.getElementById('rds_horario_saida').value,
-      fabrica: document.getElementById('rds_fabrica').value,
-      tema: document.getElementById('rds_tema').value
-    },
-    linhas: dados.linhas
-  };
-
-  localStorage.setItem('rds_offline_cache', JSON.stringify(pacote));
-  
-  // CORREÇÃO: Adicionar à fila IndexedDB
-  salvarNaFilaEEnviar(dadosServidor, true);
-}
-
-// ======================================================
-// CARREGAR DADOS SALVOS AO ABRIR A PÁGINA
-// ======================================================
-
+// ============================================
+// CARREGAR DADOS SALVOS DO localStorage
+// ============================================
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rds_offline_cache');
   if (cache) {
     const { cabecalho, linhas } = JSON.parse(cache);
-
     if (cabecalho && linhas && linhas.length > 0) {
       const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
       
@@ -2146,32 +2085,13 @@ window.addEventListener('load', () => {
   }
 });
 
-// ======================================================
-// TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR
-// CORREÇÃO: Já implementado no event listener 'online'
-// ======================================================
+// Aplicar máscara nos campos de horário
+aplicarMascaraHorario(document.getElementById('rds_hora_doc'));
+aplicarMascaraHorario(document.getElementById('rds_horario_entrada'));
+aplicarMascaraHorario(document.getElementById('rds_horario_saida'));
 
-// O event listener 'online' já está no iniciarSincronizacaoAutomatica()
-
-// Botão para sincronizar manualmente (mantido para compatibilidade)
-document.getElementById('btnSincronizarAgora').onclick = async () => {
-  if (!navigator.onLine) {
-    alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
-    return;
-  }
-  
-  document.getElementById('btnSincronizarAgora').disabled = true;
-  document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
-  
-  await sincronizarFila();
-  
-  document.getElementById('btnSincronizarAgora').disabled = false;
-  document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
-};
-
-// Associar o botão de salvar localmente
-document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteRDS;
-
+console.log('✅ RDS com fila offline corrigida carregado!');
+console.log('📌 Para debug, verificar chamadas indevidas de adicionarDadosNaFila/salvarNaFilaEEnviar');
 </script>
 </body>
 </html>
