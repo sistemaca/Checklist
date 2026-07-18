@@ -94,6 +94,45 @@
     font-size: 12px;
     color: #856404;
   }
+
+  /* ESTILOS PARA FILA DE ENVIO */
+  .fila-status {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .fila-status .indicadores {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  .fila-status .indicador {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fila-status .btn-sincronizar {
+    background: #0b73d6;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .fila-status .btn-sincronizar:hover { background: #0959a8; }
+  .fila-status .btn-sincronizar:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   
   /* NOVO: Fonte monoespaçada para TAG em DESKTOP também */
   #tblEquipamentos td:nth-child(1) input,
@@ -170,6 +209,15 @@
       padding: 6px 4px;
       width: 100%;
     }
+
+    .fila-status {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+    }
+    .fila-status .indicadores {
+      justify-content: center;
+    }
   }
 </style>
 </head>
@@ -182,6 +230,23 @@
     <div class="row">
       <div class="col"><label>Data</label><input id="rde_data" type="date" readonly></div>
       <div class="col"><label>Hora do Documento</label><input id="rde_hora_doc" type="text" readonly></div>
+    </div>
+
+    <!-- FILA DE ENVIO - STATUS -->
+    <div class="fila-status" id="filaStatus">
+      <div class="indicadores">
+        <span class="indicador">
+          📦 Pendentes: <strong id="filaPendentes">0</strong>
+        </span>
+        <span class="indicador">
+          <span id="filaStatusIcone">✅</span>
+          <span id="filaStatusTexto">Sincronizado</span>
+        </span>
+        <span class="indicador" id="filaUltimoEnvio" style="font-size:12px;color:#666;"></span>
+      </div>
+      <div>
+        <button id="btnSincronizarAgora" class="btn-sincronizar">🔄 Sincronizar Agora</button>
+      </div>
     </div>
 
     <div class="muted">Tabela de Equipamentos</div>
@@ -252,13 +317,414 @@
 </div>
 
 <script>
+// ============================================
+// SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA
+// ============================================
+
+class FilaEnvioRDE {
+  constructor() {
+    this.dbName = 'RDEFilaDB';
+    this.storeName = 'fila_envios';
+    this.db = null;
+    this.inicializado = false;
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { 
+            keyPath: 'id', 
+            autoIncrement: true 
+          });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        this.inicializado = true;
+        resolve();
+      };
+
+      request.onerror = (event) => {
+        console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+
+  // ADICIONAR à fila
+  async adicionar(dados) {
+    await this.aguardarInicializacao();
+    
+    console.log('📦 ADICIONANDO à fila RDE:', dados);
+    
+    const item = {
+      dados: dados,
+      criadoEm: Date.now()
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.add(item);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error('❌ Erro ao adicionar item:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  // REMOVER da fila (chamado APÓS confirmação do servidor)
+  async remover(id) {
+    await this.aguardarInicializacao();
+    
+    console.log(`🗑️ REMOVENDO item ${id} da fila RDE`);
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete(id);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item ${id} removido com sucesso`);
+        resolve();
+      };
+      request.onerror = () => {
+        console.error(`❌ Erro ao remover item ${id}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  // LISTAR todos os itens da fila
+  async listarTodos() {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        console.error('❌ Erro ao listar itens:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  // CONTAR itens na fila
+  async contar() {
+    const itens = await this.listarTodos();
+    return itens.length;
+  }
+
+  async aguardarInicializacao() {
+    if (this.inicializado) return;
+    
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.inicializado) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+}
+
+// ============================================
+// INSTÂNCIA GLOBAL DA FILA
+// ============================================
+const filaRDE = new FilaEnvioRDE();
+
+// ============================================
+// FUNÇÃO PARA ENVIAR UM ITEM AO SERVIDOR
+// ============================================
+async function enviarItemServidorRDE(dados) {
+  try {
+    const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
+    const PUT_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193';
+    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+    // Buscar dados existentes
+    const resGet = await fetch(GET_URL, { 
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    // Adicionar novo dado
+    let dadosParaEnviar = [];
+    if (Array.isArray(dados)) {
+      dadosParaEnviar = dados;
+    } else {
+      dadosParaEnviar = [dados];
+    }
+    
+    const dadosAtualizados = [...dadosExistentes, ...dadosParaEnviar];
+    
+    // Enviar para o servidor
+    const resPut = await fetch(PUT_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Servidor RDE confirmou recebimento');
+      return true;
+    } else {
+      console.log('❌ Servidor RDE retornou erro:', resPut.status);
+      return false;
+    }
+
+  } catch (error) {
+    console.log('❌ Erro de rede RDE:', error.message);
+    return false;
+  }
+}
+
+// ============================================
+// FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
+// ============================================
+let sincronizandoRDE = false;
+
+async function sincronizarFilaRDE() {
+  // Verificar se está online
+  if (!navigator.onLine) {
+    console.log('📡 Offline - não é possível sincronizar RDE');
+    atualizarContadorRDE();
+    return;
+  }
+
+  // Evitar execução simultânea
+  if (sincronizandoRDE) {
+    console.log('⏳ Já está sincronizando RDE...');
+    return;
+  }
+
+  try {
+    sincronizandoRDE = true;
+    console.log('🔄 INICIANDO SINCRONIZAÇÃO RDE...');
+    
+    // LISTAR todos os itens da fila
+    const itens = await filaRDE.listarTodos();
+    
+    if (itens.length === 0) {
+      console.log('✅ Nenhum item pendente RDE');
+      atualizarContadorRDE();
+      sincronizandoRDE = false;
+      return;
+    }
+
+    console.log(`📦 ${itens.length} item(ns) pendente(s) RDE`);
+    
+    // Processar UM POR VEZ
+    let itensRemovidos = 0;
+    for (const item of itens) {
+      console.log(`🔄 Processando item ${item.id} RDE...`);
+      
+      // TENTAR ENVIAR
+      const enviado = await enviarItemServidorRDE(item.dados);
+      
+      if (enviado) {
+        // REMOVER DA FILA (APÓS CONFIRMAÇÃO)
+        await filaRDE.remover(item.id);
+        itensRemovidos++;
+        console.log(`✅ Item ${item.id} removido da fila RDE`);
+      } else {
+        console.log(`❌ Falha no envio do item ${item.id} RDE - mantendo na fila`);
+        break; // Para no primeiro erro
+      }
+    }
+
+    console.log(`✅ ${itensRemovidos} item(ns) removidos da fila RDE`);
+
+  } catch (error) {
+    console.error('❌ Erro na sincronização RDE:', error);
+  } finally {
+    sincronizandoRDE = false;
+    // ATUALIZAR CONTADOR SEMPRE NO FINAL
+    await atualizarContadorRDE();
+    console.log('🔄 SINCRONIZAÇÃO RDE FINALIZADA');
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA ADICIONAR À FILA
+// ============================================
+async function adicionarNaFilaRDE(dados) {
+  try {
+    await filaRDE.init();
+    const id = await filaRDE.adicionar(dados);
+    console.log(`📦 Dados RDE adicionados à fila (ID: ${id})`);
+    
+    // ATUALIZAR CONTADOR
+    await atualizarContadorRDE();
+    
+    // TENTAR ENVIAR IMEDIATAMENTE (se online)
+    if (navigator.onLine) {
+      console.log('🌐 Online - tentando enviar RDE imediatamente...');
+      setTimeout(async () => {
+        await sincronizarFilaRDE();
+      }, 500);
+    }
+    
+    return id;
+  } catch (error) {
+    console.error('❌ Erro ao adicionar RDE à fila:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA ATUALIZAR O CONTADOR NA INTERFACE
+// ============================================
+async function atualizarContadorRDE() {
+  try {
+    const total = await filaRDE.contar();
+    document.getElementById('filaPendentes').textContent = total;
+    
+    // Atualizar ícone e texto
+    const statusIcone = document.getElementById('filaStatusIcone');
+    const statusTexto = document.getElementById('filaStatusTexto');
+    
+    if (total === 0) {
+      statusIcone.textContent = '✅';
+      statusTexto.textContent = 'Sincronizado';
+    } else if (sincronizandoRDE) {
+      statusIcone.textContent = '⏳';
+      statusTexto.textContent = 'Enviando...';
+    } else {
+      statusIcone.textContent = '📦';
+      statusTexto.textContent = `${total} pendente(s)`;
+    }
+    
+    console.log(`📊 Contador RDE atualizado: ${total} pendente(s)`);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contador RDE:', error);
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA SALVAR NA FILA E ENVIAR (FLUXO PRINCIPAL)
+// ============================================
+async function salvarEEnviarRDE(dadosServidor, mostrarAlerta = true) {
+  console.log('🔍 salvarEEnviarRDE chamado com:', dadosServidor);
+  
+  try {
+    // 1. ADICIONAR À FILA
+    const id = await adicionarNaFilaRDE(dadosServidor);
+    
+    if (mostrarAlerta) {
+      const total = await filaRDE.contar();
+      if (navigator.onLine) {
+        alert(`✅ Dados RDE salvos na fila (ID: ${id}) e enviando para o servidor...`);
+      } else {
+        alert(`📦 Dados RDE salvos na fila (ID: ${id}).\n\n📡 Você está offline. Serão enviados quando a internet voltar.\n\n📋 Pendentes: ${total}`);
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar RDE:', error);
+    if (mostrarAlerta) {
+      alert('❌ Erro ao salvar dados RDE: ' + error.message);
+    }
+    return false;
+  }
+}
+
+// ============================================
+// INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+// ============================================
+let temporizadorSincronizacaoRDE = null;
+
+function iniciarSincronizacaoAutomaticaRDE() {
+  // Evento de conexão restaurada
+  window.addEventListener('online', async () => {
+    console.log('🌐 Conexão restaurada - sincronizando RDE...');
+    await sincronizarFilaRDE();
+  });
+
+  // Temporizador a cada 30 segundos
+  if (temporizadorSincronizacaoRDE) {
+    clearInterval(temporizadorSincronizacaoRDE);
+  }
+  temporizadorSincronizacaoRDE = setInterval(async () => {
+    if (navigator.onLine) {
+      const total = await filaRDE.contar();
+      if (total > 0) {
+        console.log('⏰ Sincronização periódica RDE...');
+        await sincronizarFilaRDE();
+      }
+    }
+  }, 30000);
+
+  // Sincronizar ao carregar
+  setTimeout(async () => {
+    await filaRDE.init();
+    await atualizarContadorRDE();
+    
+    if (navigator.onLine) {
+      const total = await filaRDE.contar();
+      if (total > 0) {
+        console.log(`🔄 Sincronizando ${total} item(ns) pendentes RDE...`);
+        await sincronizarFilaRDE();
+      }
+    }
+  }, 1500);
+}
+
+// ============================================
+// FUNÇÕES ORIGINAIS DO RDE
+// ============================================
+
 const $ = id => document.getElementById(id);
 
 window.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   $('rde_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   $('rde_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  
+  // Inicializar fila
+  iniciarFilaESincronizacaoRDE();
 });
+
+async function iniciarFilaESincronizacaoRDE() {
+  try {
+    await filaRDE.init();
+    console.log('✅ Fila de envio RDE inicializada');
+    
+    iniciarSincronizacaoAutomaticaRDE();
+    await atualizarContadorRDE();
+  } catch (error) {
+    console.error('❌ Erro ao inicializar fila RDE:', error);
+  }
+}
 
 // EQUIPAMENTOS REORGANIZADOS: PC, MC, EMP
 const equipamentosPC = ["PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"];
@@ -421,102 +887,134 @@ function addRow(tag="", isEMPSelect=false) {
   return tr;
 }
 
+// ============================================
+// FUNÇÃO PARA COLETAR DADOS DO FORMULÁRIO
+// ============================================
+function coletarDadosRDE() {
+  const dataIso = $('rde_data').value;
+  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
+  const horaDoc = $('rde_hora_doc').value;
+
+  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
+    const i = r.querySelectorAll('input,select');
+    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
+    return {
+      Data: data,
+      HoraDocumento: horaDoc,
+      TAG: tagValue,
+      Area: i[1].value,
+      Sim: i[2].checked ? "X" : "",
+      Nao: i[3].checked ? "X" : "",
+      Observacao: i[4].value
+    };
+  }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
+
+  return linhas;
+}
+
+// ============================================
+// BOTÕES E EVENTOS
+// ============================================
+
 $('btnLimpar').onclick = () => {
   if (confirm('🧹 Deseja realmente limpar todos os lançamentos?')) {
     const rows = tblBody.querySelectorAll('tr');
     rows.forEach(row => {
       const inputs = row.querySelectorAll('input, select');
-      // TAG: se for SELECT, reseta para vazio; se for INPUT, mantém
       if (inputs[0].tagName === 'SELECT') {
         inputs[0].value = "";
       }
-      inputs[1].value = ""; // Área
-      inputs[2].checked = false; // SIM
-      inputs[3].checked = false; // NÃO
-      inputs[4].value = ""; // Observação
+      inputs[1].value = "";
+      inputs[2].checked = false;
+      inputs[3].checked = false;
+      inputs[4].value = "";
     });
-    // Atualiza os selects após limpar
     atualizarSelectsEMP(null);
     alert('🧹 Formulário limpo!');
   }
 };
 
-// --- FUNÇÃO PARA ENVIAR PARA O SERVIDOR (SEM LIMPAR AUTOMATICAMENTE) ---
-async function enviarParaServidorRDE(mostrarAlerta = true) {
-  const dataIso = $('rde_data').value;
-  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
-  const horaDoc = $('rde_hora_doc').value;
-
-  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r=>{
-    const i=r.querySelectorAll('input,select');
-    // Para SELECT, pega o value; para INPUT, pega o value
-    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
-    return {
-      Data:data,
-      HoraDocumento:horaDoc,
-      TAG:tagValue,
-      Area:i[1].value,
-      Sim:i[2].checked?"X":"",
-      Nao:i[3].checked?"X":"",
-      Observacao:i[4].value
-    };
-  }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
-
+// ============================================
+// BOTÃO SALVAR LOCALMENTE - APENAS localStorage
+// ============================================
+document.getElementById('btnSalvarLocal').onclick = function() {
+  const linhas = coletarDadosRDE();
+  
   if (linhas.length === 0) {
-    if (mostrarAlerta) {
-      alert("⚠️ Não há dados para enviar!");
-    }
-    return false;
+    alert("⚠️ Não há dados para salvar!");
+    return;
   }
 
-  try {
-    const GET_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193/latest';
-    const PUT_URL = 'https://api.jsonbin.io/v3/b/6902556943b1c97be98a8193';
-    const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+  localStorage.setItem('rde_offline_cache', JSON.stringify(linhas));
+  
+  if (!navigator.onLine) {
+    alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
+  } else {
+    alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
+  }
+};
 
-    const resGet = await fetch(GET_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
-    let dadosExistentes = [];
-    if(resGet.ok){
-      const json = await resGet.json();
-      dadosExistentes = Array.isArray(json.record) ? json.record : [];
-    }
+// ============================================
+// BOTÃO SINCRONIZAR - APENAS sincronizar
+// ============================================
+document.getElementById('btnSincronizarAgora').onclick = async () => {
+  if (!navigator.onLine) {
+    alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+    return;
+  }
+  
+  console.log('🔄 Botão Sincronizar Agora RDE clicado - APENAS sincronizando');
+  
+  document.getElementById('btnSincronizarAgora').disabled = true;
+  document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
+  
+  await sincronizarFilaRDE();
+  
+  document.getElementById('btnSincronizarAgora').disabled = false;
+  document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
+};
 
-    const dadosAtualizados = [...dadosExistentes, ...linhas];
-
-    const resPut = await fetch(PUT_URL, {
-      method:'PUT',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Master-Key':MASTER_KEY,
-        'X-Bin-Versioning':'false'
-      },
-      body:JSON.stringify(dadosAtualizados)
-    });
-
-    if(resPut.ok) {
-      console.log('✅ Dados enviados para o Servidor com sucesso!');
-      localStorage.removeItem('rde_offline_cache');
-      console.log('🗑️ Cache local limpo após envio bem-sucedido');
-      return true;
+// ============================================
+// BOTÃO ENVIAR PARA SERVIDOR
+// ============================================
+document.getElementById('btnServidor').onclick = async () => {
+  const linhas = coletarDadosRDE();
+  
+  if (linhas.length === 0) {
+    alert("⚠️ Não há dados para enviar!");
+    return;
+  }
+  
+  const salvou = await salvarEEnviarRDE(linhas, true);
+  
+  if (salvou) {
+    const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos preenchidos.\nClique em Cancelar para manter os dados.');
+    
+    if (limparCampos) {
+      const rows = tblBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input, select');
+        if (inputs[0].tagName === 'SELECT') {
+          inputs[0].value = "";
+        }
+        inputs[1].value = "";
+        inputs[2].checked = false;
+        inputs[3].checked = false;
+        inputs[4].value = "";
+      });
+      atualizarSelectsEMP(null);
+      alert('🧹 Campos limpos!');
     } else {
-      console.log('❌ Erro ao enviar para o Servidor.');
-      if (mostrarAlerta) {
-        alert('❌ Erro ao enviar para o servidor.');
-      }
-      return false;
+      alert('📋 Dados mantidos no formulário!');
     }
-
-  } catch(err){
-    console.log('❌ Erro: ' + err.message);
-    if (mostrarAlerta) {
-      alert('❌ Erro de conexão: ' + err.message);
-    }
-    return false;
   }
-}
+};
 
-// --- GERAR PDF ---
+// ============================================
+// BOTÃO GERAR PDF
+// ============================================
 $('btnGerarPDF').onclick = async () => {
+  // Primeiro gera o PDF
   const { jsPDF } = window.jspdf;
   const [yyyy,mm,dd] = $('rde_data').value.split('-');
   const dataFormatada = `${dd}/${mm}/${yyyy}`;
@@ -529,7 +1027,6 @@ $('btnGerarPDF').onclick = async () => {
   
   const linhasComDados = Array.from(tblBody.querySelectorAll('tr')).filter(row => {
     const inputs = row.querySelectorAll('input, select');
-    // Verifica Área, SIM, NÃO, Observação
     return inputs[1].value || inputs[2].checked || inputs[3].checked || inputs[4].value;
   });
   
@@ -565,57 +1062,57 @@ $('btnGerarPDF').onclick = async () => {
   const w = pdf.internal.pageSize.width;
   const h = (canvas.height * w) / canvas.width;
   pdf.addImage(img, 'PNG', 20, 20, w - 40, h);
+  
   pdf.save(`RDE_${dataFormatada.replace(/\//g,'-')}_${horaFormatada.replace(':','')}.pdf`);
   document.body.removeChild(wrapper);
   
   alert('✅ PDF gerado com sucesso!');
   
-  const enviadoComSucesso = await enviarParaServidorRDE(false);
+  // AGORA ENVIA PARA O SERVIDOR VIA FILA
+  await new Promise(resolve => setTimeout(resolve, 2500));
   
-  if (enviadoComSucesso) {
-    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados no formulário.\nClique em Cancelar para limpar os campos.');
+  const linhas = coletarDadosRDE();
+  if (linhas.length > 0) {
+    const salvou = await salvarEEnviarRDE(linhas, false);
     
-    if (manterDados) {
-      alert('📋 Dados mantidos no formulário!');
+    if (salvou) {
+      const manterDados = confirm('✅ PDF gerado e dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados no formulário.\nClique em Cancelar para limpar os campos.');
+      
+      if (!manterDados) {
+        const rows = tblBody.querySelectorAll('tr');
+        rows.forEach(row => {
+          const inputs = row.querySelectorAll('input, select');
+          if (inputs[0].tagName === 'SELECT') {
+            inputs[0].value = "";
+          }
+          inputs[1].value = "";
+          inputs[2].checked = false;
+          inputs[3].checked = false;
+          inputs[4].value = "";
+        });
+        atualizarSelectsEMP(null);
+        alert('🧹 Campos limpos!');
+      }
     } else {
-      const rows = tblBody.querySelectorAll('tr');
-      rows.forEach(row => {
-        const inputs = row.querySelectorAll('input, select');
-        if (inputs[0].tagName === 'SELECT') {
-          inputs[0].value = "";
-        }
-        inputs[1].value = "";
-        inputs[2].checked = false;
-        inputs[3].checked = false;
-        inputs[4].value = "";
-      });
-      atualizarSelectsEMP(null);
-      alert('🧹 Campos limpos!');
+      alert('❌ PDF gerado, mas não foi possível enviar para o servidor.\nDados salvos na fila para envio automático.');
     }
-  } else {
-    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
-    salvarLocalmente();
   }
 };
 
-// --- GERAR EXCEL ---
+// ============================================
+// BOTÃO GERAR EXCEL
+// ============================================
 $('btnExcelRDE').onclick = async () => {
+  // Primeiro gera o Excel
+  const linhas = coletarDadosRDE();
+  
+  if (linhas.length === 0) {
+    alert("⚠️ Não há dados para gerar Excel!");
+    return;
+  }
+  
   const data = $('rde_data').value.split('-').reverse().join('/');
   const horaDoc = $('rde_hora_doc').value;
-  
-  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
-    const i = r.querySelectorAll('input,select');
-    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
-    return {
-      Data: data,
-      HoraDocumento: horaDoc,
-      TAG: tagValue,
-      Area: i[1].value,
-      Sim: i[2].checked ? "X" : "",
-      Nao: i[3].checked ? "X" : "",
-      Observacao: i[4].value
-    };
-  });
   
   const ws = XLSX.utils.json_to_sheet(linhas);
   const wb = XLSX.utils.book_new();
@@ -624,115 +1121,48 @@ $('btnExcelRDE').onclick = async () => {
   
   alert("✅ Excel gerado com sucesso!");
   
-  const enviadoComSucesso = await enviarParaServidorRDE(false);
-  
-  if (enviadoComSucesso) {
-    const manterDados = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados no formulário.\nClique em Cancelar para limpar os campos.');
+  // AGORA ENVIA PARA O SERVIDOR VIA FILA
+  if (linhas.length > 0) {
+    const salvou = await salvarEEnviarRDE(linhas, false);
     
-    if (manterDados) {
-      alert('📋 Dados mantidos no formulário!');
+    if (salvou) {
+      const manterDados = confirm('✅ Excel gerado e dados enviados para o servidor com sucesso!\n\nClique em OK para manter os dados no formulário.\nClique em Cancelar para limpar os campos.');
+      
+      if (!manterDados) {
+        const rows = tblBody.querySelectorAll('tr');
+        rows.forEach(row => {
+          const inputs = row.querySelectorAll('input, select');
+          if (inputs[0].tagName === 'SELECT') {
+            inputs[0].value = "";
+          }
+          inputs[1].value = "";
+          inputs[2].checked = false;
+          inputs[3].checked = false;
+          inputs[4].value = "";
+        });
+        atualizarSelectsEMP(null);
+        alert('🧹 Campos limpos!');
+      }
     } else {
-      const rows = tblBody.querySelectorAll('tr');
-      rows.forEach(row => {
-        const inputs = row.querySelectorAll('input, select');
-        if (inputs[0].tagName === 'SELECT') {
-          inputs[0].value = "";
-        }
-        inputs[1].value = "";
-        inputs[2].checked = false;
-        inputs[3].checked = false;
-        inputs[4].value = "";
-      });
-      atualizarSelectsEMP(null);
-      alert('🧹 Campos limpos!');
+      alert('❌ Excel gerado, mas não foi possível enviar para o servidor.\nDados salvos na fila para envio automático.');
     }
-  } else {
-    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
-    salvarLocalmente();
   }
 };
 
-// --- ENVIAR APENAS PARA O SERVIDOR ---
-document.getElementById('btnServidor').onclick = async () => {
-  const enviadoComSucesso = await enviarParaServidorRDE(true);
-  
-  if (enviadoComSucesso) {
-    const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos preenchidos.\nClique em Cancelar para manter os dados.');
-    if (limparCampos) {
-      const rows = tblBody.querySelectorAll('tr');
-      rows.forEach(row => {
-        const inputs = row.querySelectorAll('input, select');
-        if (inputs[0].tagName === 'SELECT') {
-          inputs[0].value = "";
-        }
-        inputs[1].value = "";
-        inputs[2].checked = false;
-        inputs[3].checked = false;
-        inputs[4].value = "";
-      });
-      atualizarSelectsEMP(null);
-      alert('🧹 Campos limpos!');
-    } else {
-      alert('📋 Dados mantidos no formulário!');
-    }
-  } else {
-    alert('❌ Não foi possível enviar para o servidor.\nDados salvos localmente automaticamente.\nTente novamente mais tarde ou use "Salvar Localmente".');
-    salvarLocalmente();
-  }
-};
-
-// --- SALVAR LOCALMENTE ---
-function salvarLocalmente() {
-  const dataIso = $('rde_data').value;
-  const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
-  const horaDoc = $('rde_hora_doc').value;
-
-  const linhas = Array.from(tblBody.querySelectorAll('tr')).map(r => {
-    const i = r.querySelectorAll('input,select');
-    const tagValue = i[0].tagName === 'SELECT' ? i[0].value : i[0].value;
-    return {
-      Data: data,
-      HoraDocumento: horaDoc,
-      TAG: tagValue,
-      Area: i[1].value,
-      Sim: i[2].checked ? "X" : "",
-      Nao: i[3].checked ? "X" : "",
-      Observacao: i[4].value
-    };
-  }).filter(l => l.TAG || l.Area || l.Sim || l.Nao || l.Observacao);
-
-  if (linhas.length === 0) {
-    alert("⚠️ Não há dados para salvar!");
-    return;
-  }
-
-  localStorage.setItem('rde_offline_cache', JSON.stringify(linhas));
-  
-  if (!navigator.onLine) {
-    alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
-  } else {
-    alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
-  }
-}
-
-// --- CARREGAR DADOS SALVOS AO ABRIR A PÁGINA ---
+// ============================================
+// CARREGAR DADOS SALVOS DO localStorage
+// ============================================
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rde_offline_cache');
   
   tblBody.innerHTML = "";
   
-  // Adiciona PC
   equipamentosPC.forEach(tag => addRow(tag, false));
-  
-  // Adiciona MC
   equipamentosMC.forEach(tag => addRow(tag, false));
-  
-  // Adiciona 3 linhas de EMP com SELECT
   for (let i = 0; i < 3; i++) {
     addRow("", true);
   }
   
-  // Atualiza os selects para sincronizar
   atualizarSelectsEMP(null);
   
   if (cache) {
@@ -745,7 +1175,6 @@ window.addEventListener('load', () => {
         const rows = tblBody.querySelectorAll('tr');
         
         linhas.forEach(dado => {
-          // Procura a linha com o mesmo TAG
           for (let row of rows) {
             const tagElement = row.querySelector('td:nth-child(1) input, td:nth-child(1) select');
             let tagValue = '';
@@ -781,7 +1210,6 @@ window.addEventListener('load', () => {
           }
         });
         
-        // Atualiza os selects após carregar
         atualizarSelectsEMP(null);
         alert('📂 Dados carregados do cache local.');
       } else {
@@ -792,31 +1220,17 @@ window.addEventListener('load', () => {
   }
 });
 
-// --- TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR ---
-window.addEventListener('online', async () => {
-  const cache = localStorage.getItem('rde_offline_cache');
-  if (cache) {
-    const acao = confirm('🌐 Conexão restaurada! Há dados salvos localmente.\n\nClique em OK para enviar agora.\nClique em Cancelar para manter os dados salvos (você poderá enviar depois manualmente).');
-    
-    if (acao) {
-      const enviado = await enviarParaServidorRDE(false);
-      if (enviado) {
-        const limpar = confirm('✅ Dados enviados com sucesso!\n\nClique em OK para remover do cache.\nClique em Cancelar para manter no cache.');
-        if (limpar) {
-          localStorage.removeItem('rde_offline_cache');
-        }
-      } else {
-        alert('❌ Não foi possível enviar os dados do cache. Eles permanecem salvos localmente.\nTente enviar manualmente mais tarde.');
-      }
-    } else {
-      alert('💾 Dados mantidos no cache local.\nVocê pode enviá-los depois clicando em "Enviar para Servidor".');
-    }
-  }
-});
+// ============================================
+// TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR
+// ============================================
+// O event listener 'online' já está no iniciarSincronizacaoAutomaticaRDE()
 
-// Associar o botão de salvar localmente
-document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
+// ============================================
+// INICIALIZAÇÃO - A FILA JÁ FOI INICIALIZADA NO DOMContentLoaded
+// ============================================
 
+console.log('✅ RDE com fila offline robusta carregado!');
+console.log('📌 Sistema de fila RDE ativo e aguardando ações.');
 </script>
 </body>
 </html>
