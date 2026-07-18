@@ -629,6 +629,7 @@
 <script>
 // ============================================
 // SISTEMA DE FILA DE ENVIO OFFLINE (INDEXEDDB)
+// CORREÇÃO: Remoção imediata após confirmação do servidor
 // ============================================
 
 class FilaEnvioRDS {
@@ -697,7 +698,7 @@ class FilaEnvioRDS {
     });
   }
 
-  // Remover item da fila (após sucesso)
+  // CORREÇÃO: Remover item da fila APÓS confirmação do servidor
   async remover(id) {
     await this.aguardarInicializacao();
     
@@ -706,12 +707,18 @@ class FilaEnvioRDS {
       const store = transaction.objectStore(this.storeName);
       const request = store.delete(id);
 
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        console.log(`🗑️ Item ${id} removido da fila após confirmação do servidor`);
+        resolve();
+      };
+      request.onerror = () => {
+        console.error(`❌ Erro ao remover item ${id}:`, request.error);
+        reject(request.error);
+      };
     });
   }
 
-  // Atualizar status de um item
+  // Atualizar status de um item (para controle interno)
   async atualizarStatus(id, status, erro = null) {
     await this.aguardarInicializacao();
     
@@ -770,7 +777,7 @@ class FilaEnvioRDS {
     });
   }
 
-  // Contar itens pendentes
+  // CORREÇÃO: Contar itens pendentes lendo diretamente da fila
   async contarPendentes() {
     const pendentes = await this.getPendentes();
     return pendentes.length;
@@ -800,17 +807,21 @@ const filaRDS = new FilaEnvioRDS();
 
 // ============================================
 // SISTEMA DE SINCRONIZAÇÃO AUTOMÁTICA
+// CORREÇÃO: Sincronização automática em segundo plano
 // ============================================
 let sincronizadorAtivo = false;
 let temporizadorSincronizacao = null;
 
+// CORREÇÃO: Função principal de sincronização - remoção APÓS confirmação
 async function sincronizarFila() {
+  // Verificar se está online
   if (!navigator.onLine) {
     console.log('📡 Offline - sincronização agendada para quando a internet voltar');
     atualizarStatusFila('offline');
     return;
   }
 
+  // Evitar execução simultânea
   if (sincronizadorAtivo) {
     console.log('⏳ Sincronização já em andamento');
     return;
@@ -820,6 +831,7 @@ async function sincronizarFila() {
     sincronizadorAtivo = true;
     atualizarStatusFila('enviando');
 
+    // CORREÇÃO: Carregar pendentes diretamente da fila
     const pendentes = await filaRDS.getPendentes();
     
     if (pendentes.length === 0) {
@@ -831,26 +843,42 @@ async function sincronizarFila() {
 
     console.log(`📦 ${pendentes.length} item(ns) pendente(s) na fila`);
     
-    // Processar um por vez
+    // CORREÇÃO: Processar um por vez, removendo APÓS confirmação
+    let itensEnviados = 0;
     for (const item of pendentes) {
       try {
         console.log(`🔄 Enviando item ${item.id}...`);
         const enviado = await enviarItemFila(item);
         
         if (enviado) {
-          console.log(`✅ Item ${item.id} enviado com sucesso`);
+          console.log(`✅ Item ${item.id} enviado com sucesso - removendo da fila`);
+          // CORREÇÃO: Remover IMEDIATAMENTE após confirmação
           await filaRDS.remover(item.id);
-          atualizarStatusFila('sincronizado', pendentes.length - 1);
+          itensEnviados++;
         } else {
-          console.log(`❌ Falha ao enviar item ${item.id}`);
+          console.log(`❌ Falha ao enviar item ${item.id} - mantendo na fila`);
+          // CORREÇÃO: Manter na fila em caso de falha
           await filaRDS.atualizarStatus(item.id, 'pendente', 'Falha no envio');
-          break; // Para no primeiro erro
+          break; // Para no primeiro erro para não sobrecarregar
         }
       } catch (error) {
         console.error(`❌ Erro ao processar item ${item.id}:`, error);
+        // CORREÇÃO: Manter na fila em caso de erro
         await filaRDS.atualizarStatus(item.id, 'pendente', error.message);
         break; // Para no primeiro erro
       }
+    }
+
+    // CORREÇÃO: Atualizar contador APÓS processamento
+    const pendentesRestantes = await filaRDS.contarPendentes();
+    if (pendentesRestantes === 0) {
+      atualizarStatusFila('sincronizado', 0);
+    } else {
+      atualizarStatusFila('pendente', pendentesRestantes);
+    }
+
+    if (itensEnviados > 0) {
+      console.log(`✅ ${itensEnviados} item(ns) enviados e removidos da fila`);
     }
 
   } catch (error) {
@@ -858,17 +886,18 @@ async function sincronizarFila() {
     atualizarStatusFila('erro');
   } finally {
     sincronizadorAtivo = false;
-    // Atualizar status final
-    const pendentes = await filaRDS.getPendentes();
-    if (pendentes.length === 0) {
-      atualizarStatusFila('sincronizado');
+    // CORREÇÃO: Atualizar contador final sempre a partir da fila
+    const pendentesFinais = await filaRDS.contarPendentes();
+    if (pendentesFinais === 0) {
+      atualizarStatusFila('sincronizado', 0);
     } else {
-      atualizarStatusFila('pendente', pendentes.length);
+      atualizarStatusFila('pendente', pendentesFinais);
     }
   }
 }
 
 // Enviar um item da fila para o servidor
+// CORREÇÃO: Retorna true apenas se o servidor confirmar (200 OK)
 async function enviarItemFila(item) {
   const dados = item.dados;
   
@@ -889,8 +918,15 @@ async function enviarItemFila(item) {
       dadosExistentes = Array.isArray(json.record) ? json.record : [];
     }
 
-    // Adicionar novo dado
-    const dadosAtualizados = [...dadosExistentes, ...dados];
+    // Adicionar novo dado (pode ser array ou objeto único)
+    let dadosParaEnviar = [];
+    if (Array.isArray(dados)) {
+      dadosParaEnviar = dados;
+    } else {
+      dadosParaEnviar = [dados];
+    }
+    
+    const dadosAtualizados = [...dadosExistentes, ...dadosParaEnviar];
     
     // Enviar para o servidor
     const resPut = await fetch(PUT_URL, {
@@ -904,6 +940,7 @@ async function enviarItemFila(item) {
       signal: AbortSignal.timeout(20000) // 20 segundos timeout
     });
 
+    // CORREÇÃO: Só retorna true se o servidor confirmar (status 200)
     if (resPut.ok) {
       console.log('✅ Dados enviados para o servidor com sucesso');
       return true;
@@ -920,6 +957,7 @@ async function enviarItemFila(item) {
 
 // ============================================
 // ATUALIZAR INTERFACE DA FILA
+// CORREÇÃO: Sempre recalcular o contador lendo da fila
 // ============================================
 async function atualizarStatusFila(status, pendentesCount = null) {
   const statusIcone = document.getElementById('filaStatusIcone');
@@ -928,6 +966,7 @@ async function atualizarStatusFila(status, pendentesCount = null) {
   const ultimoEnvioEl = document.getElementById('filaUltimoEnvio');
   const btnSincronizar = document.getElementById('btnSincronizarAgora');
 
+  // CORREÇÃO: Sempre recalcular o contador lendo da fila
   if (pendentesCount === null) {
     pendentesCount = await filaRDS.contarPendentes();
   }
@@ -969,15 +1008,16 @@ async function atualizarStatusFila(status, pendentesCount = null) {
 
 // ============================================
 // INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+// CORREÇÃO: Sincronização automática em vários momentos
 // ============================================
 function iniciarSincronizacaoAutomatica() {
-  // Evento de conexão restaurada
+  // CORREÇÃO: Evento de conexão restaurada - sincronizar automaticamente
   window.addEventListener('online', async () => {
     console.log('🌐 Conexão restaurada - iniciando sincronização automática');
     await sincronizarFila();
   });
 
-  // Temporizador periódico (30 segundos)
+  // CORREÇÃO: Temporizador periódico (30 segundos) para tentar reenviar
   if (temporizadorSincronizacao) {
     clearInterval(temporizadorSincronizacao);
   }
@@ -991,24 +1031,31 @@ function iniciarSincronizacaoAutomatica() {
     }
   }, 30000); // 30 segundos
 
-  // Sincronizar ao carregar a página (se houver pendentes e estiver online)
+  // CORREÇÃO: Sincronizar ao carregar a página (se houver pendentes e estiver online)
   setTimeout(async () => {
     if (navigator.onLine) {
       const pendentes = await filaRDS.contarPendentes();
       if (pendentes > 0) {
-        console.log('🔄 Sincronização inicial da página');
+        console.log(`🔄 Sincronização inicial - ${pendentes} itens pendentes`);
         await sincronizarFila();
       } else {
         atualizarStatusFila('sincronizado', 0);
       }
     } else {
-      atualizarStatusFila('offline');
+      // CORREÇÃO: Mostrar status offline mas manter contador
+      const pendentes = await filaRDS.contarPendentes();
+      if (pendentes > 0) {
+        atualizarStatusFila('offline', pendentes);
+      } else {
+        atualizarStatusFila('offline', 0);
+      }
     }
   }, 1500);
 }
 
 // ============================================
 // FUNÇÃO PARA ADICIONAR DADOS À FILA
+// CORREÇÃO: Adicionar e tentar enviar imediatamente se online
 // ============================================
 async function adicionarDadosNaFila(dados) {
   try {
@@ -1017,17 +1064,38 @@ async function adicionarDadosNaFila(dados) {
       await filaRDS.init();
     }
     
-    const id = await filaRDS.adicionar(dados);
-    console.log(`📦 Dados adicionados à fila (ID: ${id})`);
+    // CORREÇÃO: Adicionar cada item individualmente
+    const ids = [];
+    if (Array.isArray(dados)) {
+      for (const item of dados) {
+        const id = await filaRDS.adicionar(item);
+        ids.push(id);
+      }
+    } else {
+      const id = await filaRDS.adicionar(dados);
+      ids.push(id);
+    }
     
-    // Atualizar interface
+    console.log(`📦 ${ids.length} item(ns) adicionados à fila (IDs: ${ids.join(', ')})`);
+    
+    // CORREÇÃO: Atualizar contador APÓS adicionar
     const pendentes = await filaRDS.contarPendentes();
     atualizarStatusFila('pendente', pendentes);
     
-    return id;
+    // CORREÇÃO: Tentar enviar imediatamente se estiver online
+    if (navigator.onLine) {
+      console.log('🌐 Online - tentando enviar imediatamente...');
+      // Usar setTimeout para não bloquear a UI
+      setTimeout(async () => {
+        await sincronizarFila();
+      }, 500);
+    } else {
+      console.log('📡 Offline - dados salvos na fila para envio posterior');
+    }
+    
+    return ids;
   } catch (error) {
     console.error('❌ Erro ao adicionar à fila:', error);
-    alert('❌ Erro ao salvar dados localmente. Tente novamente.');
     throw error;
   }
 }
@@ -1618,6 +1686,15 @@ document.getElementById('btnAtualizarFuncionarios').onclick = async () => {
   
   await carregarFuncionariosDoBin();
   
+  // CORREÇÃO: Sincronizar automaticamente após atualizar funcionários
+  if (navigator.onLine) {
+    const pendentes = await filaRDS.contarPendentes();
+    if (pendentes > 0) {
+      console.log('🔄 Sincronizando após atualizar funcionários');
+      await sincronizarFila();
+    }
+  }
+  
   setTimeout(() => {
     document.getElementById('btnAtualizarFuncionarios').disabled = false;
     document.getElementById('btnAtualizarFuncionarios').innerHTML = '🔄 Atualizar Lista';
@@ -1706,58 +1783,27 @@ function obterHorarioTrabalhoTexto() {
 }
 
 // ======================================================
-// FUNÇÃO PRINCIPAL PARA ENVIAR PARA O SERVIDOR (VIA FILA)
+// FUNÇÃO PRINCIPAL PARA SALVAR NA FILA E ENVIAR
+// CORREÇÃO: Fluxo unificado - Adicionar à fila → Tentar enviar
 // ======================================================
 
-async function enviarParaServidorRDS(mostrarAlerta = true) {
-  if (!funcionariosCarregados) {
-    if (mostrarAlerta) alert('⚠️ Primeiro carregue a lista de funcionários');
-    return false;
-  }
-
-  // Verificar se há dados preenchidos
-  if (!temDadosPreenchidos()) {
-    if (mostrarAlerta) alert('⚠️ Nenhum dado de funcionário preenchido!');
-    return false;
-  }
-
+async function salvarNaFilaEEnviar(dadosServidor, mostrarAlerta = true) {
   try {
-    // Coletar dados do formulário
-    const dados = coletarDadosFormulario();
-    const dadosServidor = montarDadosServidor(dados);
+    // CORREÇÃO: Adicionar à fila primeiro (persistência garantida)
+    const ids = await adicionarDadosNaFila(dadosServidor);
     
-    if (dadosServidor.length === 0) {
-      if (mostrarAlerta) alert('⚠️ Nenhum dado válido para enviar!');
-      return false;
-    }
-
-    // SALVAR NA FILA IMEDIATAMENTE
-    await adicionarNaFila(dadosServidor);
-    
-    // Atualizar interface
-    const pendentes = await filaRDS.contarPendentes();
-    atualizarStatusFila('pendente', pendentes);
-
-    // Tentar sincronizar imediatamente se estiver online
-    if (navigator.onLine) {
-      console.log('🌐 Tentando sincronizar imediatamente...');
-      setTimeout(async () => {
-        await sincronizarFila();
-      }, 500);
-    } else {
-      console.log('📡 Offline - dados salvos na fila. Serão enviados quando a internet voltar.');
-      if (mostrarAlerta) {
-        alert('📦 Dados salvos localmente!\n\n' +
-              '✅ Você está offline, mas os dados foram salvos com segurança.\n' +
-              '📡 Serão enviados automaticamente quando a internet voltar.\n\n' +
-              '📋 Pendentes: ' + pendentes);
+    if (mostrarAlerta) {
+      const pendentes = await filaRDS.contarPendentes();
+      if (navigator.onLine) {
+        alert(`📦 Dados salvos na fila (${ids.length} registro(s)) e enviando para o servidor...`);
+      } else {
+        alert(`📦 Dados salvos na fila (${ids.length} registro(s)).\n\n📡 Você está offline. Os dados serão enviados automaticamente quando a internet voltar.\n\n📋 Pendentes: ${pendentes}`);
       }
     }
-
+    
     return true;
-
   } catch (error) {
-    console.error('❌ Erro ao processar envio:', error);
+    console.error('❌ Erro ao salvar na fila:', error);
     if (mostrarAlerta) {
       alert('❌ Erro ao salvar dados: ' + error.message);
     }
@@ -1765,31 +1811,9 @@ async function enviarParaServidorRDS(mostrarAlerta = true) {
   }
 }
 
-// Função para adicionar dados à fila
-async function adicionarNaFila(dados) {
-  try {
-    // Verificar se a fila já está inicializada
-    if (!filaRDS.inicializado) {
-      await filaRDS.init();
-    }
-    
-    // Adicionar cada item individualmente ou em lote
-    const resultados = [];
-    for (const item of dados) {
-      const id = await filaRDS.adicionar(item);
-      resultados.push(id);
-    }
-    
-    console.log(`📦 ${resultados.length} item(ns) adicionados à fila (IDs: ${resultados.join(', ')})`);
-    return resultados;
-  } catch (error) {
-    console.error('❌ Erro ao adicionar à fila:', error);
-    throw error;
-  }
-}
-
 // ======================================================
 // GERAR PDF
+// CORREÇÃO: Salvar na fila e tentar enviar automaticamente
 // ======================================================
 
 document.getElementById('btnGerarPDF').onclick = async () => {
@@ -1853,26 +1877,20 @@ document.getElementById('btnGerarPDF').onclick = async () => {
   
   document.body.removeChild(wrapper);
   
-  // Salvar na fila e enviar
+  // CORREÇÃO: Salvar na fila e tentar enviar automaticamente
   const dados = coletarDadosFormulario();
   const dadosServidor = montarDadosServidor(dados);
   
   if (dadosServidor.length > 0) {
-    try {
-      await adicionarNaFila(dadosServidor);
+    const salvou = await salvarNaFilaEEnviar(dadosServidor, false);
+    
+    if (salvou) {
+      // CORREÇÃO: Verificar se há pendentes e atualizar contador
       const pendentes = await filaRDS.contarPendentes();
-      atualizarStatusFila('pendente', pendentes);
-      
-      // Tentar sincronizar imediatamente se estiver online
-      if (navigator.onLine) {
-        setTimeout(async () => {
-          await sincronizarFila();
-        }, 500);
-      }
       
       // Perguntar se deseja limpar o formulário
-      const manterDados = confirm('✅ Dados salvos localmente e ' + 
-                                 (navigator.onLine ? 'enviando para o servidor...' : 'aguardando conexão.') +
+      const manterDados = confirm('✅ PDF gerado e dados salvos na fila' + 
+                                 (navigator.onLine ? ' (enviando para o servidor...)' : ' (aguardando conexão)') +
                                  '\n\nDeseja manter os dados no formulário para fazer ajustes?\n\n' +
                                  'Clique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
       
@@ -1882,7 +1900,7 @@ document.getElementById('btnGerarPDF').onclick = async () => {
         proximaLinhaParaPreencher = 0;
         alert('🧹 Formulário limpo!');
       }
-    } catch (error) {
+    } else {
       alert('❌ PDF gerado, mas não foi possível salvar os dados localmente.\nOs dados permanecem no formulário.');
     }
   }
@@ -1890,6 +1908,7 @@ document.getElementById('btnGerarPDF').onclick = async () => {
 
 // ======================================================
 // ENVIAR APENAS PARA O SERVIDOR (VIA FILA)
+// CORREÇÃO: Usar o novo fluxo unificado
 // ======================================================
 
 document.getElementById('btnServidor').onclick = async () => {
@@ -1898,12 +1917,27 @@ document.getElementById('btnServidor').onclick = async () => {
     return;
   }
   
-  const enviadoComSucesso = await enviarParaServidorRDS(true);
+  if (!temDadosPreenchidos()) {
+    alert('⚠️ Nenhum dado de funcionário preenchido!');
+    return;
+  }
   
-  if (enviadoComSucesso) {
+  const dados = coletarDadosFormulario();
+  const dadosServidor = montarDadosServidor(dados);
+  
+  if (dadosServidor.length === 0) {
+    alert('⚠️ Nenhum dado válido para enviar!');
+    return;
+  }
+  
+  const salvou = await salvarNaFilaEEnviar(dadosServidor, true);
+  
+  if (salvou) {
+    const pendentes = await filaRDS.contarPendentes();
+    
     // Perguntar se deseja manter os dados no formulário
     const manterDados = confirm('✅ Dados salvos na fila' + 
-                               (navigator.onLine ? ' e enviados para o servidor' : ' (aguardando conexão)') + 
+                               (navigator.onLine ? ' e enviando para o servidor' : ' (aguardando conexão)') + 
                                ' com sucesso!\n\nDeseja manter os dados no formulário para fazer ajustes?\n\n' +
                                'Clique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
     
@@ -1918,6 +1952,7 @@ document.getElementById('btnServidor').onclick = async () => {
 
 // ======================================================
 // GERAR EXCEL
+// CORREÇÃO: Salvar na fila e tentar enviar automaticamente
 // ======================================================
 
 document.getElementById('btnExcelRDS').addEventListener('click', async function() {
@@ -1991,21 +2026,15 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  // Salvar na fila e enviar
+  // CORREÇÃO: Salvar na fila e tentar enviar automaticamente
   if (linhas.length > 0) {
-    try {
-      await adicionarNaFila(linhas);
+    const salvou = await salvarNaFilaEEnviar(linhas, false);
+    
+    if (salvou) {
       const pendentes = await filaRDS.contarPendentes();
-      atualizarStatusFila('pendente', pendentes);
       
-      if (navigator.onLine) {
-        setTimeout(async () => {
-          await sincronizarFila();
-        }, 500);
-      }
-      
-      const manterDados = confirm('✅ Excel gerado e dados salvos localmente' + 
-                                 (navigator.onLine ? ' (enviando...)' : ' (aguardando conexão)') +
+      const manterDados = confirm('✅ Excel gerado e dados salvos na fila' + 
+                                 (navigator.onLine ? ' (enviando para o servidor...)' : ' (aguardando conexão)') +
                                  '\n\nDeseja manter os dados no formulário para fazer ajustes?\n\n' +
                                  'Clique em OK para manter os dados.\nClique em Cancelar para limpar o formulário.');
       
@@ -2015,7 +2044,7 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
         proximaLinhaParaPreencher = 0;
         alert('🧹 Formulário limpo!');
       }
-    } catch (error) {
+    } else {
       alert('❌ Excel gerado, mas não foi possível salvar os dados localmente.\nOs dados permanecem no formulário.');
     }
   }
@@ -2023,6 +2052,7 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
 
 // ======================================================
 // SALVAR LOCALMENTE (APENAS QUANDO OFFLINE OU PARA BACKUP)
+// CORREÇÃO: Usar o novo fluxo unificado
 // ======================================================
 
 function salvarLocalmenteRDS() {
@@ -2039,7 +2069,7 @@ function salvarLocalmenteRDS() {
     return;
   }
   
-  // Salvar no localStorage como backup
+  // Salvar no localStorage como backup (compatibilidade)
   const pacote = {
     cabecalho: {
       data: document.getElementById('rds_data').value,
@@ -2056,27 +2086,8 @@ function salvarLocalmenteRDS() {
 
   localStorage.setItem('rds_offline_cache', JSON.stringify(pacote));
   
-  // Também adicionar à fila IndexedDB para garantir envio futuro
-  try {
-    adicionarNaFila(dadosServidor).then(async () => {
-      const pendentes = await filaRDS.contarPendentes();
-      atualizarStatusFila('pendente', pendentes);
-      alert('💾 Dados salvos localmente e adicionados à fila de envio.\n' +
-            (navigator.onLine ? '🌐 Tentando enviar agora...' : '📡 Serão enviados quando a internet voltar.'));
-      
-      if (navigator.onLine) {
-        setTimeout(async () => {
-          await sincronizarFila();
-        }, 500);
-      }
-    }).catch(error => {
-      alert('💾 Dados salvos no localStorage como backup.\n\n' +
-            '⚠️ Não foi possível adicionar à fila offline: ' + error.message);
-    });
-  } catch (error) {
-    alert('💾 Dados salvos no localStorage como backup.\n\n' +
-          '⚠️ Erro: ' + error.message);
-  }
+  // CORREÇÃO: Adicionar à fila IndexedDB
+  salvarNaFilaEEnviar(dadosServidor, true);
 }
 
 // ======================================================
@@ -2137,17 +2148,12 @@ window.addEventListener('load', () => {
 
 // ======================================================
 // TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR
+// CORREÇÃO: Já implementado no event listener 'online'
 // ======================================================
 
-window.addEventListener('online', async () => {
-  const pendentes = await filaRDS.contarPendentes();
-  if (pendentes > 0) {
-    console.log(`🌐 Conexão restaurada - ${pendentes} itens pendentes para sincronizar`);
-    await sincronizarFila();
-  }
-});
+// O event listener 'online' já está no iniciarSincronizacaoAutomatica()
 
-// Botão para sincronizar manualmente
+// Botão para sincronizar manualmente (mantido para compatibilidade)
 document.getElementById('btnSincronizarAgora').onclick = async () => {
   if (!navigator.onLine) {
     alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
