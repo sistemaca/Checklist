@@ -14,7 +14,7 @@
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .col{flex:1;min-width:120px;display:flex;flex-direction:column;margin-bottom:8px}
     label{font-size:13px;margin-bottom:6px;color:#222}
-    input[type=text], input[type=date], input[type=time], textarea, select {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff}
+    input[type=text], input[type=date], input[type=time], textarea, select {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff;width:100%;box-sizing:border-box}
     input[readonly]{background:#eee;cursor:not-allowed}
     textarea.param-desc{min-height:48px;resize:vertical}
     .items{margin-top:12px}
@@ -100,34 +100,6 @@
       .actions{flex-direction:column}
       .actions .btn{width:100%}
     }
-
-    /* ESTILOS PARA O PDF PROFISSIONAL */
-    .pdf-item {
-      page-break-inside: avoid;
-      margin-bottom: 10px;
-      padding: 8px 4px;
-      border-bottom: 1px solid #eee;
-    }
-    .pdf-item:last-child {
-      border-bottom: none;
-    }
-    .pdf-header {
-      text-align: center;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #333;
-    }
-    .pdf-info {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-      padding: 8px 0;
-      border-bottom: 1px solid #ccc;
-    }
-    .pdf-info-item {
-      font-size: 12px;
-    }
   </style>
 </head>
 <body>
@@ -190,11 +162,16 @@
 
 <script>
 // ============================================
-// CONFIGURAÇÃO DO BIN PRINCIPAL (funcionários e veículos)
+// CONFIGURAÇÃO DOS BINS
 // ============================================
-const BIN_ID = '69023644ae596e708f35f300';
+
+// BIN 1: APENAS para funcionários e veículos (dados mestres)
+const BIN_DADOS_MESTRES = '69023644ae596e708f35f300';
+
+// BIN 2: APENAS para os dados diários do checklist
+const BIN_DADOS_DIARIOS = '6a64f831da38895dfe8f0e44';
+
 const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
-const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
 // ============================================
 // DADOS INICIAIS (usados apenas para primeira execução)
@@ -382,16 +359,15 @@ class FilaEnvioChecklist {
 const filaChecklist = new FilaEnvioChecklist();
 
 // ============================================
-// FUNÇÕES DE CARREGAMENTO DO BIN
+// FUNÇÕES DE GERENCIAMENTO DO BIN DE DADOS MESTRES
 // ============================================
 
-// Função para inicializar o BIN com dados iniciais
-async function inicializarBin() {
+async function inicializarBinMestres() {
   try {
-    console.log('🔄 Inicializando BIN com dados iniciais...');
+    console.log('🔄 Inicializando BIN de dados mestres...');
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}`;
     
-    // Verificar se o BIN já existe
-    const resGet = await fetch(`${BIN_URL}/latest`, {
+    const resGet = await fetch(`${url}/latest`, {
       headers: { 'X-Master-Key': MASTER_KEY }
     });
     
@@ -399,15 +375,13 @@ async function inicializarBin() {
       const json = await resGet.json();
       const record = json.record;
       
-      // Verificar se já tem funcionários e veículos
       if (record && record.funcionarios && record.funcionarios.length > 0) {
-        console.log('✅ BIN já possui dados. Nada a fazer.');
+        console.log('✅ BIN de dados mestres já possui dados.');
         return true;
       }
     }
     
-    // Se não tem dados ou não existe, criar
-    const resPut = await fetch(BIN_URL, {
+    const resPut = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -418,22 +392,22 @@ async function inicializarBin() {
     });
     
     if (resPut.ok) {
-      console.log('✅ BIN inicializado com sucesso!');
+      console.log('✅ BIN de dados mestres inicializado com sucesso!');
       return true;
     } else {
-      console.error('❌ Erro ao inicializar BIN:', resPut.status);
+      console.error('❌ Erro ao inicializar BIN mestres:', resPut.status);
       return false;
     }
   } catch (error) {
-    console.error('❌ Erro ao inicializar BIN:', error);
+    console.error('❌ Erro ao inicializar BIN mestres:', error);
     return false;
   }
 }
 
-// Função para carregar funcionários do BIN
 async function carregarFuncionarios() {
   try {
-    const res = await fetch(`${BIN_URL}/latest`, {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
       headers: { 'X-Master-Key': MASTER_KEY }
     });
     
@@ -454,10 +428,10 @@ async function carregarFuncionarios() {
   }
 }
 
-// Função para carregar veículos do BIN
 async function carregarVeiculos() {
   try {
-    const res = await fetch(`${BIN_URL}/latest`, {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
       headers: { 'X-Master-Key': MASTER_KEY }
     });
     
@@ -479,15 +453,15 @@ async function carregarVeiculos() {
 }
 
 // ============================================
-// FUNÇÃO PARA ENVIAR DADOS COMPACTOS AO SERVIDOR
+// FUNÇÕES DE ENVIO PARA O BIN DE DADOS DIÁRIOS
 // ============================================
-async function enviarDadosCompactos(dados) {
-  try {
-    const GET_URL = `${BIN_URL}/latest`;
-    const PUT_URL = BIN_URL;
 
+async function enviarDadosDiarios(dados) {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_DIARIOS}`;
+    
     // Buscar dados existentes
-    const resGet = await fetch(GET_URL, { 
+    const resGet = await fetch(`${url}/latest`, { 
       headers: { 'X-Master-Key': MASTER_KEY }
     });
     
@@ -499,7 +473,7 @@ async function enviarDadosCompactos(dados) {
 
     const dadosAtualizados = [...dadosExistentes, ...dados];
     
-    const resPut = await fetch(PUT_URL, {
+    const resPut = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -510,10 +484,10 @@ async function enviarDadosCompactos(dados) {
     });
 
     if (resPut.ok) {
-      console.log('✅ Dados compactos enviados com sucesso');
+      console.log('✅ Dados diários enviados com sucesso para o BIN');
       return true;
     } else {
-      console.log('❌ Erro ao enviar dados compactos:', resPut.status);
+      console.log('❌ Erro ao enviar dados diários:', resPut.status);
       return false;
     }
 
@@ -533,14 +507,14 @@ function gerarListaCompacta(itens) {
   );
   
   if (todosConforme) {
-    // Se todos estão conformes, retorna apenas o item 0
+    // Se todos estão conformes, retorna apenas o item 0 (sem observação)
     return [
       {
         num: "0",
         title: "Todos os itens",
         desc: "Todos os itens estão conformes ou não se aplicam",
         status: "conforme",
-        obs: ""
+        obs: "" // SEMPRE VAZIO para conforme
       }
     ];
   } else {
@@ -555,15 +529,15 @@ function gerarListaCompacta(itens) {
         title: "Itens conformes e/ou não se aplicam",
         desc: "Todos os itens não listados abaixo estão conformes ou não se aplicam",
         status: "conforme",
-        obs: ""
+        obs: "" // SEMPRE VAZIO para conforme
       },
-      ...excecoes
+      ...excecoes // Mantém as observações apenas para exceções
     ];
   }
 }
 
 // ============================================
-// FUNÇÃO PARA ENVIAR ITEM PARA A FILA
+// FUNÇÃO PARA SALVAR NA FILA
 // ============================================
 async function salvarNaFila(dados) {
   try {
@@ -622,7 +596,8 @@ async function sincronizarFila() {
     for (const item of itens) {
       console.log(`🔄 Processando item ${item.id}...`);
       
-      const enviado = await enviarDadosCompactos(item.dados);
+      // Enviar para o BIN de dados diários
+      const enviado = await enviarDadosDiarios(item.dados);
       
       if (enviado) {
         await filaChecklist.remover(item.id);
@@ -729,14 +704,14 @@ function iniciarSincronizacaoAutomatica() {
   let veiculosLista = [];
 
   // ============================================
-  // CARREGAR DADOS DO BIN
+  // CARREGAR DADOS DO BIN DE DADOS MESTRES
   // ============================================
   async function carregarDadosDoBin() {
     loadingIndicator.classList.add('active');
     
     try {
-      // Inicializar BIN se necessário
-      await inicializarBin();
+      // Inicializar BIN de dados mestres se necessário
+      await inicializarBinMestres();
       
       // Carregar funcionários
       funcionariosLista = await carregarFuncionarios();
@@ -756,7 +731,7 @@ function iniciarSincronizacaoAutomatica() {
       preencherSelectFuncionarios();
       preencherSelectVeiculos();
       
-      console.log(`✅ ${funcionariosLista.length} funcionários e ${veiculosLista.length} veículos carregados`);
+      console.log(`✅ ${funcionariosLista.length} funcionários e ${veiculosLista.length} veículos carregados do BIN de dados mestres`);
       
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error);
@@ -881,13 +856,21 @@ function iniciarSincronizacaoAutomatica() {
 
   function coletarDadosCompletos() {
     return Array.from(document.querySelectorAll('#items .item'))
-      .map(it => ({
-        num: it.getAttribute('data-num'),
-        title: it.querySelector('.item-title').textContent.replace(/^\d+\.\s*/,'').trim(),
-        desc: it.querySelector('.param-desc').value.trim(),
-        status: Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '',
-        obs: it.querySelector('.obs_input').value.trim()
-      }));
+      .map(it => {
+        const status = Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '';
+        const obs = it.querySelector('.obs_input').value.trim();
+        
+        // CORREÇÃO: Observação só é salva se status for "medio" ou "fora"
+        const obsFinal = (status === 'medio' || status === 'fora') ? obs : '';
+        
+        return {
+          num: it.getAttribute('data-num'),
+          title: it.querySelector('.item-title').textContent.replace(/^\d+\.\s*/,'').trim(),
+          desc: it.querySelector('.param-desc').value.trim(),
+          status: status,
+          obs: obsFinal
+        };
+      });
   }
 
   function getFuncionarioNome(codigo) {
@@ -925,12 +908,12 @@ function iniciarSincronizacaoAutomatica() {
       Item: item.title,
       Descricao: item.desc,
       Status: item.status,
-      Observacao: item.obs
+      Observacao: item.obs // Já vem vazio para conforme/nao_se_aplica
     }));
   }
 
   // ============================================
-  // GERAR DADOS PARA EXCEL (compatível com o existente)
+  // GERAR DADOS PARA EXCEL
   // ============================================
   function gerarDadosExcel() {
     const itensCompletos = coletarDadosCompletos();
@@ -954,7 +937,7 @@ function iniciarSincronizacaoAutomatica() {
       Item: item.title,
       Descricao: item.desc,
       Status: item.status,
-      Observacao: item.obs
+      Observacao: item.obs // Já vem vazio para conforme/nao_se_aplica
     }));
   }
 
@@ -978,7 +961,7 @@ function iniciarSincronizacaoAutomatica() {
     
     const dadosCompactos = gerarDadosCompactos();
     
-    // Salvar na fila
+    // Salvar na fila (apenas se houver dados)
     if (dadosCompactos.length > 0) {
       await salvarNaFila(dadosCompactos);
     }
@@ -1022,8 +1005,9 @@ function iniciarSincronizacaoAutomatica() {
       const descLines = pdf.splitTextToSize(it.desc, pageWidth - 2*margin);
       pdf.text(descLines, margin, yOffset); yOffset += descLines.length*lineHeight;
       pdf.text(`Status: ${it.status || '-'}`, margin, yOffset); yOffset += lineHeight;
-      if (it.obs) {
-        const obsLines = pdf.splitTextToSize(`Observação: ${it.obs || '-'}`, pageWidth - 2*margin);
+      // Só mostra observação se não estiver vazia
+      if (it.obs && it.obs.trim() !== '') {
+        const obsLines = pdf.splitTextToSize(`Observação: ${it.obs}`, pageWidth - 2*margin);
         pdf.text(obsLines, margin, yOffset); yOffset += obsLines.length*lineHeight + 8;
       } else {
         yOffset += 8;
@@ -1045,7 +1029,6 @@ function iniciarSincronizacaoAutomatica() {
     
     const dadosExcel = gerarDadosExcel();
     
-    // Salvar na fila
     if (dadosExcel.length > 0) {
       salvarNaFila(dadosExcel);
     }
@@ -1191,7 +1174,6 @@ function iniciarSincronizacaoAutomatica() {
   // INICIALIZAÇÃO
   // ============================================
   
-  // Inicializar fila
   async function iniciarFila() {
     try {
       await filaChecklist.init();
@@ -1204,13 +1186,11 @@ function iniciarSincronizacaoAutomatica() {
     }
   }
 
-  // Carregar dados e iniciar
   (async function iniciar() {
     await iniciarFila();
     await carregarDadosDoBin();
     carregarDadosSalvos();
     
-    // Verificar se há dados em cache para enviar
     if (navigator.onLine) {
       const total = await filaChecklist.contar();
       if (total > 0) {
@@ -1221,8 +1201,10 @@ function iniciarSincronizacaoAutomatica() {
   })();
 
   console.log('✅ Checklist com dados do BIN e fila robusta carregado!');
-  console.log('📌 Funcionários e veículos carregados do BIN:', BIN_ID);
+  console.log('📌 BIN de dados mestres (funcionários/veículos):', BIN_DADOS_MESTRES);
+  console.log('📌 BIN de dados diários:', BIN_DADOS_DIARIOS);
   console.log('📌 Dados compactos: apenas exceções são registradas');
+  console.log('📌 Observações: apenas para status "Médio" ou "Fora"');
 
 })();
 </script>
