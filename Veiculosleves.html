@@ -92,6 +92,17 @@
       display: block;
     }
 
+    /* Sugestão de veículo preenchido automaticamente */
+    .veiculo-sugerido {
+      font-size: 11px;
+      color: #28a745;
+      margin-top: 4px;
+      display: none;
+    }
+    .veiculo-sugerido.active {
+      display: block;
+    }
+
     @media(max-width:420px){
       .row {flex-direction: column;}
       .col {min-width: 100% !important; max-width: 100% !important;}
@@ -120,6 +131,9 @@
       <select id="veiculo" required>
         <option value="">Carregando veículos...</option>
       </select>
+      <div class="veiculo-sugerido" id="veiculoSugerido">
+        💡 Sugestão: <span id="veiculoSugeridoTexto"></span>
+      </div>
     </div>
     <div class="col"><label for="data">Data</label><input id="data" type="date" readonly></div>
     <div class="col" style="max-width:120px"><label for="hora">Horário</label><input id="hora" type="time" readonly></div>
@@ -172,60 +186,6 @@ const BIN_DADOS_MESTRES = '69023644ae596e708f35f300';
 const BIN_DADOS_DIARIOS = '6a64f831da38895dfe8f0e44';
 
 const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
-
-// ============================================
-// DADOS INICIAIS (usados apenas para primeira execução)
-// ============================================
-const DADOS_INICIAIS = {
-  funcionarios: [
-    {codigo:"80236", nome:"ADRIANO PERCILIO DA SILVA"},
-    {codigo:"80096", nome:"AILTON RODRIGO COUTINHO"},
-    {codigo:"80229", nome:"BEATRIZ ESTELA ELIAS DA SILVA"},
-    {codigo:"80150", nome:"BRUNA DA CUNHA ALVES"},
-    {codigo:"80227", nome:"BRUNO HENRIK GOMES SILVA"},
-    {codigo:"80239", nome:"CARLOS AUGUSTO DA COSTA"},
-    {codigo:"80234", nome:"CELIO GERALDO DE SOUZA"},
-    {codigo:"80230", nome:"DAIANY MINUCCI GARCIA"},
-    {codigo:"80235", nome:"ELIAS TIBURCIO DE SOUZA"},
-    {codigo:"90001", nome:"GENTIL JOSÉ DE OLIVEIRA"},
-    {codigo:"80240", nome:"GILSON GERALDO MINUCCI GARCIA SILVA"},
-    {codigo:"80116", nome:"GUSTAVO TEIXEIRA DA SILVA"},
-    {codigo:"80228", nome:"HEITOR FERREIRA ARAUJO"},
-    {codigo:"80237", nome:"IAN VICTOR MOREIRA GOMES"},
-    {codigo:"80215", nome:"JOÃO PEDRO ROCHA DOMINGOS"},
-    {codigo:"80219", nome:"JORDANYA ALVES PEREIRA SANTOS"},
-    {codigo:"80119", nome:"JOSE WALTER DE OLIVEIRA"},
-    {codigo:"80224", nome:"JOSE CARLOS RAMOS RODRIGUES"},
-    {codigo:"80065", nome:"JOYCE RAFAELA LOPES DA SILVA"},
-    {codigo:"80221", nome:"JULIA FERNANDES DA SILVA"},
-    {codigo:"80184", nome:"LARICE EDUARDA MARTINS"},
-    {codigo:"91002", nome:"LIVIA MENEZES OLIVEIRA"},
-    {codigo:"80231", nome:"LUIS ANTONIO LOPES VELOSO"},
-    {codigo:"80177", nome:"MAURICIO JOSE DO COUTO"},
-    {codigo:"91003", nome:"NICOMEDES AUGUSTO DE OLEIVEIRA"},
-    {codigo:"80060", nome:"POLIANA OLIVEIRA"},
-    {codigo:"80175", nome:"REINALDO DOS SANTOS VALADÃO"},
-    {codigo:"80225", nome:"RICARDO AUGUSTO DOS SANTOS"},
-    {codigo:"80021", nome:"RINALDO CESAR PEREIRA"},
-    {codigo:"80170", nome:"RODOLFO CARDOSO TEIXEIRA"},
-    {codigo:"80101", nome:"TIAGO LEONE RAMOS DA SILVA"},
-    {codigo:"80222", nome:"TIAGO SILVA DE OLIVEIRA"},
-    {codigo:"80226", nome:"VIVIANE DE FIGUEIREDO TEIXEIRA"}
-  ],
-  veiculos: [
-    {codigo:"CAM04", descricao:"F-1000 SS 1993 - BIS-6668"},
-    {codigo:"CAM05", descricao:"STRADA TREKING CD 2012 - OMC-0835"},
-    {codigo:"CAM11", descricao:"SAVEIRO TROPPER 2012 - HNB-8162"},
-    {codigo:"CAM12", descricao:"MONTANA LS 2013 - BRANCA - OQV-3D95"},
-    {codigo:"CAR01", descricao:"UNO FIRE 2006 - GSZ-1347"},
-    {codigo:"CAR07", descricao:"FIAT/MOBI - QWY-4310"},
-    {codigo:"CAR11", descricao:"MONTANA 2017 - PRATA - PYC-9B75"},
-    {codigo:"CAR12", descricao:"PALIO FIRE WAY -FIAT - 2015 - BRANCA - PWU-2G17"},
-    {codigo:"CAR13", descricao:"FIORINO - SYB-6B40"},
-    {codigo:"CAR14", descricao:"FIORINO - SYB-5J50"},
-    {codigo:"CAR15", descricao:"ARGO DRI 1.0 FLEX - TEH-9I88"}
-  ]
-};
 
 // ============================================
 // SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA
@@ -362,48 +322,6 @@ const filaChecklist = new FilaEnvioChecklist();
 // FUNÇÕES DE GERENCIAMENTO DO BIN DE DADOS MESTRES
 // ============================================
 
-async function inicializarBinMestres() {
-  try {
-    console.log('🔄 Inicializando BIN de dados mestres...');
-    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}`;
-    
-    const resGet = await fetch(`${url}/latest`, {
-      headers: { 'X-Master-Key': MASTER_KEY }
-    });
-    
-    if (resGet.ok) {
-      const json = await resGet.json();
-      const record = json.record;
-      
-      if (record && record.funcionarios && record.funcionarios.length > 0) {
-        console.log('✅ BIN de dados mestres já possui dados.');
-        return true;
-      }
-    }
-    
-    const resPut = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Versioning': 'false'
-      },
-      body: JSON.stringify(DADOS_INICIAIS)
-    });
-    
-    if (resPut.ok) {
-      console.log('✅ BIN de dados mestres inicializado com sucesso!');
-      return true;
-    } else {
-      console.error('❌ Erro ao inicializar BIN mestres:', resPut.status);
-      return false;
-    }
-  } catch (error) {
-    console.error('❌ Erro ao inicializar BIN mestres:', error);
-    return false;
-  }
-}
-
 async function carregarFuncionarios() {
   try {
     const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
@@ -460,7 +378,6 @@ async function enviarDadosDiarios(dados) {
   try {
     const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_DIARIOS}`;
     
-    // Buscar dados existentes
     const resGet = await fetch(`${url}/latest`, { 
       headers: { 'X-Master-Key': MASTER_KEY }
     });
@@ -501,24 +418,21 @@ async function enviarDadosDiarios(dados) {
 // FUNÇÃO PARA GERAR LISTA COMPACTA DE ITENS
 // ============================================
 function gerarListaCompacta(itens) {
-  // Verificar se todos os itens estão "conforme" ou "nao_se_aplica"
   const todosConforme = itens.every(item => 
     item.status === 'conforme' || item.status === 'nao_se_aplica'
   );
   
   if (todosConforme) {
-    // Se todos estão conformes, retorna apenas o item 0 (sem observação)
     return [
       {
         num: "0",
         title: "Todos os itens",
         desc: "Todos os itens estão conformes ou não se aplicam",
         status: "conforme",
-        obs: "" // SEMPRE VAZIO para conforme
+        obs: ""
       }
     ];
   } else {
-    // Se há exceções, cria lista com item 0 + exceções
     const excecoes = itens.filter(item => 
       item.status !== 'conforme' && item.status !== 'nao_se_aplica'
     );
@@ -529,9 +443,9 @@ function gerarListaCompacta(itens) {
         title: "Itens conformes e/ou não se aplicam",
         desc: "Todos os itens não listados abaixo estão conformes ou não se aplicam",
         status: "conforme",
-        obs: "" // SEMPRE VAZIO para conforme
+        obs: ""
       },
-      ...excecoes // Mantém as observações apenas para exceções
+      ...excecoes
     ];
   }
 }
@@ -596,7 +510,6 @@ async function sincronizarFila() {
     for (const item of itens) {
       console.log(`🔄 Processando item ${item.id}...`);
       
-      // Enviar para o BIN de dados diários
       const enviado = await enviarDadosDiarios(item.dados);
       
       if (enviado) {
@@ -693,6 +606,8 @@ function iniciarSincronizacaoAutomatica() {
   const hodometroEl = document.getElementById('hodometro');
   const selectFuncionario = document.getElementById('matricula');
   const selectVeiculo = document.getElementById('veiculo');
+  const veiculoSugerido = document.getElementById('veiculoSugerido');
+  const veiculoSugeridoTexto = document.getElementById('veiculoSugeridoTexto');
   const loadingIndicator = document.getElementById('loadingIndicator');
   
   const today = new Date();
@@ -704,27 +619,65 @@ function iniciarSincronizacaoAutomatica() {
   let veiculosLista = [];
 
   // ============================================
+  // NOVA FUNÇÃO: PREENCHER VEÍCULO POR POSIÇÃO
+  // ============================================
+  function preencherVeiculoPorPosicao(codigoFuncionario) {
+    // Encontrar a posição do funcionário selecionado
+    const indice = funcionariosLista.findIndex(f => f.codigo === codigoFuncionario);
+    
+    if (indice !== -1 && indice < veiculosLista.length) {
+      // Encontrou o funcionário e existe veículo na mesma posição
+      const veiculoSugeridoObj = veiculosLista[indice];
+      const valorSugerido = veiculoSugeridoObj.codigo;
+      
+      // Verificar se o veículo sugerido existe no select
+      const opcoes = Array.from(selectVeiculo.options);
+      const existe = opcoes.some(opt => opt.value === valorSugerido);
+      
+      if (existe) {
+        // Mostrar sugestão
+        veiculoSugeridoTexto.textContent = `${veiculoSugeridoObj.codigo} - ${veiculoSugeridoObj.descricao}`;
+        veiculoSugerido.classList.add('active');
+        
+        // Preencher automaticamente
+        selectVeiculo.value = valorSugerido;
+        console.log(`💡 Veículo sugerido pela posição ${indice}: ${valorSugerido}`);
+        
+        // Remover destaque de campo obrigatório se existir
+        selectVeiculo.classList.remove('required-field');
+      } else {
+        veiculoSugerido.classList.remove('active');
+        console.log(`⚠️ Veículo na posição ${indice} não encontrado no select`);
+      }
+    } else {
+      veiculoSugerido.classList.remove('active');
+      if (indice === -1) {
+        console.log('ℹ️ Funcionário não encontrado na lista');
+      } else {
+        console.log(`⚠️ Posição ${indice} não existe na lista de veículos (tamanho: ${veiculosLista.length})`);
+      }
+    }
+  }
+
+  // ============================================
   // CARREGAR DADOS DO BIN DE DADOS MESTRES
   // ============================================
   async function carregarDadosDoBin() {
     loadingIndicator.classList.add('active');
     
     try {
-      // Inicializar BIN de dados mestres se necessário
-      await inicializarBinMestres();
-      
       // Carregar funcionários
       funcionariosLista = await carregarFuncionarios();
       if (funcionariosLista.length === 0) {
-        console.warn('⚠️ Nenhum funcionário encontrado. Usando dados iniciais.');
-        funcionariosLista = DADOS_INICIAIS.funcionarios;
+        console.warn('⚠️ Nenhum funcionário encontrado no BIN');
+        funcionariosLista = [];
       }
       
       // Carregar veículos
       veiculosLista = await carregarVeiculos();
       if (veiculosLista.length === 0) {
-        console.warn('⚠️ Nenhum veículo encontrado. Usando dados iniciais.');
-        veiculosLista = DADOS_INICIAIS.veiculos;
+        console.warn('⚠️ Nenhum veículo encontrado no BIN');
+        veiculosLista = [];
       }
       
       // Preencher selects
@@ -735,13 +688,7 @@ function iniciarSincronizacaoAutomatica() {
       
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error);
-      alert('⚠️ Erro ao carregar dados do servidor. Usando dados locais temporários.');
-      
-      // Fallback para dados locais
-      funcionariosLista = DADOS_INICIAIS.funcionarios;
-      veiculosLista = DADOS_INICIAIS.veiculos;
-      preencherSelectFuncionarios();
-      preencherSelectVeiculos();
+      alert('⚠️ Erro ao carregar dados do servidor.');
     } finally {
       loadingIndicator.classList.remove('active');
     }
@@ -769,6 +716,31 @@ function iniciarSincronizacaoAutomatica() {
       selectVeiculo.appendChild(option);
     });
   }
+
+  // ============================================
+  // EVENTO: SELECIONAR FUNCIONÁRIO
+  // ============================================
+  selectFuncionario.addEventListener('change', function() {
+    if (this.value) {
+      // Preencher veículo pela posição correspondente
+      preencherVeiculoPorPosicao(this.value);
+    } else {
+      // Limpar sugestão se nenhum funcionário selecionado
+      veiculoSugerido.classList.remove('active');
+      selectVeiculo.value = '';
+    }
+  });
+
+  // ============================================
+  // EVENTO: USUÁRIO ALTERA VEÍCULO MANUALMENTE
+  // ============================================
+  selectVeiculo.addEventListener('change', function() {
+    // Se o usuário alterar manualmente, esconder a sugestão
+    if (this.value) {
+      veiculoSugerido.classList.remove('active');
+      console.log('👤 Usuário alterou o veículo manualmente para:', this.value);
+    }
+  });
 
   // ============================================
   // ITENS DO CHECKLIST
@@ -859,8 +831,6 @@ function iniciarSincronizacaoAutomatica() {
       .map(it => {
         const status = Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '';
         const obs = it.querySelector('.obs_input').value.trim();
-        
-        // CORREÇÃO: Observação só é salva se status for "medio" ou "fora"
         const obsFinal = (status === 'medio' || status === 'fora') ? obs : '';
         
         return {
@@ -908,7 +878,7 @@ function iniciarSincronizacaoAutomatica() {
       Item: item.title,
       Descricao: item.desc,
       Status: item.status,
-      Observacao: item.obs // Já vem vazio para conforme/nao_se_aplica
+      Observacao: item.obs
     }));
   }
 
@@ -937,7 +907,7 @@ function iniciarSincronizacaoAutomatica() {
       Item: item.title,
       Descricao: item.desc,
       Status: item.status,
-      Observacao: item.obs // Já vem vazio para conforme/nao_se_aplica
+      Observacao: item.obs
     }));
   }
 
@@ -961,7 +931,6 @@ function iniciarSincronizacaoAutomatica() {
     
     const dadosCompactos = gerarDadosCompactos();
     
-    // Salvar na fila (apenas se houver dados)
     if (dadosCompactos.length > 0) {
       await salvarNaFila(dadosCompactos);
     }
@@ -989,7 +958,6 @@ function iniciarSincronizacaoAutomatica() {
     pdf.text(`Hodômetro: ${dados.hodometro || '-'}`, margin, yOffset); yOffset += lineHeight + 8;
     pdf.line(margin, yOffset, pageWidth-margin, yOffset); yOffset += 12;
 
-    // Gerar lista compacta
     const itensCompactos = gerarListaCompacta(dados.items);
     
     pdf.setFontSize(10);
@@ -1005,7 +973,6 @@ function iniciarSincronizacaoAutomatica() {
       const descLines = pdf.splitTextToSize(it.desc, pageWidth - 2*margin);
       pdf.text(descLines, margin, yOffset); yOffset += descLines.length*lineHeight;
       pdf.text(`Status: ${it.status || '-'}`, margin, yOffset); yOffset += lineHeight;
-      // Só mostra observação se não estiver vazia
       if (it.obs && it.obs.trim() !== '') {
         const obsLines = pdf.splitTextToSize(`Observação: ${it.obs}`, pageWidth - 2*margin);
         pdf.text(obsLines, margin, yOffset); yOffset += obsLines.length*lineHeight + 8;
@@ -1098,6 +1065,7 @@ function iniciarSincronizacaoAutomatica() {
     if (confirm('🧹 Deseja realmente limpar todos os campos?')) {
       selectFuncionario.value = '';
       selectVeiculo.value = '';
+      veiculoSugerido.classList.remove('active');
       hodometroEl.value = '';
       
       const items = document.querySelectorAll('#items .item');
@@ -1152,7 +1120,6 @@ function iniciarSincronizacaoAutomatica() {
   document.getElementById('btnLimpar').onclick = limparFormulario;
   document.getElementById('btnInstrucoes').onclick = ()=>alert('Após gerar o PDF ou Excel, abra o WhatsApp e envie o arquivo como anexo para o contato desejado.');
 
-  // Botão Sincronizar Agora
   document.getElementById('btnSincronizarAgora').onclick = async () => {
     if (!navigator.onLine) {
       alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
@@ -1191,6 +1158,11 @@ function iniciarSincronizacaoAutomatica() {
     await carregarDadosDoBin();
     carregarDadosSalvos();
     
+    // Se houver funcionário selecionado ao carregar, preencher veículo
+    if (selectFuncionario.value) {
+      preencherVeiculoPorPosicao(selectFuncionario.value);
+    }
+    
     if (navigator.onLine) {
       const total = await filaChecklist.contar();
       if (total > 0) {
@@ -1203,8 +1175,8 @@ function iniciarSincronizacaoAutomatica() {
   console.log('✅ Checklist com dados do BIN e fila robusta carregado!');
   console.log('📌 BIN de dados mestres (funcionários/veículos):', BIN_DADOS_MESTRES);
   console.log('📌 BIN de dados diários:', BIN_DADOS_DIARIOS);
-  console.log('📌 Dados compactos: apenas exceções são registradas');
-  console.log('📌 Observações: apenas para status "Médio" ou "Fora"');
+  console.log('📌 Preenchimento automático do veículo por posição correspondente');
+  console.log('📌 O usuário pode alterar o veículo manualmente após o preenchimento automático');
 
 })();
 </script>
