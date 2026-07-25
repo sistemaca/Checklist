@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Check-List Diário — Veículos Leves</title>
+  <title>Checklist Veículos Leves</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -14,21 +14,106 @@
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .col{flex:1;min-width:120px;display:flex;flex-direction:column;margin-bottom:8px}
     label{font-size:13px;margin-bottom:6px;color:#222}
-    input[type=text], input[type=date], input[type=time], textarea {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff}
-    input[readonly]{background:#eee;cursor:not-allowed}
+    input[type=text], input[type=date], textarea {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff}
     textarea.param-desc{min-height:48px;resize:vertical}
     .items{margin-top:12px}
     .item{border:1px solid #eee;padding:10px;border-radius:6px;margin-bottom:8px;background:#fafafa}
     .item-title{font-weight:600}
     .param-desc-label{font-size:12px;color:#444;margin-top:6px;margin-bottom:4px}
-    .choices{display:flex;gap:12px;align-items:center;margin-top:8px}
+    .choices{display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap}
     .choice{display:flex;align-items:center;gap:6px}
     .obs{margin-top:8px}
     .obs input{width:100%}
-    .btn{display:inline-block;background:#0b73d6;color:#fff;border:none;padding:12px 14px;border-radius:8px;font-size:15px;cursor:pointer}
+    .btn{display:inline-block;background:#0b73d6;color:#fff;border:none;padding:12px 14px;border-radius:8px;font-size:15px;cursor:pointer;transition:background 0.3s}
+    .btn:hover{background:#0959a8}
     .btn-gray{background:#6c757d}
+    .btn-gray:hover{background:#5a6268}
+    .btn-success{background:#28a745}
+    .btn-success:hover{background:#218838}
     .msg{color:green;margin-top:10px;display:none}
-    @media(max-width:420px){.row{flex-direction:column}}
+
+    /* ESTILOS PARA FILA DE ENVIO */
+    .fila-status {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin: 12px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .fila-status .indicadores {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .fila-status .indicador {
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fila-status .btn-sincronizar {
+      background: #0b73d6;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .fila-status .btn-sincronizar:hover { background: #0959a8; }
+    .fila-status .btn-sincronizar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    @media(max-width:420px){
+      .row{flex-direction:column}
+      .fila-status{flex-direction:column;align-items:stretch;gap:6px}
+      .fila-status .indicadores{justify-content:center}
+      .actions{flex-direction:column}
+      .actions .btn{width:100%}
+    }
+
+    /* ESTILOS PARA O PDF PROFISSIONAL */
+    .pdf-item {
+      page-break-inside: avoid;
+      margin-bottom: 10px;
+      padding: 8px 4px;
+      border-bottom: 1px solid #eee;
+    }
+    .pdf-item:last-child {
+      border-bottom: none;
+    }
+    .pdf-header {
+      text-align: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #333;
+    }
+    .pdf-info {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      padding: 8px 0;
+      border-bottom: 1px solid #ccc;
+    }
+    .pdf-info-item {
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
@@ -38,31 +123,437 @@
     <div class="row">
       <div class="col"><label for="matricula">Nome ou nº cadastro do funcionário</label><input id="matricula" type="text" placeholder="Número de cadastro"></div>
       <div class="col"><label for="veiculo">Veículo</label><input id="veiculo" type="text" placeholder="Ex: ABC 1C34"></div>
-      <div class="col"><label for="data">Data</label><input id="data" type="date" readonly></div>
-      <div class="col" style="max-width:120px"><label for="hora">Horário</label><input id="hora" type="time" readonly></div>
+      <div class="col"><label for="data">Data</label><input id="data" type="date"></div>
       <div class="col" style="max-width:160px"><label for="hodometro">Hodômetro (km)</label><input id="hodometro" type="text" placeholder="12345"></div>
+    </div>
+
+    <!-- FILA DE ENVIO - STATUS -->
+    <div class="fila-status" id="filaStatus">
+      <div class="indicadores">
+        <span class="indicador">
+          📦 Pendentes: <strong id="filaPendentes">0</strong>
+        </span>
+        <span class="indicador">
+          <span id="filaStatusIcone">✅</span>
+          <span id="filaStatusTexto">Sincronizado</span>
+        </span>
+        <span class="indicador" id="filaUltimoEnvio" style="font-size:12px;color:#666;"></span>
+      </div>
+      <div>
+        <button id="btnSincronizarAgora" class="btn-sincronizar">🔄 Sincronizar Agora</button>
+      </div>
     </div>
 
     <div class="items" id="items"></div>
 
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="btnExcel">Gerar Excel</button>
-      <button class="btn btn-gray" id="btnGerar">Gerar PDF</button>
-      <button class="btn btn-gray" id="btnInstrucoes">Como enviar pelo WhatsApp</button>
+    <div class="actions">
+      <button class="btn btn-success" id="btnServidor">📤 Enviar para o Servidor</button>
+      <button class="btn btn-gray" id="btnSalvarLocal">💾 Salvar Localmente</button>
+      <button class="btn" id="btnGerar">📄 Gerar PDF</button>
+      <button class="btn btn-gray" id="btnExcel">📊 Gerar Excel</button>
+      <button class="btn btn-gray" id="btnLimpar">🧹 Limpar</button>
+      <button class="btn btn-gray" id="btnInstrucoes">💬 Como enviar pelo WhatsApp</button>
     </div>
 
     <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
-    <div style="margin-top:10px;font-size:13px;color:#666">Os arquivos serão gerados com nome <strong>checklist_NOMECADASTRO_YYYY-MM-DD-HH-MM</strong>.</div>
+    <div style="margin-top:10px;font-size:13px;color:#666">Os arquivos serão gerados com nome <strong>checklist_NOMECADASTRO_YYYY-MM-DD</strong>.</div>
   </div>
 
   <script>
+  // ============================================
+  // SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA (ADAPTADA DO RDS)
+  // ============================================
+
+  class FilaEnvioChecklist {
+    constructor() {
+      this.dbName = 'ChecklistFilaDB';
+      this.storeName = 'fila_envios';
+      this.db = null;
+      this.inicializado = false;
+    }
+
+    async init() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, 1);
+        
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            db.createObjectStore(this.storeName, { 
+              keyPath: 'id', 
+              autoIncrement: true 
+            });
+          }
+        };
+
+        request.onsuccess = (event) => {
+          this.db = event.target.result;
+          this.inicializado = true;
+          resolve();
+        };
+
+        request.onerror = (event) => {
+          console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
+          reject(event.target.error);
+        };
+      });
+    }
+
+    // ADICIONAR à fila
+    async adicionar(dados) {
+      await this.aguardarInicializacao();
+      
+      console.log('📦 ADICIONANDO à fila Checklist:', dados);
+      
+      const item = {
+        dados: dados,
+        criadoEm: Date.now()
+      };
+
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.add(item);
+
+        request.onsuccess = () => {
+          console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
+          resolve(request.result);
+        };
+
+        request.onerror = () => {
+          console.error('❌ Erro ao adicionar item:', request.error);
+          reject(request.error);
+        };
+      });
+    }
+
+    // REMOVER da fila (chamado APÓS confirmação do servidor)
+    async remover(id) {
+      await this.aguardarInicializacao();
+      
+      console.log(`🗑️ REMOVENDO item ${id} da fila Checklist`);
+      
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.delete(id);
+
+        request.onsuccess = () => {
+          console.log(`✅ Item ${id} removido com sucesso`);
+          resolve();
+        };
+        request.onerror = () => {
+          console.error(`❌ Erro ao remover item ${id}:`, request.error);
+          reject(request.error);
+        };
+      });
+    }
+
+    // LISTAR todos os itens da fila
+    async listarTodos() {
+      await this.aguardarInicializacao();
+      
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+          resolve(request.result);
+        };
+        request.onerror = () => {
+          console.error('❌ Erro ao listar itens:', request.error);
+          reject(request.error);
+        };
+      });
+    }
+
+    // CONTAR itens na fila
+    async contar() {
+      const itens = await this.listarTodos();
+      return itens.length;
+    }
+
+    async aguardarInicializacao() {
+      if (this.inicializado) return;
+      
+      return new Promise((resolve) => {
+        const check = () => {
+          if (this.inicializado) {
+            resolve();
+          } else {
+            setTimeout(check, 100);
+          }
+        };
+        check();
+      });
+    }
+  }
+
+  // ============================================
+  // INSTÂNCIA GLOBAL DA FILA
+  // ============================================
+  const filaChecklist = new FilaEnvioChecklist();
+
+  // ============================================
+  // FUNÇÃO PARA ENVIAR UM ITEM AO SERVIDOR (JSONBIN)
+  // ============================================
+  async function enviarItemServidorChecklist(dados) {
+    try {
+      // NOVO JSONBIN: 6a64f831da38895dfe8f0e44
+      const GET_URL = 'https://api.jsonbin.io/v3/b/6a64f831da38895dfe8f0e44/latest';
+      const PUT_URL = 'https://api.jsonbin.io/v3/b/6a64f831da38895dfe8f0e44';
+      const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+      // Buscar dados existentes
+      const resGet = await fetch(GET_URL, { 
+        headers: { 'X-Master-Key': MASTER_KEY }
+      });
+      
+      let dadosExistentes = [];
+      if (resGet.ok) {
+        const json = await resGet.json();
+        dadosExistentes = Array.isArray(json.record) ? json.record : [];
+      }
+
+      // Adicionar novo dado
+      let dadosParaEnviar = [];
+      if (Array.isArray(dados)) {
+        dadosParaEnviar = dados;
+      } else {
+        dadosParaEnviar = [dados];
+      }
+      
+      const dadosAtualizados = [...dadosExistentes, ...dadosParaEnviar];
+      
+      // Enviar para o servidor
+      const resPut = await fetch(PUT_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': MASTER_KEY,
+          'X-Bin-Versioning': 'false'
+        },
+        body: JSON.stringify(dadosAtualizados)
+      });
+
+      if (resPut.ok) {
+        console.log('✅ Servidor Checklist confirmou recebimento');
+        return true;
+      } else {
+        console.log('❌ Servidor Checklist retornou erro:', resPut.status);
+        return false;
+      }
+
+    } catch (error) {
+      console.log('❌ Erro de rede Checklist:', error.message);
+      return false;
+    }
+  }
+
+  // ============================================
+  // FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
+  // ============================================
+  let sincronizandoChecklist = false;
+
+  async function sincronizarFilaChecklist() {
+    // Verificar se está online
+    if (!navigator.onLine) {
+      console.log('📡 Offline - não é possível sincronizar Checklist');
+      atualizarContadorChecklist();
+      return;
+    }
+
+    // Evitar execução simultânea
+    if (sincronizandoChecklist) {
+      console.log('⏳ Já está sincronizando Checklist...');
+      return;
+    }
+
+    try {
+      sincronizandoChecklist = true;
+      console.log('🔄 INICIANDO SINCRONIZAÇÃO CHECKLIST...');
+      
+      // LISTAR todos os itens da fila
+      const itens = await filaChecklist.listarTodos();
+      
+      if (itens.length === 0) {
+        console.log('✅ Nenhum item pendente Checklist');
+        atualizarContadorChecklist();
+        sincronizandoChecklist = false;
+        return;
+      }
+
+      console.log(`📦 ${itens.length} item(ns) pendente(s) Checklist`);
+      
+      // Processar UM POR VEZ
+      let itensRemovidos = 0;
+      for (const item of itens) {
+        console.log(`🔄 Processando item ${item.id} Checklist...`);
+        
+        // TENTAR ENVIAR
+        const enviado = await enviarItemServidorChecklist(item.dados);
+        
+        if (enviado) {
+          // REMOVER DA FILA (APÓS CONFIRMAÇÃO)
+          await filaChecklist.remover(item.id);
+          itensRemovidos++;
+          console.log(`✅ Item ${item.id} removido da fila Checklist`);
+        } else {
+          console.log(`❌ Falha no envio do item ${item.id} Checklist - mantendo na fila`);
+          break; // Para no primeiro erro
+        }
+      }
+
+      console.log(`✅ ${itensRemovidos} item(ns) removidos da fila Checklist`);
+
+    } catch (error) {
+      console.error('❌ Erro na sincronização Checklist:', error);
+    } finally {
+      sincronizandoChecklist = false;
+      // ATUALIZAR CONTADOR SEMPRE NO FINAL
+      await atualizarContadorChecklist();
+      console.log('🔄 SINCRONIZAÇÃO CHECKLIST FINALIZADA');
+    }
+  }
+
+  // ============================================
+  // FUNÇÃO PARA ADICIONAR À FILA
+  // ============================================
+  async function adicionarNaFilaChecklist(dados) {
+    try {
+      await filaChecklist.init();
+      const id = await filaChecklist.adicionar(dados);
+      console.log(`📦 Dados Checklist adicionados à fila (ID: ${id})`);
+      
+      // ATUALIZAR CONTADOR
+      await atualizarContadorChecklist();
+      
+      // TENTAR ENVIAR IMEDIATAMENTE (se online)
+      if (navigator.onLine) {
+        console.log('🌐 Online - tentando enviar Checklist imediatamente...');
+        setTimeout(async () => {
+          await sincronizarFilaChecklist();
+        }, 500);
+      }
+      
+      return id;
+    } catch (error) {
+      console.error('❌ Erro ao adicionar Checklist à fila:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // FUNÇÃO PARA ATUALIZAR O CONTADOR NA INTERFACE
+  // ============================================
+  async function atualizarContadorChecklist() {
+    try {
+      const total = await filaChecklist.contar();
+      document.getElementById('filaPendentes').textContent = total;
+      
+      // Atualizar ícone e texto
+      const statusIcone = document.getElementById('filaStatusIcone');
+      const statusTexto = document.getElementById('filaStatusTexto');
+      const ultimoEnvio = document.getElementById('filaUltimoEnvio');
+      
+      if (total === 0) {
+        statusIcone.textContent = '✅';
+        statusTexto.textContent = 'Sincronizado';
+        ultimoEnvio.textContent = `Último: ${new Date().toLocaleTimeString()}`;
+      } else if (sincronizandoChecklist) {
+        statusIcone.textContent = '⏳';
+        statusTexto.textContent = 'Enviando...';
+      } else {
+        statusIcone.textContent = '📦';
+        statusTexto.textContent = `${total} pendente(s)`;
+      }
+      
+      console.log(`📊 Contador Checklist atualizado: ${total} pendente(s)`);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar contador Checklist:', error);
+    }
+  }
+
+  // ============================================
+  // FUNÇÃO PARA SALVAR NA FILA E ENVIAR (FLUXO PRINCIPAL)
+  // ============================================
+  async function salvarEEnviarChecklist(dadosServidor, mostrarAlerta = true) {
+    console.log('🔍 salvarEEnviarChecklist chamado com:', dadosServidor);
+    
+    try {
+      // 1. ADICIONAR À FILA
+      const id = await adicionarNaFilaChecklist(dadosServidor);
+      
+      if (mostrarAlerta) {
+        const total = await filaChecklist.contar();
+        if (navigator.onLine) {
+          alert(`✅ Dados Checklist salvos na fila (ID: ${id}) e enviando para o servidor...`);
+        } else {
+          alert(`📦 Dados Checklist salvos na fila (ID: ${id}).\n\n📡 Você está offline. Serão enviados quando a internet voltar.\n\n📋 Pendentes: ${total}`);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao salvar Checklist:', error);
+      if (mostrarAlerta) {
+        alert('❌ Erro ao salvar dados Checklist: ' + error.message);
+      }
+      return false;
+    }
+  }
+
+  // ============================================
+  // INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+  // ============================================
+  let temporizadorSincronizacaoChecklist = null;
+
+  function iniciarSincronizacaoAutomaticaChecklist() {
+    // Evento de conexão restaurada
+    window.addEventListener('online', async () => {
+      console.log('🌐 Conexão restaurada - sincronizando Checklist...');
+      await sincronizarFilaChecklist();
+    });
+
+    // Temporizador a cada 30 segundos
+    if (temporizadorSincronizacaoChecklist) {
+      clearInterval(temporizadorSincronizacaoChecklist);
+    }
+    temporizadorSincronizacaoChecklist = setInterval(async () => {
+      if (navigator.onLine) {
+        const total = await filaChecklist.contar();
+        if (total > 0) {
+          console.log('⏰ Sincronização periódica Checklist...');
+          await sincronizarFilaChecklist();
+        }
+      }
+    }, 30000);
+
+    // Sincronizar ao carregar
+    setTimeout(async () => {
+      await filaChecklist.init();
+      await atualizarContadorChecklist();
+      
+      if (navigator.onLine) {
+        const total = await filaChecklist.contar();
+        if (total > 0) {
+          console.log(`🔄 Sincronizando ${total} item(ns) pendentes Checklist...`);
+          await sincronizarFilaChecklist();
+        }
+      }
+    }, 1500);
+  }
+
+  // ============================================
+  // FUNÇÕES ORIGINAIS DO CHECKLIST
+  // ============================================
+
   (function(){
     const dataEl = document.getElementById('data');
-    const horaEl = document.getElementById('hora');
     const today = new Date();
     function pad(n){return String(n).padStart(2,'0')}
     dataEl.value = today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate());
-    horaEl.value = pad(today.getHours()) + ':' + pad(today.getMinutes());
 
     const itens = [
       'Condição geral','Condições dos pneus e rodas','Água do radiador','Óleo do motor','Tanque de combustível','Extintor de incêndio',
@@ -97,7 +588,7 @@
       const div = document.createElement('div');
       div.className = 'item';
       div.setAttribute('data-num',n);
-
+      
       let choicesHTML = `
         <label class="choice"><input type="radio" name="choice_${n}" value="conforme"> Conforme</label>
         <label class="choice"><input type="radio" name="choice_${n}" value="medio"> Médio</label>
@@ -122,10 +613,36 @@
       const itemsEls = Array.from(document.querySelectorAll('#items .item'));
       return itemsEls.map(it => ({
         num: it.getAttribute('data-num'),
-        title: it.querySelector('.item-title').textContent.replace(/^\d+\.\s*/,'').trim(),
+        title: it.querySelector('.item-title').textContent.trim(),
         desc: it.querySelector('.param-desc').value.trim(),
         status: Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '',
         obs: it.querySelector('.obs_input').value.trim()
+      }));
+    }
+
+    function coletarDadosCompletos(){
+      const dados = {
+        data: dataEl.value,
+        matricula: document.getElementById('matricula').value.trim(),
+        veiculo: document.getElementById('veiculo').value.trim(),
+        hodometro: document.getElementById('hodometro').value.trim(),
+        items: coletarDados()
+      };
+      return dados;
+    }
+
+    function montarLinhasParaServidor(){
+      const dados = coletarDadosCompletos();
+      return dados.items.map(it => ({
+        Data: dados.data,
+        Matricula: dados.matricula,
+        Veiculo: dados.veiculo,
+        Hodometro: dados.hodometro,
+        Numero: it.num,
+        Item: it.title,
+        Descricao: it.desc,
+        Status: it.status,
+        Observacao: it.obs
       }));
     }
 
@@ -133,111 +650,380 @@
       return nome.replace(/[^a-z0-9_-]/gi, '_');
     }
 
+    // ============================================
+    // PDF PROFISSIONAL - SEM CORTES
+    // ============================================
     async function gerarPDFsalvar(){
-      const dados = {
-        data: dataEl.value,
-        hora: horaEl.value,
-        matricula: document.getElementById('matricula').value.trim(),
-        veiculo: document.getElementById('veiculo').value.trim(),
-        hodometro: document.getElementById('hodometro').value.trim(),
-        items: coletarDados()
-      };
+      const dados = coletarDadosCompletos();
+      const linhas = montarLinhasParaServidor();
 
-      const nomeFuncionario = limparNomeArquivo(dados.matricula || 'sem_nome');
-      const dataArquivo = `${dados.data}-${dados.hora.replace(':','-')}`;
-      const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.pdf`;
-
-      const report = document.createElement('div');
-      report.style.width = '794px';
-      report.style.padding = '24px';
-      report.style.fontFamily = 'Arial, Helvetica, sans-serif';
-      report.style.background = '#fff';
-      report.style.color = '#111';
-      report.style.boxSizing = 'border-box';
-      report.innerHTML = `
-        <h2>Check-List Diário — Veículos Leves</h2>
-        <div><strong>Data:</strong> ${dados.data || '-'} &nbsp;&nbsp; <strong>Horário:</strong> ${dados.hora || '-'}<br>
-        <strong>Nº cadastro:</strong> ${dados.matricula || '-'}<br>
-        <strong>Veículo:</strong> ${dados.veiculo || '-'}<br>
-        <strong>Hodômetro:</strong> ${dados.hodometro || '-'}</div>
-        <hr style="margin:10px 0;">
-      `;
-
-      dados.items.forEach(it=>{
-        report.innerHTML += `<div style="font-size:13px;margin-bottom:10px;">
-          <strong>${it.num}. ${it.title}</strong><br>
-          <div style="margin-left:8px;white-space:pre-wrap;">${it.desc}</div>
-          <div style="margin-left:8px;margin-top:4px;"><strong>Status:</strong> ${it.status || 'Não marcado'}</div>
-          <div style="margin-left:8px;margin-top:4px;"><strong>Observação:</strong> ${it.obs || '-'}</div>
-        </div>`;
-      });
-
-      document.body.appendChild(report);
-      const canvas = await html2canvas(report, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgProps = pdf.getImageProperties(imgData);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-      const overlap = 15;
-
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-      heightLeft -= (pdfHeight - overlap);
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + overlap;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-        heightLeft -= (pdfHeight - overlap);
+      // Salvar na fila e enviar (NUNCA duplicar)
+      if (linhas.length > 0) {
+        console.log('📦 Salvando dados na fila Checklist via PDF...');
+        await salvarEEnviarChecklist(linhas, false);
       }
 
+      const nomeFuncionario = limparNomeArquivo(dados.matricula || 'sem_nome');
+      const dataArquivo = dados.data || new Date().toISOString().slice(0,10);
+      const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.pdf`;
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      
+      // Função para adicionar texto com quebra de linha
+      function addWrappedText(text, x, y, maxWidth, lineHeight) {
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        pdf.text(lines, x, y);
+        return lines.length * lineHeight;
+      }
+
+      let yPos = margin;
+
+      // FUNÇÃO PARA NOVA PÁGINA
+      function newPage() {
+        pdf.addPage();
+        yPos = margin;
+      }
+
+      // FUNÇÃO PARA VERIFICAR ESPAÇO
+      function checkSpace(needed) {
+        if (yPos + needed > pageHeight - margin) {
+          newPage();
+          return true;
+        }
+        return false;
+      }
+
+      // --- CABEÇALHO ---
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      const titulo = 'Check-List Diário — Veículos Leves';
+      const tituloWidth = pdf.getStringUnitWidth(titulo) * 16 / pdf.internal.scaleFactor;
+      pdf.text(titulo, (pageWidth - tituloWidth) / 2, yPos);
+      yPos += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      
+      // Linha separadora
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 6;
+
+      // --- INFORMAÇÕES DO VEÍCULO ---
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Dados do Veículo', margin, yPos);
+      yPos += 6;
+      
+      pdf.setFont(undefined, 'normal');
+      const infoLines = [
+        `Data: ${dados.data || '-'}`,
+        `Nº cadastro: ${dados.matricula || '-'}`,
+        `Veículo: ${dados.veiculo || '-'}`,
+        `Hodômetro: ${dados.hodometro || '-'} km`
+      ];
+      
+      const infoText = infoLines.join('  |  ');
+      const wrappedInfo = pdf.splitTextToSize(infoText, contentWidth);
+      pdf.text(wrappedInfo, margin, yPos);
+      yPos += (wrappedInfo.length * 5) + 6;
+
+      // Linha separadora
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 6;
+
+      // --- ITENS DO CHECKLIST ---
+      dados.items.forEach((item, index) => {
+        const itemNum = item.num;
+        const title = item.title;
+        const desc = item.desc || 'Descrição não informada';
+        const status = item.status || 'Não marcado';
+        const obs = item.obs || '-';
+
+        // Estimar altura necessária para este item
+        const titleHeight = 6;
+        const descHeight = pdf.splitTextToSize(desc, contentWidth - 6).length * 5;
+        const statusHeight = 5;
+        const obsHeight = pdf.splitTextToSize(`Observação: ${obs}`, contentWidth - 6).length * 5;
+        const itemTotalHeight = titleHeight + descHeight + statusHeight + obsHeight + 8;
+
+        // Verificar se cabe na página
+        if (checkSpace(itemTotalHeight + 6)) {
+          // Se criou nova página, adiciona o título da página
+          pdf.setFontSize(10);
+          pdf.setFont(undefined, 'bold');
+          pdf.text('Continuação do Checklist', margin, yPos);
+          yPos += 6;
+          pdf.setFont(undefined, 'normal');
+        }
+
+        // Título do item
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`${itemNum}. ${title}`, margin + 2, yPos);
+        yPos += titleHeight;
+
+        // Descrição
+        pdf.setFont(undefined, 'normal');
+        const descLines = pdf.splitTextToSize(desc, contentWidth - 6);
+        pdf.text(descLines, margin + 4, yPos);
+        yPos += descLines.length * 5 + 2;
+
+        // Status
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Status:`, margin + 4, yPos);
+        pdf.setFont(undefined, 'normal');
+        const statusText = ` ${status}`;
+        const statusX = margin + 4 + pdf.getStringUnitWidth('Status:') * 10 / pdf.internal.scaleFactor;
+        pdf.text(statusText, statusX, yPos);
+        yPos += statusHeight + 2;
+
+        // Observação
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Observação:`, margin + 4, yPos);
+        pdf.setFont(undefined, 'normal');
+        const obsLines = pdf.splitTextToSize(obs, contentWidth - 6);
+        pdf.text(obsLines, margin + 4 + pdf.getStringUnitWidth('Observação:') * 10 / pdf.internal.scaleFactor, yPos);
+        yPos += obsLines.length * 5 + 4;
+
+        // Linha separadora entre itens
+        if (index < dados.items.length - 1) {
+          pdf.setDrawColor(200, 200, 200);
+          pdf.line(margin + 4, yPos, pageWidth - margin - 4, yPos);
+          yPos += 3;
+        }
+      });
+
+      // Salvar PDF
       pdf.save(nomeArquivo);
-      document.body.removeChild(report);
-      msgOK();
+      
+      // Mostrar mensagem de sucesso
+      const m = document.getElementById('msgOk');
+      m.textContent = '✅ PDF gerado com sucesso! Verifique sua pasta de downloads.';
+      m.style.display = 'block';
+      setTimeout(()=>m.style.display='none', 6000);
     }
 
+    // ============================================
+    // GERAR EXCEL (MANTIDO ORIGINAL)
+    // ============================================
     function gerarExcel(){
-      const dados = coletarDados();
-      const matricula = document.getElementById('matricula').value.trim();
-      const nomeFuncionario = limparNomeArquivo(matricula || 'sem_nome');
-      const dataArquivo = `${dataEl.value}-${horaEl.value.replace(':','-')}`;
-      const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.xlsx`;
+      const dados = coletarDadosCompletos();
+      const linhas = montarLinhasParaServidor();
+      
+      // Salvar na fila e enviar (NUNCA duplicar)
+      if (linhas.length > 0) {
+        console.log('📦 Salvando dados na fila Checklist via Excel...');
+        salvarEEnviarChecklist(linhas, false);
+      }
 
-      const linhas = dados.map(it => ({
-        Data: new Date(dataEl.value).toLocaleDateString('pt-BR'),
-        Horario: horaEl.value,
-        Matricula: matricula,
-        Veiculo: document.getElementById('veiculo').value.trim(),
-        Hodometro: document.getElementById('hodometro').value.trim(),
-        Numero: it.num,
-        Item: it.title,
-        Descricao: it.desc,
-        Status: it.status,
-        Observacao: it.obs
-      }));
+      const nomeFuncionario = limparNomeArquivo(dados.matricula || 'sem_nome');
+      const dataArquivo = dados.data || new Date().toISOString().slice(0,10);
+      const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.xlsx`;
 
       const ws = XLSX.utils.json_to_sheet(linhas);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Checklist');
       XLSX.writeFile(wb, nomeArquivo);
-      msgOK();
-    }
-
-    function msgOK(){
+      
       const m = document.getElementById('msgOk');
+      m.textContent = '✅ Excel gerado com sucesso! Verifique sua pasta de downloads.';
       m.style.display = 'block';
-      setTimeout(()=>m.style.display='none',6000);
+      setTimeout(()=>m.style.display='none', 6000);
     }
 
+    // ============================================
+    // SALVAR LOCALMENTE (BACKUP)
+    // ============================================
+    function salvarLocalmenteChecklist() {
+      const linhas = montarLinhasParaServidor();
+      
+      if (linhas.length === 0) {
+        alert("⚠️ Não há dados para salvar!");
+        return;
+      }
+
+      localStorage.setItem('checklist_offline_cache', JSON.stringify(linhas));
+      
+      if (!navigator.onLine) {
+        alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
+      } else {
+        alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
+      }
+    }
+
+    // ============================================
+    // LIMPAR FORMULÁRIO
+    // ============================================
+    function limparFormulario() {
+      if (confirm('🧹 Deseja realmente limpar todos os campos?')) {
+        document.getElementById('matricula').value = '';
+        document.getElementById('veiculo').value = '';
+        document.getElementById('hodometro').value = '';
+        
+        const items = document.querySelectorAll('#items .item');
+        items.forEach(item => {
+          const radios = item.querySelectorAll('input[type="radio"]');
+          radios.forEach(r => r.checked = false);
+          
+          // Marcar "Não se aplica" se existir
+          const naoAplica = item.querySelector('input[type="radio"][value="nao_se_aplica"]');
+          if (naoAplica) naoAplica.checked = true;
+          
+          const obs = item.querySelector('.obs_input');
+          if (obs) obs.value = '';
+        });
+        
+        alert('🧹 Formulário limpo!');
+      }
+    }
+
+    // ============================================
+    // BOTÕES E EVENTOS
+    // ============================================
+
+    // Inicializar fila
+    async function iniciarFilaESincronizacaoChecklist() {
+      try {
+        await filaChecklist.init();
+        console.log('✅ Fila de envio Checklist inicializada');
+        
+        iniciarSincronizacaoAutomaticaChecklist();
+        await atualizarContadorChecklist();
+      } catch (error) {
+        console.error('❌ Erro ao inicializar fila Checklist:', error);
+      }
+    }
+
+    // Iniciar quando a página carregar
+    window.addEventListener('DOMContentLoaded', () => {
+      iniciarFilaESincronizacaoChecklist();
+    });
+
+    // Botão Gerar PDF
     document.getElementById('btnGerar').onclick = gerarPDFsalvar;
+
+    // Botão Gerar Excel
     document.getElementById('btnExcel').onclick = gerarExcel;
+
+    // Botão Enviar para Servidor
+    document.getElementById('btnServidor').onclick = async () => {
+      const linhas = montarLinhasParaServidor();
+      
+      if (linhas.length === 0) {
+        alert("⚠️ Não há dados para enviar!");
+        return;
+      }
+      
+      const salvou = await salvarEEnviarChecklist(linhas, true);
+      
+      if (salvou) {
+        const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos preenchidos.\nClique em Cancelar para manter os dados.');
+        
+        if (limparCampos) {
+          limparFormulario();
+        }
+      }
+    };
+
+    // Botão Salvar Localmente
+    document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteChecklist;
+
+    // Botão Sincronizar Agora
+    document.getElementById('btnSincronizarAgora').onclick = async () => {
+      if (!navigator.onLine) {
+        alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+        return;
+      }
+      
+      console.log('🔄 Botão Sincronizar Agora Checklist clicado - APENAS sincronizando');
+      
+      document.getElementById('btnSincronizarAgora').disabled = true;
+      document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
+      
+      await sincronizarFilaChecklist();
+      
+      document.getElementById('btnSincronizarAgora').disabled = false;
+      document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
+    };
+
+    // Botão Limpar
+    document.getElementById('btnLimpar').onclick = limparFormulario;
+
+    // Botão Instruções WhatsApp
     document.getElementById('btnInstrucoes').onclick = ()=>alert('Após gerar o PDF ou Excel, abra o WhatsApp e anexe o arquivo salvo na pasta Downloads.');
+
+    // ============================================
+    // CARREGAR DADOS SALVOS DO localStorage
+    // ============================================
+    window.addEventListener('load', () => {
+      const cache = localStorage.getItem('checklist_offline_cache');
+      
+      if (cache) {
+        const linhas = JSON.parse(cache);
+        
+        if (linhas.length > 0) {
+          const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
+          
+          if (carregar) {
+            // Preencher dados do cabeçalho
+            if (linhas[0].Data) {
+              document.getElementById('data').value = linhas[0].Data;
+            }
+            if (linhas[0].Matricula) {
+              document.getElementById('matricula').value = linhas[0].Matricula;
+            }
+            if (linhas[0].Veiculo) {
+              document.getElementById('veiculo').value = linhas[0].Veiculo;
+            }
+            if (linhas[0].Hodometro) {
+              document.getElementById('hodometro').value = linhas[0].Hodometro;
+            }
+            
+            // Preencher itens
+            const items = document.querySelectorAll('#items .item');
+            items.forEach((item, index) => {
+              if (index < linhas.length) {
+                const dado = linhas[index];
+                
+                // Status
+                const radios = item.querySelectorAll('input[type="radio"]');
+                radios.forEach(r => {
+                  if (r.value === dado.Status) {
+                    r.checked = true;
+                  }
+                });
+                
+                // Observação
+                const obs = item.querySelector('.obs_input');
+                if (obs && dado.Observacao) {
+                  obs.value = dado.Observacao;
+                }
+              }
+            });
+            
+            alert('📂 Dados carregados do cache local.');
+          } else {
+            localStorage.removeItem('checklist_offline_cache');
+            alert('📄 Iniciando formulário em branco.');
+          }
+        }
+      }
+    });
+
+    // ============================================
+    // TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR
+    // ============================================
+    // O event listener 'online' já está no iniciarSincronizacaoAutomaticaChecklist()
+
+    console.log('✅ Checklist com fila offline robusta carregado!');
+    console.log('📌 Sistema de fila Checklist ativo e aguardando ações.');
+    console.log('📌 JSONBin: 6a64f831da38895dfe8f0e44');
+
   })();
   </script>
 </body>
