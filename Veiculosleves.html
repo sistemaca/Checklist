@@ -1,9 +1,9 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Checklist Veículos Leves</title>
+  <title>Check-List Diário — Veículos Leves</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -14,7 +14,8 @@
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .col{flex:1;min-width:120px;display:flex;flex-direction:column;margin-bottom:8px}
     label{font-size:13px;margin-bottom:6px;color:#222}
-    input[type=text], input[type=date], textarea {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff}
+    input[type=text], input[type=date], input[type=time], textarea, select {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff;width:100%;box-sizing:border-box}
+    input[readonly]{background:#eee;cursor:not-allowed}
     textarea.param-desc{min-height:48px;resize:vertical}
     .items{margin-top:12px}
     .item{border:1px solid #eee;padding:10px;border-radius:6px;margin-bottom:8px;background:#fafafa}
@@ -31,7 +32,8 @@
     .btn-success{background:#28a745}
     .btn-success:hover{background:#218838}
     .msg{color:green;margin-top:10px;display:none}
-
+    .required-field {border: 2px solid #ff4444 !important;}
+    
     /* ESTILOS PARA FILA DE ENVIO */
     .fila-status {
       background: #f8f9fa;
@@ -79,952 +81,1132 @@
       flex-wrap: wrap;
     }
 
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      color: #666;
+      font-size: 14px;
+    }
+    .loading-indicator.active {
+      display: block;
+    }
+
     @media(max-width:420px){
-      .row{flex-direction:column}
+      .row {flex-direction: column;}
+      .col {min-width: 100% !important; max-width: 100% !important;}
       .fila-status{flex-direction:column;align-items:stretch;gap:6px}
       .fila-status .indicadores{justify-content:center}
       .actions{flex-direction:column}
       .actions .btn{width:100%}
     }
-
-    /* ESTILOS PARA O PDF PROFISSIONAL */
-    .pdf-item {
-      page-break-inside: avoid;
-      margin-bottom: 10px;
-      padding: 8px 4px;
-      border-bottom: 1px solid #eee;
-    }
-    .pdf-item:last-child {
-      border-bottom: none;
-    }
-    .pdf-header {
-      text-align: center;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #333;
-    }
-    .pdf-info {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-      padding: 8px 0;
-      border-bottom: 1px solid #ccc;
-    }
-    .pdf-info-item {
-      font-size: 12px;
-    }
   </style>
 </head>
 <body>
-  <div class="paper" id="paper">
-    <h1>Check-List Diário — Veículos Leves</h1>
+<div class="paper" id="paper">
+  <h1>Check-List Diário — Veículos Leves</h1>
 
-    <div class="row">
-      <div class="col"><label for="matricula">Nome ou nº cadastro do funcionário</label><input id="matricula" type="text" placeholder="Número de cadastro"></div>
-      <div class="col"><label for="veiculo">Veículo</label><input id="veiculo" type="text" placeholder="Ex: ABC 1C34"></div>
-      <div class="col"><label for="data">Data</label><input id="data" type="date"></div>
-      <div class="col" style="max-width:160px"><label for="hodometro">Hodômetro (km)</label><input id="hodometro" type="text" placeholder="12345"></div>
+  <div class="loading-indicator" id="loadingIndicator">🔄 Carregando dados do servidor...</div>
+
+  <div class="row">
+    <div class="col">
+      <label for="matricula">Funcionário *</label>
+      <select id="matricula" required>
+        <option value="">Carregando funcionários...</option>
+      </select>
     </div>
-
-    <!-- FILA DE ENVIO - STATUS -->
-    <div class="fila-status" id="filaStatus">
-      <div class="indicadores">
-        <span class="indicador">
-          📦 Pendentes: <strong id="filaPendentes">0</strong>
-        </span>
-        <span class="indicador">
-          <span id="filaStatusIcone">✅</span>
-          <span id="filaStatusTexto">Sincronizado</span>
-        </span>
-        <span class="indicador" id="filaUltimoEnvio" style="font-size:12px;color:#666;"></span>
-      </div>
-      <div>
-        <button id="btnSincronizarAgora" class="btn-sincronizar">🔄 Sincronizar Agora</button>
-      </div>
+    <div class="col">
+      <label for="veiculo">Veículo *</label>
+      <select id="veiculo" required>
+        <option value="">Carregando veículos...</option>
+      </select>
     </div>
-
-    <div class="items" id="items"></div>
-
-    <div class="actions">
-      <button class="btn btn-success" id="btnServidor">📤 Enviar para o Servidor</button>
-      <button class="btn btn-gray" id="btnSalvarLocal">💾 Salvar Localmente</button>
-      <button class="btn" id="btnGerar">📄 Gerar PDF</button>
-      <button class="btn btn-gray" id="btnExcel">📊 Gerar Excel</button>
-      <button class="btn btn-gray" id="btnLimpar">🧹 Limpar</button>
-      <button class="btn btn-gray" id="btnInstrucoes">💬 Como enviar pelo WhatsApp</button>
-    </div>
-
-    <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
-    <div style="margin-top:10px;font-size:13px;color:#666">Os arquivos serão gerados com nome <strong>checklist_NOMECADASTRO_YYYY-MM-DD</strong>.</div>
+    <div class="col"><label for="data">Data</label><input id="data" type="date" readonly></div>
+    <div class="col" style="max-width:120px"><label for="hora">Horário</label><input id="hora" type="time" readonly></div>
+    <div class="col" style="max-width:160px"><label for="hodometro">Hodômetro (km) *</label><input id="hodometro" type="text" placeholder="12345" required></div>
   </div>
 
-  <script>
-  // ============================================
-  // SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA (ADAPTADA DO RDS)
-  // ============================================
+  <!-- FILA DE ENVIO - STATUS -->
+  <div class="fila-status" id="filaStatus">
+    <div class="indicadores">
+      <span class="indicador">
+        📦 Pendentes: <strong id="filaPendentes">0</strong>
+      </span>
+      <span class="indicador">
+        <span id="filaStatusIcone">✅</span>
+        <span id="filaStatusTexto">Sincronizado</span>
+      </span>
+      <span class="indicador" id="filaUltimoEnvio" style="font-size:12px;color:#666;"></span>
+    </div>
+    <div>
+      <button id="btnSincronizarAgora" class="btn-sincronizar">🔄 Sincronizar Agora</button>
+    </div>
+  </div>
 
-  class FilaEnvioChecklist {
-    constructor() {
-      this.dbName = 'ChecklistFilaDB';
-      this.storeName = 'fila_envios';
-      this.db = null;
-      this.inicializado = false;
-    }
+  <div class="items" id="items"></div>
 
-    async init() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, 1);
-        
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains(this.storeName)) {
-            db.createObjectStore(this.storeName, { 
-              keyPath: 'id', 
-              autoIncrement: true 
-            });
-          }
-        };
+  <div class="actions">
+    <button class="btn btn-success" id="btnServidor">📤 Enviar para o Servidor</button>
+    <button class="btn btn-gray" id="btnSalvarLocal">💾 Salvar Localmente</button>
+    <button class="btn btn-gray" id="btnExcel">📊 Gerar Excel</button>
+    <button class="btn btn-gray" id="btnGerar">📄 Gerar PDF</button>
+    <button class="btn btn-gray" id="btnLimpar">🧹 Limpar</button>
+    <button class="btn btn-gray" id="btnInstrucoes">💬 Como enviar pelo WhatsApp</button>
+  </div>
 
-        request.onsuccess = (event) => {
-          this.db = event.target.result;
-          this.inicializado = true;
-          resolve();
-        };
+  <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
+  <div style="margin-top:10px;font-size:13px;color:#666">
+    Os arquivos serão gerados com nome <strong>checklist_NOMECADASTRO_YYYY-MM-DD-HH-MM</strong>.
+  </div>
+</div>
 
-        request.onerror = (event) => {
-          console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
-          reject(event.target.error);
-        };
-      });
-    }
+<script>
+// ============================================
+// CONFIGURAÇÃO DOS BINS
+// ============================================
 
-    // ADICIONAR à fila
-    async adicionar(dados) {
-      await this.aguardarInicializacao();
+// BIN 1: APENAS para funcionários e veículos (dados mestres)
+const BIN_DADOS_MESTRES = '69023644ae596e708f35f300';
+
+// BIN 2: APENAS para os dados diários do checklist
+const BIN_DADOS_DIARIOS = '6a64f831da38895dfe8f0e44';
+
+const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+// ============================================
+// DADOS INICIAIS (usados apenas para primeira execução)
+// ============================================
+const DADOS_INICIAIS = {
+  funcionarios: [
+    {codigo:"80236", nome:"ADRIANO PERCILIO DA SILVA"},
+    {codigo:"80096", nome:"AILTON RODRIGO COUTINHO"},
+    {codigo:"80229", nome:"BEATRIZ ESTELA ELIAS DA SILVA"},
+    {codigo:"80150", nome:"BRUNA DA CUNHA ALVES"},
+    {codigo:"80227", nome:"BRUNO HENRIK GOMES SILVA"},
+    {codigo:"80239", nome:"CARLOS AUGUSTO DA COSTA"},
+    {codigo:"80234", nome:"CELIO GERALDO DE SOUZA"},
+    {codigo:"80230", nome:"DAIANY MINUCCI GARCIA"},
+    {codigo:"80235", nome:"ELIAS TIBURCIO DE SOUZA"},
+    {codigo:"90001", nome:"GENTIL JOSÉ DE OLIVEIRA"},
+    {codigo:"80240", nome:"GILSON GERALDO MINUCCI GARCIA SILVA"},
+    {codigo:"80116", nome:"GUSTAVO TEIXEIRA DA SILVA"},
+    {codigo:"80228", nome:"HEITOR FERREIRA ARAUJO"},
+    {codigo:"80237", nome:"IAN VICTOR MOREIRA GOMES"},
+    {codigo:"80215", nome:"JOÃO PEDRO ROCHA DOMINGOS"},
+    {codigo:"80219", nome:"JORDANYA ALVES PEREIRA SANTOS"},
+    {codigo:"80119", nome:"JOSE WALTER DE OLIVEIRA"},
+    {codigo:"80224", nome:"JOSE CARLOS RAMOS RODRIGUES"},
+    {codigo:"80065", nome:"JOYCE RAFAELA LOPES DA SILVA"},
+    {codigo:"80221", nome:"JULIA FERNANDES DA SILVA"},
+    {codigo:"80184", nome:"LARICE EDUARDA MARTINS"},
+    {codigo:"91002", nome:"LIVIA MENEZES OLIVEIRA"},
+    {codigo:"80231", nome:"LUIS ANTONIO LOPES VELOSO"},
+    {codigo:"80177", nome:"MAURICIO JOSE DO COUTO"},
+    {codigo:"91003", nome:"NICOMEDES AUGUSTO DE OLEIVEIRA"},
+    {codigo:"80060", nome:"POLIANA OLIVEIRA"},
+    {codigo:"80175", nome:"REINALDO DOS SANTOS VALADÃO"},
+    {codigo:"80225", nome:"RICARDO AUGUSTO DOS SANTOS"},
+    {codigo:"80021", nome:"RINALDO CESAR PEREIRA"},
+    {codigo:"80170", nome:"RODOLFO CARDOSO TEIXEIRA"},
+    {codigo:"80101", nome:"TIAGO LEONE RAMOS DA SILVA"},
+    {codigo:"80222", nome:"TIAGO SILVA DE OLIVEIRA"},
+    {codigo:"80226", nome:"VIVIANE DE FIGUEIREDO TEIXEIRA"}
+  ],
+  veiculos: [
+    {codigo:"CAM04", descricao:"F-1000 SS 1993 - BIS-6668"},
+    {codigo:"CAM05", descricao:"STRADA TREKING CD 2012 - OMC-0835"},
+    {codigo:"CAM11", descricao:"SAVEIRO TROPPER 2012 - HNB-8162"},
+    {codigo:"CAM12", descricao:"MONTANA LS 2013 - BRANCA - OQV-3D95"},
+    {codigo:"CAR01", descricao:"UNO FIRE 2006 - GSZ-1347"},
+    {codigo:"CAR07", descricao:"FIAT/MOBI - QWY-4310"},
+    {codigo:"CAR11", descricao:"MONTANA 2017 - PRATA - PYC-9B75"},
+    {codigo:"CAR12", descricao:"PALIO FIRE WAY -FIAT - 2015 - BRANCA - PWU-2G17"},
+    {codigo:"CAR13", descricao:"FIORINO - SYB-6B40"},
+    {codigo:"CAR14", descricao:"FIORINO - SYB-5J50"},
+    {codigo:"CAR15", descricao:"ARGO DRI 1.0 FLEX - TEH-9I88"}
+  ]
+};
+
+// ============================================
+// SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA
+// ============================================
+
+class FilaEnvioChecklist {
+  constructor() {
+    this.dbName = 'ChecklistFilaDB';
+    this.storeName = 'fila_envios';
+    this.db = null;
+    this.inicializado = false;
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
       
-      console.log('📦 ADICIONANDO à fila Checklist:', dados);
-      
-      const item = {
-        dados: dados,
-        criadoEm: Date.now()
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { 
+            keyPath: 'id', 
+            autoIncrement: true 
+          });
+        }
       };
 
-      return new Promise((resolve, reject) => {
-        const transaction = this.db.transaction([this.storeName], 'readwrite');
-        const store = transaction.objectStore(this.storeName);
-        const request = store.add(item);
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        this.inicializado = true;
+        resolve();
+      };
 
-        request.onsuccess = () => {
-          console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
-          resolve(request.result);
-        };
-
-        request.onerror = () => {
-          console.error('❌ Erro ao adicionar item:', request.error);
-          reject(request.error);
-        };
-      });
-    }
-
-    // REMOVER da fila (chamado APÓS confirmação do servidor)
-    async remover(id) {
-      await this.aguardarInicializacao();
-      
-      console.log(`🗑️ REMOVENDO item ${id} da fila Checklist`);
-      
-      return new Promise((resolve, reject) => {
-        const transaction = this.db.transaction([this.storeName], 'readwrite');
-        const store = transaction.objectStore(this.storeName);
-        const request = store.delete(id);
-
-        request.onsuccess = () => {
-          console.log(`✅ Item ${id} removido com sucesso`);
-          resolve();
-        };
-        request.onerror = () => {
-          console.error(`❌ Erro ao remover item ${id}:`, request.error);
-          reject(request.error);
-        };
-      });
-    }
-
-    // LISTAR todos os itens da fila
-    async listarTodos() {
-      await this.aguardarInicializacao();
-      
-      return new Promise((resolve, reject) => {
-        const transaction = this.db.transaction([this.storeName], 'readonly');
-        const store = transaction.objectStore(this.storeName);
-        const request = store.getAll();
-
-        request.onsuccess = () => {
-          resolve(request.result);
-        };
-        request.onerror = () => {
-          console.error('❌ Erro ao listar itens:', request.error);
-          reject(request.error);
-        };
-      });
-    }
-
-    // CONTAR itens na fila
-    async contar() {
-      const itens = await this.listarTodos();
-      return itens.length;
-    }
-
-    async aguardarInicializacao() {
-      if (this.inicializado) return;
-      
-      return new Promise((resolve) => {
-        const check = () => {
-          if (this.inicializado) {
-            resolve();
-          } else {
-            setTimeout(check, 100);
-          }
-        };
-        check();
-      });
-    }
+      request.onerror = (event) => {
+        console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
+        reject(event.target.error);
+      };
+    });
   }
 
-  // ============================================
-  // INSTÂNCIA GLOBAL DA FILA
-  // ============================================
-  const filaChecklist = new FilaEnvioChecklist();
+  async adicionar(dados) {
+    await this.aguardarInicializacao();
+    
+    console.log('📦 ADICIONANDO à fila Checklist:', dados);
+    
+    const item = {
+      dados: dados,
+      criadoEm: Date.now()
+    };
 
-  // ============================================
-  // FUNÇÃO PARA ENVIAR UM ITEM AO SERVIDOR (JSONBIN)
-  // ============================================
-  async function enviarItemServidorChecklist(dados) {
-    try {
-      // NOVO JSONBIN: 6a64f831da38895dfe8f0e44
-      const GET_URL = 'https://api.jsonbin.io/v3/b/6a64f831da38895dfe8f0e44/latest';
-      const PUT_URL = 'https://api.jsonbin.io/v3/b/6a64f831da38895dfe8f0e44';
-      const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.add(item);
 
-      // Buscar dados existentes
-      const resGet = await fetch(GET_URL, { 
-        headers: { 'X-Master-Key': MASTER_KEY }
-      });
+      request.onsuccess = () => {
+        console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error('❌ Erro ao adicionar item:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async remover(id) {
+    await this.aguardarInicializacao();
+    
+    console.log(`🗑️ REMOVENDO item ${id} da fila Checklist`);
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete(id);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item ${id} removido com sucesso`);
+        resolve();
+      };
+      request.onerror = () => {
+        console.error(`❌ Erro ao remover item ${id}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async listarTodos() {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        console.error('❌ Erro ao listar itens:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async contar() {
+    const itens = await this.listarTodos();
+    return itens.length;
+  }
+
+  async aguardarInicializacao() {
+    if (this.inicializado) return;
+    
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.inicializado) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+}
+
+// ============================================
+// INSTÂNCIA GLOBAL DA FILA
+// ============================================
+const filaChecklist = new FilaEnvioChecklist();
+
+// ============================================
+// FUNÇÕES DE GERENCIAMENTO DO BIN DE DADOS MESTRES
+// ============================================
+
+async function inicializarBinMestres() {
+  try {
+    console.log('🔄 Inicializando BIN de dados mestres...');
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}`;
+    
+    const resGet = await fetch(`${url}/latest`, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (resGet.ok) {
+      const json = await resGet.json();
+      const record = json.record;
       
-      let dadosExistentes = [];
-      if (resGet.ok) {
-        const json = await resGet.json();
-        dadosExistentes = Array.isArray(json.record) ? json.record : [];
-      }
-
-      // Adicionar novo dado
-      let dadosParaEnviar = [];
-      if (Array.isArray(dados)) {
-        dadosParaEnviar = dados;
-      } else {
-        dadosParaEnviar = [dados];
-      }
-      
-      const dadosAtualizados = [...dadosExistentes, ...dadosParaEnviar];
-      
-      // Enviar para o servidor
-      const resPut = await fetch(PUT_URL, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': MASTER_KEY,
-          'X-Bin-Versioning': 'false'
-        },
-        body: JSON.stringify(dadosAtualizados)
-      });
-
-      if (resPut.ok) {
-        console.log('✅ Servidor Checklist confirmou recebimento');
+      if (record && record.funcionarios && record.funcionarios.length > 0) {
+        console.log('✅ BIN de dados mestres já possui dados.');
         return true;
-      } else {
-        console.log('❌ Servidor Checklist retornou erro:', resPut.status);
-        return false;
       }
-
-    } catch (error) {
-      console.log('❌ Erro de rede Checklist:', error.message);
+    }
+    
+    const resPut = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(DADOS_INICIAIS)
+    });
+    
+    if (resPut.ok) {
+      console.log('✅ BIN de dados mestres inicializado com sucesso!');
+      return true;
+    } else {
+      console.error('❌ Erro ao inicializar BIN mestres:', resPut.status);
       return false;
     }
+  } catch (error) {
+    console.error('❌ Erro ao inicializar BIN mestres:', error);
+    return false;
+  }
+}
+
+async function carregarFuncionarios() {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    
+    const json = await res.json();
+    const data = json.record;
+    
+    if (data && data.funcionarios && Array.isArray(data.funcionarios)) {
+      return data.funcionarios;
+    } else {
+      console.warn('⚠️ Estrutura de funcionários não encontrada no BIN');
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar funcionários:', error);
+    return [];
+  }
+}
+
+async function carregarVeiculos() {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    
+    const json = await res.json();
+    const data = json.record;
+    
+    if (data && data.veiculos && Array.isArray(data.veiculos)) {
+      return data.veiculos;
+    } else {
+      console.warn('⚠️ Estrutura de veículos não encontrada no BIN');
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar veículos:', error);
+    return [];
+  }
+}
+
+// ============================================
+// FUNÇÕES DE ENVIO PARA O BIN DE DADOS DIÁRIOS
+// ============================================
+
+async function enviarDadosDiarios(dados) {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_DIARIOS}`;
+    
+    // Buscar dados existentes
+    const resGet = await fetch(`${url}/latest`, { 
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...dados];
+    
+    const resPut = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Dados diários enviados com sucesso para o BIN');
+      return true;
+    } else {
+      console.log('❌ Erro ao enviar dados diários:', resPut.status);
+      return false;
+    }
+
+  } catch (error) {
+    console.log('❌ Erro de rede:', error.message);
+    return false;
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA GERAR LISTA COMPACTA DE ITENS
+// ============================================
+function gerarListaCompacta(itens) {
+  // Verificar se todos os itens estão "conforme" ou "nao_se_aplica"
+  const todosConforme = itens.every(item => 
+    item.status === 'conforme' || item.status === 'nao_se_aplica'
+  );
+  
+  if (todosConforme) {
+    // Se todos estão conformes, retorna apenas o item 0 (sem observação)
+    return [
+      {
+        num: "0",
+        title: "Todos os itens",
+        desc: "Todos os itens estão conformes ou não se aplicam",
+        status: "conforme",
+        obs: "" // SEMPRE VAZIO para conforme
+      }
+    ];
+  } else {
+    // Se há exceções, cria lista com item 0 + exceções
+    const excecoes = itens.filter(item => 
+      item.status !== 'conforme' && item.status !== 'nao_se_aplica'
+    );
+    
+    return [
+      {
+        num: "0",
+        title: "Itens conformes e/ou não se aplicam",
+        desc: "Todos os itens não listados abaixo estão conformes ou não se aplicam",
+        status: "conforme",
+        obs: "" // SEMPRE VAZIO para conforme
+      },
+      ...excecoes // Mantém as observações apenas para exceções
+    ];
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA SALVAR NA FILA
+// ============================================
+async function salvarNaFila(dados) {
+  try {
+    await filaChecklist.init();
+    const id = await filaChecklist.adicionar(dados);
+    console.log(`📦 Dados adicionados à fila (ID: ${id})`);
+    await atualizarContador();
+    
+    if (navigator.onLine) {
+      console.log('🌐 Online - tentando enviar imediatamente...');
+      setTimeout(async () => {
+        await sincronizarFila();
+      }, 500);
+    }
+    
+    return id;
+  } catch (error) {
+    console.error('❌ Erro ao salvar na fila:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// FUNÇÃO DE SINCRONIZAÇÃO DA FILA
+// ============================================
+let sincronizando = false;
+
+async function sincronizarFila() {
+  if (!navigator.onLine) {
+    console.log('📡 Offline - não é possível sincronizar');
+    atualizarContador();
+    return;
   }
 
-  // ============================================
-  // FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
-  // ============================================
-  let sincronizandoChecklist = false;
+  if (sincronizando) {
+    console.log('⏳ Já está sincronizando...');
+    return;
+  }
 
-  async function sincronizarFilaChecklist() {
-    // Verificar se está online
-    if (!navigator.onLine) {
-      console.log('📡 Offline - não é possível sincronizar Checklist');
-      atualizarContadorChecklist();
+  try {
+    sincronizando = true;
+    console.log('🔄 INICIANDO SINCRONIZAÇÃO...');
+    
+    const itens = await filaChecklist.listarTodos();
+    
+    if (itens.length === 0) {
+      console.log('✅ Nenhum item pendente');
+      atualizarContador();
+      sincronizando = false;
       return;
     }
 
-    // Evitar execução simultânea
-    if (sincronizandoChecklist) {
-      console.log('⏳ Já está sincronizando Checklist...');
-      return;
-    }
-
-    try {
-      sincronizandoChecklist = true;
-      console.log('🔄 INICIANDO SINCRONIZAÇÃO CHECKLIST...');
+    console.log(`📦 ${itens.length} item(ns) pendente(s)`);
+    
+    let itensRemovidos = 0;
+    for (const item of itens) {
+      console.log(`🔄 Processando item ${item.id}...`);
       
-      // LISTAR todos os itens da fila
-      const itens = await filaChecklist.listarTodos();
+      // Enviar para o BIN de dados diários
+      const enviado = await enviarDadosDiarios(item.dados);
       
-      if (itens.length === 0) {
-        console.log('✅ Nenhum item pendente Checklist');
-        atualizarContadorChecklist();
-        sincronizandoChecklist = false;
-        return;
-      }
-
-      console.log(`📦 ${itens.length} item(ns) pendente(s) Checklist`);
-      
-      // Processar UM POR VEZ
-      let itensRemovidos = 0;
-      for (const item of itens) {
-        console.log(`🔄 Processando item ${item.id} Checklist...`);
-        
-        // TENTAR ENVIAR
-        const enviado = await enviarItemServidorChecklist(item.dados);
-        
-        if (enviado) {
-          // REMOVER DA FILA (APÓS CONFIRMAÇÃO)
-          await filaChecklist.remover(item.id);
-          itensRemovidos++;
-          console.log(`✅ Item ${item.id} removido da fila Checklist`);
-        } else {
-          console.log(`❌ Falha no envio do item ${item.id} Checklist - mantendo na fila`);
-          break; // Para no primeiro erro
-        }
-      }
-
-      console.log(`✅ ${itensRemovidos} item(ns) removidos da fila Checklist`);
-
-    } catch (error) {
-      console.error('❌ Erro na sincronização Checklist:', error);
-    } finally {
-      sincronizandoChecklist = false;
-      // ATUALIZAR CONTADOR SEMPRE NO FINAL
-      await atualizarContadorChecklist();
-      console.log('🔄 SINCRONIZAÇÃO CHECKLIST FINALIZADA');
-    }
-  }
-
-  // ============================================
-  // FUNÇÃO PARA ADICIONAR À FILA
-  // ============================================
-  async function adicionarNaFilaChecklist(dados) {
-    try {
-      await filaChecklist.init();
-      const id = await filaChecklist.adicionar(dados);
-      console.log(`📦 Dados Checklist adicionados à fila (ID: ${id})`);
-      
-      // ATUALIZAR CONTADOR
-      await atualizarContadorChecklist();
-      
-      // TENTAR ENVIAR IMEDIATAMENTE (se online)
-      if (navigator.onLine) {
-        console.log('🌐 Online - tentando enviar Checklist imediatamente...');
-        setTimeout(async () => {
-          await sincronizarFilaChecklist();
-        }, 500);
-      }
-      
-      return id;
-    } catch (error) {
-      console.error('❌ Erro ao adicionar Checklist à fila:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // FUNÇÃO PARA ATUALIZAR O CONTADOR NA INTERFACE
-  // ============================================
-  async function atualizarContadorChecklist() {
-    try {
-      const total = await filaChecklist.contar();
-      document.getElementById('filaPendentes').textContent = total;
-      
-      // Atualizar ícone e texto
-      const statusIcone = document.getElementById('filaStatusIcone');
-      const statusTexto = document.getElementById('filaStatusTexto');
-      const ultimoEnvio = document.getElementById('filaUltimoEnvio');
-      
-      if (total === 0) {
-        statusIcone.textContent = '✅';
-        statusTexto.textContent = 'Sincronizado';
-        ultimoEnvio.textContent = `Último: ${new Date().toLocaleTimeString()}`;
-      } else if (sincronizandoChecklist) {
-        statusIcone.textContent = '⏳';
-        statusTexto.textContent = 'Enviando...';
+      if (enviado) {
+        await filaChecklist.remover(item.id);
+        itensRemovidos++;
+        console.log(`✅ Item ${item.id} removido da fila`);
       } else {
-        statusIcone.textContent = '📦';
-        statusTexto.textContent = `${total} pendente(s)`;
+        console.log(`❌ Falha no envio do item ${item.id} - mantendo na fila`);
+        break;
       }
-      
-      console.log(`📊 Contador Checklist atualizado: ${total} pendente(s)`);
-    } catch (error) {
-      console.error('❌ Erro ao atualizar contador Checklist:', error);
     }
+
+    console.log(`✅ ${itensRemovidos} item(ns) removidos da fila`);
+
+  } catch (error) {
+    console.error('❌ Erro na sincronização:', error);
+  } finally {
+    sincronizando = false;
+    await atualizarContador();
+    console.log('🔄 SINCRONIZAÇÃO FINALIZADA');
   }
+}
+
+// ============================================
+// ATUALIZAR CONTADOR DA FILA
+// ============================================
+async function atualizarContador() {
+  try {
+    const total = await filaChecklist.contar();
+    document.getElementById('filaPendentes').textContent = total;
+    
+    const statusIcone = document.getElementById('filaStatusIcone');
+    const statusTexto = document.getElementById('filaStatusTexto');
+    const ultimoEnvio = document.getElementById('filaUltimoEnvio');
+    
+    if (total === 0) {
+      statusIcone.textContent = '✅';
+      statusTexto.textContent = 'Sincronizado';
+      ultimoEnvio.textContent = `Último: ${new Date().toLocaleTimeString()}`;
+    } else if (sincronizando) {
+      statusIcone.textContent = '⏳';
+      statusTexto.textContent = 'Enviando...';
+    } else {
+      statusIcone.textContent = '📦';
+      statusTexto.textContent = `${total} pendente(s)`;
+    }
+    
+    console.log(`📊 Contador atualizado: ${total} pendente(s)`);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contador:', error);
+  }
+}
+
+// ============================================
+// INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+// ============================================
+function iniciarSincronizacaoAutomatica() {
+  window.addEventListener('online', async () => {
+    console.log('🌐 Conexão restaurada - sincronizando...');
+    await sincronizarFila();
+  });
+
+  setInterval(async () => {
+    if (navigator.onLine) {
+      const total = await filaChecklist.contar();
+      if (total > 0) {
+        console.log('⏰ Sincronização periódica...');
+        await sincronizarFila();
+      }
+    }
+  }, 30000);
+
+  setTimeout(async () => {
+    await filaChecklist.init();
+    await atualizarContador();
+    
+    if (navigator.onLine) {
+      const total = await filaChecklist.contar();
+      if (total > 0) {
+        console.log(`🔄 Sincronizando ${total} item(ns) pendentes...`);
+        await sincronizarFila();
+      }
+    }
+  }, 1500);
+}
+
+// ============================================
+// FUNÇÕES PRINCIPAIS DO CHECKLIST
+// ============================================
+
+(function(){
+  const dataEl = document.getElementById('data');
+  const horaEl = document.getElementById('hora');
+  const hodometroEl = document.getElementById('hodometro');
+  const selectFuncionario = document.getElementById('matricula');
+  const selectVeiculo = document.getElementById('veiculo');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  
+  const today = new Date();
+  function pad(n){return String(n).padStart(2,'0')}
+  dataEl.value = today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate());
+  horaEl.value = pad(today.getHours()) + ':' + pad(today.getMinutes());
+
+  let funcionariosLista = [];
+  let veiculosLista = [];
 
   // ============================================
-  // FUNÇÃO PARA SALVAR NA FILA E ENVIAR (FLUXO PRINCIPAL)
+  // CARREGAR DADOS DO BIN DE DADOS MESTRES
   // ============================================
-  async function salvarEEnviarChecklist(dadosServidor, mostrarAlerta = true) {
-    console.log('🔍 salvarEEnviarChecklist chamado com:', dadosServidor);
+  async function carregarDadosDoBin() {
+    loadingIndicator.classList.add('active');
     
     try {
-      // 1. ADICIONAR À FILA
-      const id = await adicionarNaFilaChecklist(dadosServidor);
+      // Inicializar BIN de dados mestres se necessário
+      await inicializarBinMestres();
       
-      if (mostrarAlerta) {
-        const total = await filaChecklist.contar();
-        if (navigator.onLine) {
-          alert(`✅ Dados Checklist salvos na fila (ID: ${id}) e enviando para o servidor...`);
-        } else {
-          alert(`📦 Dados Checklist salvos na fila (ID: ${id}).\n\n📡 Você está offline. Serão enviados quando a internet voltar.\n\n📋 Pendentes: ${total}`);
-        }
+      // Carregar funcionários
+      funcionariosLista = await carregarFuncionarios();
+      if (funcionariosLista.length === 0) {
+        console.warn('⚠️ Nenhum funcionário encontrado. Usando dados iniciais.');
+        funcionariosLista = DADOS_INICIAIS.funcionarios;
       }
       
-      return true;
+      // Carregar veículos
+      veiculosLista = await carregarVeiculos();
+      if (veiculosLista.length === 0) {
+        console.warn('⚠️ Nenhum veículo encontrado. Usando dados iniciais.');
+        veiculosLista = DADOS_INICIAIS.veiculos;
+      }
+      
+      // Preencher selects
+      preencherSelectFuncionarios();
+      preencherSelectVeiculos();
+      
+      console.log(`✅ ${funcionariosLista.length} funcionários e ${veiculosLista.length} veículos carregados do BIN de dados mestres`);
+      
     } catch (error) {
-      console.error('❌ Erro ao salvar Checklist:', error);
-      if (mostrarAlerta) {
-        alert('❌ Erro ao salvar dados Checklist: ' + error.message);
-      }
-      return false;
+      console.error('❌ Erro ao carregar dados:', error);
+      alert('⚠️ Erro ao carregar dados do servidor. Usando dados locais temporários.');
+      
+      // Fallback para dados locais
+      funcionariosLista = DADOS_INICIAIS.funcionarios;
+      veiculosLista = DADOS_INICIAIS.veiculos;
+      preencherSelectFuncionarios();
+      preencherSelectVeiculos();
+    } finally {
+      loadingIndicator.classList.remove('active');
     }
   }
 
   // ============================================
-  // INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+  // PREENCHER SELECTS
   // ============================================
-  let temporizadorSincronizacaoChecklist = null;
-
-  function iniciarSincronizacaoAutomaticaChecklist() {
-    // Evento de conexão restaurada
-    window.addEventListener('online', async () => {
-      console.log('🌐 Conexão restaurada - sincronizando Checklist...');
-      await sincronizarFilaChecklist();
+  function preencherSelectFuncionarios() {
+    selectFuncionario.innerHTML = '<option value="">Selecione o funcionário</option>';
+    funcionariosLista.forEach(f => {
+      const option = document.createElement('option');
+      option.value = f.codigo;
+      option.textContent = `${f.codigo} - ${f.nome}`;
+      selectFuncionario.appendChild(option);
     });
+  }
 
-    // Temporizador a cada 30 segundos
-    if (temporizadorSincronizacaoChecklist) {
-      clearInterval(temporizadorSincronizacaoChecklist);
-    }
-    temporizadorSincronizacaoChecklist = setInterval(async () => {
-      if (navigator.onLine) {
-        const total = await filaChecklist.contar();
-        if (total > 0) {
-          console.log('⏰ Sincronização periódica Checklist...');
-          await sincronizarFilaChecklist();
-        }
-      }
-    }, 30000);
-
-    // Sincronizar ao carregar
-    setTimeout(async () => {
-      await filaChecklist.init();
-      await atualizarContadorChecklist();
-      
-      if (navigator.onLine) {
-        const total = await filaChecklist.contar();
-        if (total > 0) {
-          console.log(`🔄 Sincronizando ${total} item(ns) pendentes Checklist...`);
-          await sincronizarFilaChecklist();
-        }
-      }
-    }, 1500);
+  function preencherSelectVeiculos() {
+    selectVeiculo.innerHTML = '<option value="">Selecione o veículo</option>';
+    veiculosLista.forEach(v => {
+      const option = document.createElement('option');
+      option.value = v.codigo;
+      option.textContent = `${v.codigo} - ${v.descricao}`;
+      selectVeiculo.appendChild(option);
+    });
   }
 
   // ============================================
-  // FUNÇÕES ORIGINAIS DO CHECKLIST
+  // ITENS DO CHECKLIST
   // ============================================
+  const itens = [
+    'Condição geral','Condições dos pneus e rodas','Água do radiador','Óleo do motor','Tanque de combustível','Extintor de incêndio',
+    'Luzes e parte elétrica em geral','Buzina','Freios em geral','Bandeirola','Triângulo / macaco / chave roda',
+    'Retrovisor / janelas / para-brisa e vidros em geral','Cinto de segurança','Sinalizações','Giroflex','Documentação do Veículo'
+  ];
 
-  (function(){
-    const dataEl = document.getElementById('data');
-    const today = new Date();
-    function pad(n){return String(n).padStart(2,'0')}
-    dataEl.value = today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate());
+  const descs = [
+    'Sem vazamentos, sem peças ou partes soltas, bancos em condições de assentar, portas fechando, direção alinhada, etc.',
+    'Calibrados, sem lesões, rasgos e trincas, aparência normal, bom estado conservação, step preso ao suporte. Rodas com todos os parafusos',
+    'Sempre completo de acordo com o nível indicado.',
+    'Acusando o nível normal na vareta, sendo trocado na data correta, de acordo com o manual de orientação e manutenção do veículo.',
+    'Sem vazamentos/ possuir combustível suficiente.',
+    'Fixo no suporte, lacrado e carregado (manômetro indicando a faixa verde), dentro do prazo de validade. CLASSE ABC',
+    'Funcionamento perfeito dos faróis e sinalizador de setas, alarme sonoro de ré, limpador de para-brisa, luz freio, faroletes, outros, etc...',
+    'Deve estar funcionando.',
+    'Freando com eficiência. Freio de estacionamento regulado e funcionando em perfeito estado.',
+    'Deve possuir para acesso na área da mina e britagem.',
+    'Funcionando, testados e em perfeito estado, junto ao veículo.',
+    'Regulado, sem trincas e em perfeito estado de funcionamento',
+    'Funcionando e em perfeito estado para todos ocupantes',
+    'Faixas refletivas conforme padrão. Placas legíveis',
+    'Para acesso na área da mina e britagem durante a noite, deve estar funcionando.',
+    'Ipva, seguro, emplacamento, credenciamento interno dentro da validade.'
+  ];
 
-    const itens = [
-      'Condição geral','Condições dos pneus e rodas','Água do radiador','Óleo do motor','Tanque de combustível','Extintor de incêndio',
-      'Luzes e parte elétrica em geral','Buzina','Freios em geral','Bandeirola','Triângulo / macaco / chave roda',
-      'Retrovisor / janelas / para-brisa e vidros em geral','Cinto de segurança','Sinalizações','Giroflex','Documentação do Veículo'
-    ];
+  const itensComNaoSeAplica = [6,10,14,15];
+  const itemsContainer = document.getElementById('items');
 
-    const descs = [
-      'Sem vazamentos, sem peças ou partes soltas, bancos em condições de assentar, portas fechando, direção alinhada, etc.',
-      'Calibrados, sem lesões, rasgos e trincas, aparência normal, bom estado conservação, step preso ao suporte. Rodas com todos os parafusos',
-      'Sempre completo de acordo com o nível indicado.',
-      'Acusando o nível normal na vareta, sendo trocado na data correta, de acordo com o manual de orientação e manutenção do veículo.',
-      'Sem vazamentos/ possuir combustível suficiente.',
-      'Fixo no suporte, lacrado e carregado (manômetro indicando a faixa verde), dentro do prazo de validade. CLASSE ABC',
-      'Funcionamento perfeito dos faróis e sinalizador de setas, alarme sonoro de ré, limpador de para-brisa, luz freio, faroletes, outros, etc...',
-      'Deve estar funcionando.',
-      'Freando com eficiência. Freio de estacionamento regulado e funcionando em perfeito estado.',
-      'Deve possuir para acesso na área da mina e britagem.',
-      'Funcionando, testados e em perfeito estado, junto ao veículo.',
-      'Regulado, sem trincas e em perfeito estado de funcionamento',
-      'Funcionando e em perfeito estado para todos ocupantes',
-      'Faixas refletivas conforme padrão. Placas legíveis',
-      'Para acesso na área da mina e britagem durante a noite, deve estar funcionando.',
-      'Ipva, seguro, emplacamento, credenciamento interno dentro da validade.'
-    ];
+  itens.forEach((t,i)=>{
+    const n = i+1;
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.setAttribute('data-num',n);
 
-    const itensComNaoSeAplica = [6,10,14,15];
-
-    const itemsContainer = document.getElementById('items');
-    itens.forEach((t,i)=>{
-      const n = i+1;
-      const div = document.createElement('div');
-      div.className = 'item';
-      div.setAttribute('data-num',n);
-      
-      let choicesHTML = `
-        <label class="choice"><input type="radio" name="choice_${n}" value="conforme"> Conforme</label>
-        <label class="choice"><input type="radio" name="choice_${n}" value="medio"> Médio</label>
-        <label class="choice"><input type="radio" name="choice_${n}" value="fora"> Fora</label>
-      `;
-
-      if (itensComNaoSeAplica.includes(n)) {
-        choicesHTML += `<label class="choice"><input type="radio" name="choice_${n}" value="nao_se_aplica" checked> Não se aplica</label>`;
-      }
-
-      div.innerHTML = `
-        <div class="item-title">${n}. ${t}</div>
-        <div class="param-desc-label">Descrição do parâmetro</div>
-        <textarea class="param-desc">${descs[i]}</textarea>
-        <div class="choices">${choicesHTML}</div>
-        <div class="obs"><label>Observação</label><input type="text" class="obs_input" placeholder="Comentário (opcional)"></div>
-      `;
-      itemsContainer.appendChild(div);
-    });
-
-    function coletarDados(){
-      const itemsEls = Array.from(document.querySelectorAll('#items .item'));
-      return itemsEls.map(it => ({
-        num: it.getAttribute('data-num'),
-        title: it.querySelector('.item-title').textContent.trim(),
-        desc: it.querySelector('.param-desc').value.trim(),
-        status: Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '',
-        obs: it.querySelector('.obs_input').value.trim()
-      }));
+    let choicesHTML = `
+      <label class="choice"><input type="radio" name="choice_${n}" value="conforme"> Conforme</label>
+      <label class="choice"><input type="radio" name="choice_${n}" value="medio"> Médio</label>
+      <label class="choice"><input type="radio" name="choice_${n}" value="fora"> Fora</label>
+    `;
+    if(itensComNaoSeAplica.includes(n)) {
+      choicesHTML += `<label class="choice"><input type="radio" name="choice_${n}" value="nao_se_aplica" checked> Não se aplica</label>`;
     }
 
-    function coletarDadosCompletos(){
-      const dados = {
-        data: dataEl.value,
-        matricula: document.getElementById('matricula').value.trim(),
-        veiculo: document.getElementById('veiculo').value.trim(),
-        hodometro: document.getElementById('hodometro').value.trim(),
-        items: coletarDados()
-      };
-      return dados;
+    div.innerHTML = `
+      <div class="item-title">${n}. ${t}</div>
+      <div class="param-desc-label">Descrição do parâmetro</div>
+      <textarea class="param-desc">${descs[i]}</textarea>
+      <div class="choices">${choicesHTML}</div>
+      <div class="obs"><label>Observação</label><input type="text" class="obs_input" placeholder="Comentário (opcional)"></div>
+    `;
+    itemsContainer.appendChild(div);
+  });
+
+  // ============================================
+  // FUNÇÕES AUXILIARES
+  // ============================================
+  function validarCamposObrigatorios() {
+    let valido = true;
+    
+    selectFuncionario.classList.remove('required-field');
+    selectVeiculo.classList.remove('required-field');
+    hodometroEl.classList.remove('required-field');
+    
+    if (!selectFuncionario.value) {
+      selectFuncionario.classList.add('required-field');
+      valido = false;
     }
-
-    function montarLinhasParaServidor(){
-      const dados = coletarDadosCompletos();
-      return dados.items.map(it => ({
-        Data: dados.data,
-        Matricula: dados.matricula,
-        Veiculo: dados.veiculo,
-        Hodometro: dados.hodometro,
-        Numero: it.num,
-        Item: it.title,
-        Descricao: it.desc,
-        Status: it.status,
-        Observacao: it.obs
-      }));
+    
+    if (!selectVeiculo.value) {
+      selectVeiculo.classList.add('required-field');
+      valido = false;
     }
-
-    function limparNomeArquivo(nome){
-      return nome.replace(/[^a-z0-9_-]/gi, '_');
+    
+    if (!hodometroEl.value.trim()) {
+      hodometroEl.classList.add('required-field');
+      valido = false;
     }
+    
+    return valido;
+  }
 
-    // ============================================
-    // PDF PROFISSIONAL - SEM CORTES
-    // ============================================
-    async function gerarPDFsalvar(){
-      const dados = coletarDadosCompletos();
-      const linhas = montarLinhasParaServidor();
-
-      // Salvar na fila e enviar (NUNCA duplicar)
-      if (linhas.length > 0) {
-        console.log('📦 Salvando dados na fila Checklist via PDF...');
-        await salvarEEnviarChecklist(linhas, false);
-      }
-
-      const nomeFuncionario = limparNomeArquivo(dados.matricula || 'sem_nome');
-      const dataArquivo = dados.data || new Date().toISOString().slice(0,10);
-      const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.pdf`;
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
-      
-      // Função para adicionar texto com quebra de linha
-      function addWrappedText(text, x, y, maxWidth, lineHeight) {
-        const lines = pdf.splitTextToSize(text, maxWidth);
-        pdf.text(lines, x, y);
-        return lines.length * lineHeight;
-      }
-
-      let yPos = margin;
-
-      // FUNÇÃO PARA NOVA PÁGINA
-      function newPage() {
-        pdf.addPage();
-        yPos = margin;
-      }
-
-      // FUNÇÃO PARA VERIFICAR ESPAÇO
-      function checkSpace(needed) {
-        if (yPos + needed > pageHeight - margin) {
-          newPage();
-          return true;
-        }
-        return false;
-      }
-
-      // --- CABEÇALHO ---
-      pdf.setFontSize(16);
-      pdf.setFont(undefined, 'bold');
-      const titulo = 'Check-List Diário — Veículos Leves';
-      const tituloWidth = pdf.getStringUnitWidth(titulo) * 16 / pdf.internal.scaleFactor;
-      pdf.text(titulo, (pageWidth - tituloWidth) / 2, yPos);
-      yPos += 10;
-
-      pdf.setFontSize(10);
-      pdf.setFont(undefined, 'normal');
-      
-      // Linha separadora
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 6;
-
-      // --- INFORMAÇÕES DO VEÍCULO ---
-      pdf.setFontSize(10);
-      pdf.setFont(undefined, 'bold');
-      pdf.text('Dados do Veículo', margin, yPos);
-      yPos += 6;
-      
-      pdf.setFont(undefined, 'normal');
-      const infoLines = [
-        `Data: ${dados.data || '-'}`,
-        `Nº cadastro: ${dados.matricula || '-'}`,
-        `Veículo: ${dados.veiculo || '-'}`,
-        `Hodômetro: ${dados.hodometro || '-'} km`
-      ];
-      
-      const infoText = infoLines.join('  |  ');
-      const wrappedInfo = pdf.splitTextToSize(infoText, contentWidth);
-      pdf.text(wrappedInfo, margin, yPos);
-      yPos += (wrappedInfo.length * 5) + 6;
-
-      // Linha separadora
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 6;
-
-      // --- ITENS DO CHECKLIST ---
-      dados.items.forEach((item, index) => {
-        const itemNum = item.num;
-        const title = item.title;
-        const desc = item.desc || 'Descrição não informada';
-        const status = item.status || 'Não marcado';
-        const obs = item.obs || '-';
-
-        // Estimar altura necessária para este item
-        const titleHeight = 6;
-        const descHeight = pdf.splitTextToSize(desc, contentWidth - 6).length * 5;
-        const statusHeight = 5;
-        const obsHeight = pdf.splitTextToSize(`Observação: ${obs}`, contentWidth - 6).length * 5;
-        const itemTotalHeight = titleHeight + descHeight + statusHeight + obsHeight + 8;
-
-        // Verificar se cabe na página
-        if (checkSpace(itemTotalHeight + 6)) {
-          // Se criou nova página, adiciona o título da página
-          pdf.setFontSize(10);
-          pdf.setFont(undefined, 'bold');
-          pdf.text('Continuação do Checklist', margin, yPos);
-          yPos += 6;
-          pdf.setFont(undefined, 'normal');
-        }
-
-        // Título do item
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'bold');
-        pdf.text(`${itemNum}. ${title}`, margin + 2, yPos);
-        yPos += titleHeight;
-
-        // Descrição
-        pdf.setFont(undefined, 'normal');
-        const descLines = pdf.splitTextToSize(desc, contentWidth - 6);
-        pdf.text(descLines, margin + 4, yPos);
-        yPos += descLines.length * 5 + 2;
-
-        // Status
-        pdf.setFont(undefined, 'bold');
-        pdf.text(`Status:`, margin + 4, yPos);
-        pdf.setFont(undefined, 'normal');
-        const statusText = ` ${status}`;
-        const statusX = margin + 4 + pdf.getStringUnitWidth('Status:') * 10 / pdf.internal.scaleFactor;
-        pdf.text(statusText, statusX, yPos);
-        yPos += statusHeight + 2;
-
-        // Observação
-        pdf.setFont(undefined, 'bold');
-        pdf.text(`Observação:`, margin + 4, yPos);
-        pdf.setFont(undefined, 'normal');
-        const obsLines = pdf.splitTextToSize(obs, contentWidth - 6);
-        pdf.text(obsLines, margin + 4 + pdf.getStringUnitWidth('Observação:') * 10 / pdf.internal.scaleFactor, yPos);
-        yPos += obsLines.length * 5 + 4;
-
-        // Linha separadora entre itens
-        if (index < dados.items.length - 1) {
-          pdf.setDrawColor(200, 200, 200);
-          pdf.line(margin + 4, yPos, pageWidth - margin - 4, yPos);
-          yPos += 3;
-        }
+  function coletarDadosCompletos() {
+    return Array.from(document.querySelectorAll('#items .item'))
+      .map(it => {
+        const status = Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '';
+        const obs = it.querySelector('.obs_input').value.trim();
+        
+        // CORREÇÃO: Observação só é salva se status for "medio" ou "fora"
+        const obsFinal = (status === 'medio' || status === 'fora') ? obs : '';
+        
+        return {
+          num: it.getAttribute('data-num'),
+          title: it.querySelector('.item-title').textContent.replace(/^\d+\.\s*/,'').trim(),
+          desc: it.querySelector('.param-desc').value.trim(),
+          status: status,
+          obs: obsFinal
+        };
       });
+  }
 
-      // Salvar PDF
-      pdf.save(nomeArquivo);
-      
-      // Mostrar mensagem de sucesso
-      const m = document.getElementById('msgOk');
-      m.textContent = '✅ PDF gerado com sucesso! Verifique sua pasta de downloads.';
-      m.style.display = 'block';
-      setTimeout(()=>m.style.display='none', 6000);
+  function getFuncionarioNome(codigo) {
+    const encontrado = funcionariosLista.find(f => f.codigo === codigo);
+    return encontrado ? encontrado.nome : 'sem_nome';
+  }
+
+  function getVeiculoDesc(codigo) {
+    const encontrado = veiculosLista.find(v => v.codigo === codigo);
+    return encontrado ? encontrado.descricao : codigo;
+  }
+
+  function limparNomeArquivo(nome){return nome.replace(/[^a-z0-9_-]/gi, '_');}
+  
+  function msgOK(){const m = document.getElementById('msgOk'); m.style.display = 'block'; setTimeout(()=>m.style.display='none',6000);}
+
+  // ============================================
+  // GERAR DADOS COMPACTOS PARA ENVIO
+  // ============================================
+  function gerarDadosCompactos() {
+    const itensCompletos = coletarDadosCompletos();
+    const itensCompactos = gerarListaCompacta(itensCompletos);
+    
+    const dadosBase = {
+      Data: dataEl.value.split('-').reverse().join('/'),
+      Horario: horaEl.value,
+      Funcionario: selectFuncionario.value,
+      Veiculo: selectVeiculo.value,
+      Hodometro: hodometroEl.value.trim()
+    };
+    
+    return itensCompactos.map(item => ({
+      ...dadosBase,
+      Numero: item.num,
+      Item: item.title,
+      Descricao: item.desc,
+      Status: item.status,
+      Observacao: item.obs // Já vem vazio para conforme/nao_se_aplica
+    }));
+  }
+
+  // ============================================
+  // GERAR DADOS PARA EXCEL
+  // ============================================
+  function gerarDadosExcel() {
+    const itensCompletos = coletarDadosCompletos();
+    const itensCompactos = gerarListaCompacta(itensCompletos);
+    
+    const dadosBase = {
+      Data: dataEl.value.split('-').reverse().join('/'),
+      Horario: horaEl.value,
+      Funcionario: selectFuncionario.value,
+      Veiculo: selectVeiculo.value,
+      Hodometro: hodometroEl.value.trim()
+    };
+    
+    return itensCompactos.map(item => ({
+      Data: dadosBase.Data,
+      Horario: dadosBase.Horario,
+      Funcionario: dadosBase.Funcionario,
+      Veiculo: dadosBase.Veiculo,
+      Hodometro: dadosBase.Hodometro,
+      Numero: item.num,
+      Item: item.title,
+      Descricao: item.desc,
+      Status: item.status,
+      Observacao: item.obs // Já vem vazio para conforme/nao_se_aplica
+    }));
+  }
+
+  // ============================================
+  // GERAR PDF
+  // ============================================
+  async function gerarPDFsalvar(){
+    if (!validarCamposObrigatorios()) {
+      alert('❌ Por favor, preencha todos os campos obrigatórios antes de gerar o PDF.');
+      return;
     }
-
-    // ============================================
-    // GERAR EXCEL (MANTIDO ORIGINAL)
-    // ============================================
-    function gerarExcel(){
-      const dados = coletarDadosCompletos();
-      const linhas = montarLinhasParaServidor();
-      
-      // Salvar na fila e enviar (NUNCA duplicar)
-      if (linhas.length > 0) {
-        console.log('📦 Salvando dados na fila Checklist via Excel...');
-        salvarEEnviarChecklist(linhas, false);
-      }
-
-      const nomeFuncionario = limparNomeArquivo(dados.matricula || 'sem_nome');
-      const dataArquivo = dados.data || new Date().toISOString().slice(0,10);
-      const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.xlsx`;
-
-      const ws = XLSX.utils.json_to_sheet(linhas);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Checklist');
-      XLSX.writeFile(wb, nomeArquivo);
-      
-      const m = document.getElementById('msgOk');
-      m.textContent = '✅ Excel gerado com sucesso! Verifique sua pasta de downloads.';
-      m.style.display = 'block';
-      setTimeout(()=>m.style.display='none', 6000);
+    
+    const dados = {
+      data: dataEl.value,
+      hora: horaEl.value,
+      matricula: selectFuncionario.value.trim(),
+      veiculo: selectVeiculo.value.trim(),
+      hodometro: hodometroEl.value.trim(),
+      items: coletarDadosCompletos()
+    };
+    
+    const dadosCompactos = gerarDadosCompactos();
+    
+    // Salvar na fila (apenas se houver dados)
+    if (dadosCompactos.length > 0) {
+      await salvarNaFila(dadosCompactos);
     }
+    
+    const nomeFuncionarioCompleto = getFuncionarioNome(dados.matricula);
+    const nomeFuncionario = limparNomeArquivo(nomeFuncionarioCompleto);
+    const dataArquivo = `${dados.data}-${dados.hora.replace(':','-')}`;
+    const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.pdf`;
 
-    // ============================================
-    // SALVAR LOCALMENTE (BACKUP)
-    // ============================================
-    function salvarLocalmenteChecklist() {
-      const linhas = montarLinhasParaServidor();
-      
-      if (linhas.length === 0) {
-        alert("⚠️ Não há dados para salvar!");
-        return;
-      }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'pt', format:'a4', orientation:'portrait' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let yOffset = 40;
+    const lineHeight = 16;
+    const margin = 40;
 
-      localStorage.setItem('checklist_offline_cache', JSON.stringify(linhas));
-      
-      if (!navigator.onLine) {
-        alert('💾 Dados salvos localmente (offline).\nQuando a conexão voltar, você poderá enviá-los.');
+    pdf.setFontSize(14);
+    pdf.text(`Check-List Diário — Veículos Leves`, margin, yOffset); yOffset += lineHeight + 4;
+    pdf.setFontSize(11);
+    pdf.text(`Data: ${dados.data.split('-').reverse().join('/')}   Horário: ${dados.hora || '-'}`, margin, yOffset);
+    yOffset += lineHeight;
+    pdf.text(`Funcionário: ${nomeFuncionarioCompleto || '-'}`, margin, yOffset); yOffset += lineHeight;
+    pdf.text(`Veículo: ${getVeiculoDesc(dados.veiculo) || '-'}`, margin, yOffset); yOffset += lineHeight;
+    pdf.text(`Hodômetro: ${dados.hodometro || '-'}`, margin, yOffset); yOffset += lineHeight + 8;
+    pdf.line(margin, yOffset, pageWidth-margin, yOffset); yOffset += 12;
+
+    // Gerar lista compacta
+    const itensCompactos = gerarListaCompacta(dados.items);
+    
+    pdf.setFontSize(10);
+    pdf.text('Relatório Compacto: Apenas itens com status "Médio" ou "Fora" são listados.', margin, yOffset);
+    yOffset += lineHeight + 4;
+
+    itensCompactos.forEach(it=>{
+      if(yOffset + 80 > pageHeight){ pdf.addPage(); yOffset = margin; }
+      pdf.setFontSize(12); pdf.setFont(undefined,'bold');
+      const titulo = it.num === "0" ? `0. ${it.title}` : `${it.num}. ${it.title}`;
+      pdf.text(titulo, margin, yOffset); yOffset += lineHeight;
+      pdf.setFontSize(11); pdf.setFont(undefined,'normal');
+      const descLines = pdf.splitTextToSize(it.desc, pageWidth - 2*margin);
+      pdf.text(descLines, margin, yOffset); yOffset += descLines.length*lineHeight;
+      pdf.text(`Status: ${it.status || '-'}`, margin, yOffset); yOffset += lineHeight;
+      // Só mostra observação se não estiver vazia
+      if (it.obs && it.obs.trim() !== '') {
+        const obsLines = pdf.splitTextToSize(`Observação: ${it.obs}`, pageWidth - 2*margin);
+        pdf.text(obsLines, margin, yOffset); yOffset += obsLines.length*lineHeight + 8;
       } else {
-        alert('💾 Dados salvos localmente como backup.\nUse "Enviar para Servidor" quando quiser enviar.');
-      }
-    }
-
-    // ============================================
-    // LIMPAR FORMULÁRIO
-    // ============================================
-    function limparFormulario() {
-      if (confirm('🧹 Deseja realmente limpar todos os campos?')) {
-        document.getElementById('matricula').value = '';
-        document.getElementById('veiculo').value = '';
-        document.getElementById('hodometro').value = '';
-        
-        const items = document.querySelectorAll('#items .item');
-        items.forEach(item => {
-          const radios = item.querySelectorAll('input[type="radio"]');
-          radios.forEach(r => r.checked = false);
-          
-          // Marcar "Não se aplica" se existir
-          const naoAplica = item.querySelector('input[type="radio"][value="nao_se_aplica"]');
-          if (naoAplica) naoAplica.checked = true;
-          
-          const obs = item.querySelector('.obs_input');
-          if (obs) obs.value = '';
-        });
-        
-        alert('🧹 Formulário limpo!');
-      }
-    }
-
-    // ============================================
-    // BOTÕES E EVENTOS
-    // ============================================
-
-    // Inicializar fila
-    async function iniciarFilaESincronizacaoChecklist() {
-      try {
-        await filaChecklist.init();
-        console.log('✅ Fila de envio Checklist inicializada');
-        
-        iniciarSincronizacaoAutomaticaChecklist();
-        await atualizarContadorChecklist();
-      } catch (error) {
-        console.error('❌ Erro ao inicializar fila Checklist:', error);
-      }
-    }
-
-    // Iniciar quando a página carregar
-    window.addEventListener('DOMContentLoaded', () => {
-      iniciarFilaESincronizacaoChecklist();
-    });
-
-    // Botão Gerar PDF
-    document.getElementById('btnGerar').onclick = gerarPDFsalvar;
-
-    // Botão Gerar Excel
-    document.getElementById('btnExcel').onclick = gerarExcel;
-
-    // Botão Enviar para Servidor
-    document.getElementById('btnServidor').onclick = async () => {
-      const linhas = montarLinhasParaServidor();
-      
-      if (linhas.length === 0) {
-        alert("⚠️ Não há dados para enviar!");
-        return;
-      }
-      
-      const salvou = await salvarEEnviarChecklist(linhas, true);
-      
-      if (salvou) {
-        const limparCampos = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos preenchidos.\nClique em Cancelar para manter os dados.');
-        
-        if (limparCampos) {
-          limparFormulario();
-        }
-      }
-    };
-
-    // Botão Salvar Localmente
-    document.getElementById('btnSalvarLocal').onclick = salvarLocalmenteChecklist;
-
-    // Botão Sincronizar Agora
-    document.getElementById('btnSincronizarAgora').onclick = async () => {
-      if (!navigator.onLine) {
-        alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
-        return;
-      }
-      
-      console.log('🔄 Botão Sincronizar Agora Checklist clicado - APENAS sincronizando');
-      
-      document.getElementById('btnSincronizarAgora').disabled = true;
-      document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
-      
-      await sincronizarFilaChecklist();
-      
-      document.getElementById('btnSincronizarAgora').disabled = false;
-      document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
-    };
-
-    // Botão Limpar
-    document.getElementById('btnLimpar').onclick = limparFormulario;
-
-    // Botão Instruções WhatsApp
-    document.getElementById('btnInstrucoes').onclick = ()=>alert('Após gerar o PDF ou Excel, abra o WhatsApp e anexe o arquivo salvo na pasta Downloads.');
-
-    // ============================================
-    // CARREGAR DADOS SALVOS DO localStorage
-    // ============================================
-    window.addEventListener('load', () => {
-      const cache = localStorage.getItem('checklist_offline_cache');
-      
-      if (cache) {
-        const linhas = JSON.parse(cache);
-        
-        if (linhas.length > 0) {
-          const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
-          
-          if (carregar) {
-            // Preencher dados do cabeçalho
-            if (linhas[0].Data) {
-              document.getElementById('data').value = linhas[0].Data;
-            }
-            if (linhas[0].Matricula) {
-              document.getElementById('matricula').value = linhas[0].Matricula;
-            }
-            if (linhas[0].Veiculo) {
-              document.getElementById('veiculo').value = linhas[0].Veiculo;
-            }
-            if (linhas[0].Hodometro) {
-              document.getElementById('hodometro').value = linhas[0].Hodometro;
-            }
-            
-            // Preencher itens
-            const items = document.querySelectorAll('#items .item');
-            items.forEach((item, index) => {
-              if (index < linhas.length) {
-                const dado = linhas[index];
-                
-                // Status
-                const radios = item.querySelectorAll('input[type="radio"]');
-                radios.forEach(r => {
-                  if (r.value === dado.Status) {
-                    r.checked = true;
-                  }
-                });
-                
-                // Observação
-                const obs = item.querySelector('.obs_input');
-                if (obs && dado.Observacao) {
-                  obs.value = dado.Observacao;
-                }
-              }
-            });
-            
-            alert('📂 Dados carregados do cache local.');
-          } else {
-            localStorage.removeItem('checklist_offline_cache');
-            alert('📄 Iniciando formulário em branco.');
-          }
-        }
+        yOffset += 8;
       }
     });
 
-    // ============================================
-    // TENTAR ENVIAR DADOS PENDENTES QUANDO A CONEXÃO VOLTAR
-    // ============================================
-    // O event listener 'online' já está no iniciarSincronizacaoAutomaticaChecklist()
+    pdf.save(nomeArquivo);
+    msgOK();
+  }
 
-    console.log('✅ Checklist com fila offline robusta carregado!');
-    console.log('📌 Sistema de fila Checklist ativo e aguardando ações.');
-    console.log('📌 JSONBin: 6a64f831da38895dfe8f0e44');
+  // ============================================
+  // GERAR EXCEL
+  // ============================================
+  function gerarExcel(){
+    if (!validarCamposObrigatorios()) {
+      alert('❌ Por favor, preencha todos os campos obrigatórios antes de gerar o Excel.');
+      return;
+    }
+    
+    const dadosExcel = gerarDadosExcel();
+    
+    if (dadosExcel.length > 0) {
+      salvarNaFila(dadosExcel);
+    }
+    
+    const nomeFuncionario = limparNomeArquivo(getFuncionarioNome(selectFuncionario.value));
+    const dataArquivo = `${dataEl.value}-${horaEl.value.replace(':','-')}`;
+    const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.xlsx`;
 
+    const ws = XLSX.utils.json_to_sheet(dadosExcel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Checklist');
+    XLSX.writeFile(wb, nomeArquivo);
+    msgOK();
+  }
+
+  // ============================================
+  // ENVIAR PARA O SERVIDOR
+  // ============================================
+  async function enviarParaServidor() {
+    if (!validarCamposObrigatorios()) {
+      alert('❌ Por favor, preencha todos os campos obrigatórios antes de enviar.');
+      return;
+    }
+    
+    const dadosCompactos = gerarDadosCompactos();
+    
+    if (dadosCompactos.length === 0) {
+      alert('⚠️ Não há dados para enviar!');
+      return;
+    }
+    
+    const salvou = await salvarNaFila(dadosCompactos);
+    
+    if (salvou) {
+      const limpar = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos.\nClique em Cancelar para manter os dados.');
+      if (limpar) {
+        limparFormulario();
+      }
+    }
+  }
+
+  // ============================================
+  // SALVAR LOCALMENTE
+  // ============================================
+  function salvarLocalmente() {
+    if (!validarCamposObrigatorios()) {
+      alert('❌ Por favor, preencha todos os campos obrigatórios antes de salvar.');
+      return;
+    }
+    
+    const dadosLocal = {
+      data: dataEl.value,
+      hora: horaEl.value,
+      matricula: selectFuncionario.value,
+      veiculo: selectVeiculo.value,
+      hodometro: hodometroEl.value.trim(),
+      items: coletarDadosCompletos()
+    };
+    localStorage.setItem('checklist_veiculos', JSON.stringify(dadosLocal));
+    alert('✅ Checklist salvo localmente!');
+  }
+
+  // ============================================
+  // LIMPAR FORMULÁRIO
+  // ============================================
+  function limparFormulario() {
+    if (confirm('🧹 Deseja realmente limpar todos os campos?')) {
+      selectFuncionario.value = '';
+      selectVeiculo.value = '';
+      hodometroEl.value = '';
+      
+      const items = document.querySelectorAll('#items .item');
+      items.forEach(item => {
+        const radios = item.querySelectorAll('input[type="radio"]');
+        radios.forEach(r => r.checked = false);
+        
+        const naoAplica = item.querySelector('input[type="radio"][value="nao_se_aplica"]');
+        if (naoAplica) naoAplica.checked = true;
+        
+        const obs = item.querySelector('.obs_input');
+        if (obs) obs.value = '';
+      });
+      
+      alert('🧹 Formulário limpo!');
+    }
+  }
+
+  // ============================================
+  // CARREGAR DADOS SALVOS
+  // ============================================
+  function carregarDadosSalvos() {
+    const dadosSalvos = localStorage.getItem('checklist_veiculos');
+    if(dadosSalvos){
+      try{
+        const obj = JSON.parse(dadosSalvos);
+        selectFuncionario.value = obj.matricula || '';
+        selectVeiculo.value = obj.veiculo || '';
+        hodometroEl.value = obj.hodometro || '';
+        if(obj.items && Array.isArray(obj.items)){
+          obj.items.forEach(it=>{
+            const el = document.querySelector(`.item[data-num="${it.num}"]`);
+            if(el){
+              el.querySelector('.param-desc').value = it.desc || '';
+              const radio = Array.from(el.querySelectorAll('input[type=radio]')).find(r=>r.value===it.status);
+              if(radio) radio.checked = true;
+              el.querySelector('.obs_input').value = it.obs || '';
+            }
+          });
+        }
+      } catch(e){}
+    }
+  }
+
+  // ============================================
+  // BOTÕES E EVENTOS
+  // ============================================
+  document.getElementById('btnGerar').onclick = gerarPDFsalvar;
+  document.getElementById('btnExcel').onclick = gerarExcel;
+  document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
+  document.getElementById('btnServidor').onclick = enviarParaServidor;
+  document.getElementById('btnLimpar').onclick = limparFormulario;
+  document.getElementById('btnInstrucoes').onclick = ()=>alert('Após gerar o PDF ou Excel, abra o WhatsApp e envie o arquivo como anexo para o contato desejado.');
+
+  // Botão Sincronizar Agora
+  document.getElementById('btnSincronizarAgora').onclick = async () => {
+    if (!navigator.onLine) {
+      alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+      return;
+    }
+    
+    console.log('🔄 Botão Sincronizar Agora clicado - APENAS sincronizando');
+    
+    document.getElementById('btnSincronizarAgora').disabled = true;
+    document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
+    
+    await sincronizarFila();
+    
+    document.getElementById('btnSincronizarAgora').disabled = false;
+    document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
+  };
+
+  // ============================================
+  // INICIALIZAÇÃO
+  // ============================================
+  
+  async function iniciarFila() {
+    try {
+      await filaChecklist.init();
+      console.log('✅ Fila de envio inicializada');
+      
+      iniciarSincronizacaoAutomatica();
+      await atualizarContador();
+    } catch (error) {
+      console.error('❌ Erro ao inicializar fila:', error);
+    }
+  }
+
+  (async function iniciar() {
+    await iniciarFila();
+    await carregarDadosDoBin();
+    carregarDadosSalvos();
+    
+    if (navigator.onLine) {
+      const total = await filaChecklist.contar();
+      if (total > 0) {
+        console.log(`🔄 Enviando ${total} itens pendentes...`);
+        await sincronizarFila();
+      }
+    }
   })();
-  </script>
+
+  console.log('✅ Checklist com dados do BIN e fila robusta carregado!');
+  console.log('📌 BIN de dados mestres (funcionários/veículos):', BIN_DADOS_MESTRES);
+  console.log('📌 BIN de dados diários:', BIN_DADOS_DIARIOS);
+  console.log('📌 Dados compactos: apenas exceções são registradas');
+  console.log('📌 Observações: apenas para status "Médio" ou "Fora"');
+
+})();
+</script>
 </body>
 </html>
