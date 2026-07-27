@@ -1250,11 +1250,12 @@ function atualizarTodosOsSelectsTipos() {
 }
 
 // ============================================
-// FUNÇÃO PARA VALIDAR LINHAS
+// FUNÇÃO PARA VALIDAR LINHAS (CORRIGIDA)
 // ============================================
 
 function validarLinhasObrigatorias() {
   let valido = true;
+  let temPeloMenosUmaLinhaPreenchida = false;
   const rows = tblBody.querySelectorAll('tr');
   
   rows.forEach((row, index) => {
@@ -1266,10 +1267,29 @@ function validarLinhasObrigatorias() {
     const tipoWrapper = row.querySelector('.tipo-wrapper');
     const inputData = row.querySelector('td:nth-child(3) input[type="date"]');
     
+    // Verificar se esta linha tem algum dado preenchido
+    const temEquip = selectEquip && selectEquip.value;
+    const temResp = selectResp && selectResp.value;
+    let temTipo = false;
+    if (row._tipoComponent) {
+      temTipo = row._tipoComponent.getValor() !== '';
+    }
+    const temData = inputData && inputData.value;
+    
+    const linhaPreenchida = temEquip || temResp || temTipo || temData;
+    
+    // Se a linha estiver totalmente vazia, ignorar (não validar)
+    if (!linhaPreenchida) {
+      return; // Pular esta linha
+    }
+    
+    // Marcar que pelo menos uma linha tem dados
+    temPeloMenosUmaLinhaPreenchida = true;
+    
     let linhaValida = true;
     
     // Validar equipamento
-    if (!selectEquip || !selectEquip.value) {
+    if (!temEquip) {
       linhaValida = false;
       if (selectEquip) selectEquip.classList.add('required-field');
     } else {
@@ -1277,7 +1297,7 @@ function validarLinhasObrigatorias() {
     }
     
     // Validar responsável
-    if (!selectResp || !selectResp.value) {
+    if (!temResp) {
       linhaValida = false;
       if (selectResp) selectResp.classList.add('required-field');
     } else {
@@ -1285,8 +1305,7 @@ function validarLinhasObrigatorias() {
     }
     
     // Validar tipo de manutenção
-    const tipoValor = getValorTipo(tipoWrapper);
-    if (!tipoValor) {
+    if (!temTipo) {
       linhaValida = false;
       if (tipoWrapper) {
         tipoWrapper.style.border = '2px solid #ff4444';
@@ -1301,7 +1320,7 @@ function validarLinhasObrigatorias() {
     }
     
     // Validar data
-    if (!inputData || !inputData.value) {
+    if (!temData) {
       linhaValida = false;
       if (inputData) inputData.classList.add('required-field');
     } else {
@@ -1313,6 +1332,11 @@ function validarLinhasObrigatorias() {
       valido = false;
     }
   });
+  
+  // Se não tem nenhuma linha preenchida, considerar inválido
+  if (!temPeloMenosUmaLinhaPreenchida) {
+    return false;
+  }
   
   return valido;
 }
@@ -1407,15 +1431,26 @@ function getDadosFormulario() {
       tipoValor = r._tipoComponent.getValor();
     }
     
+    // Verificar se a linha tem algum dado
+    const equip = selectEquip ? selectEquip.value : '';
+    const resp = selectResp ? selectResp.value : '';
+    const dataManu = dataManutencao;
+    const tipo = tipoValor;
+    
+    // Se todos os campos estiverem vazios, pular esta linha
+    if (!equip && !resp && !dataManu && !tipo) {
+      return null;
+    }
+    
     return {
       data_documento: data,
       hora_documento: horaDoc,
-      equipamento: selectEquip ? selectEquip.value : '',
-      tipo_manutencao: tipoValor,
-      data_manutencao: dataManutencao,
-      responsavel: selectResp ? selectResp.value : ''
+      equipamento: equip,
+      tipo_manutencao: tipo,
+      data_manutencao: dataManu,
+      responsavel: resp
     };
-  }).filter(l => l.equipamento || l.tipo_manutencao || l.responsavel);
+  }).filter(l => l !== null);
 }
 
 // ============================================
@@ -1621,14 +1656,14 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
   // Validar campos obrigatórios
   if (!validarLinhasObrigatorias()) {
     if (mostrarAlerta) {
-      alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+      alert('❌ Por favor, preencha todos os campos obrigatórios das linhas que estão com dados (linhas com borda vermelha).');
     }
     return false;
   }
   
   const linhas = getDadosFormulario();
   if (linhas.length === 0) {
-    if (mostrarAlerta) alert("⚠️ Não há dados para enviar!");
+    if (mostrarAlerta) alert("⚠️ Não há dados para enviar! Preencha pelo menos uma linha.");
     return false;
   }
 
@@ -1654,7 +1689,7 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
 function salvarLocalmente() {
   // Validar campos obrigatórios
   if (!validarLinhasObrigatorias()) {
-    alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    alert('❌ Por favor, preencha todos os campos obrigatórios das linhas que estão com dados (linhas com borda vermelha).');
     return;
   }
   
@@ -1672,7 +1707,7 @@ function salvarLocalmente() {
 $('btnGerarPDF').onclick = async () => {
   // Validar campos obrigatórios
   if (!validarLinhasObrigatorias()) {
-    alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    alert('❌ Por favor, preencha todos os campos obrigatórios das linhas que estão com dados (linhas com borda vermelha).');
     return;
   }
   
@@ -1721,7 +1756,7 @@ $('btnGerarPDF').onclick = async () => {
     });
     
     if (!hasData) {
-      alert('⚠️ Não há dados!');
+      alert('⚠️ Não há dados para gerar o PDF!');
       return;
     }
     
@@ -1765,14 +1800,14 @@ $('btnGerarPDF').onclick = async () => {
 $('btnExcel').onclick = () => {
   // Validar campos obrigatórios
   if (!validarLinhasObrigatorias()) {
-    alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    alert('❌ Por favor, preencha todos os campos obrigatórios das linhas que estão com dados (linhas com borda vermelha).');
     return;
   }
   
   try {
     const linhas = getDadosFormulario();
     if (linhas.length === 0) {
-      alert('⚠️ Não há dados!');
+      alert('⚠️ Não há dados para gerar o Excel!');
       return;
     }
     
@@ -1923,6 +1958,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
   console.log('📌 Campo "Horímetro" substituído por "Responsável"');
   console.log('📌 Combobox pesquisável integrado ao formulário (sem modal)');
+  console.log('📌 Validação: apenas linhas com dados são obrigatórias');
 });
 
 </script>
