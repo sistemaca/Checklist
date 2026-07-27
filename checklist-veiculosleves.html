@@ -14,24 +14,102 @@
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .col{flex:1;min-width:120px;display:flex;flex-direction:column;margin-bottom:8px}
     label{font-size:13px;margin-bottom:6px;color:#222}
-    input[type=text], input[type=date], input[type=time], textarea, select {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff}
+    input[type=text], input[type=date], input[type=time], textarea, select {padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff;width:100%;box-sizing:border-box}
     input[readonly]{background:#eee;cursor:not-allowed}
     textarea.param-desc{min-height:48px;resize:vertical}
     .items{margin-top:12px}
     .item{border:1px solid #eee;padding:10px;border-radius:6px;margin-bottom:8px;background:#fafafa}
     .item-title{font-weight:600}
     .param-desc-label{font-size:12px;color:#444;margin-top:6px;margin-bottom:4px}
-    .choices{display:flex;gap:12px;align-items:center;margin-top:8px}
+    .choices{display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap}
     .choice{display:flex;align-items:center;gap:6px}
     .obs{margin-top:8px}
     .obs input{width:100%}
-    .btn{display:inline-block;background:#0b73d6;color:#fff;border:none;padding:12px 14px;border-radius:8px;font-size:15px;cursor:pointer}
+    .btn{display:inline-block;background:#0b73d6;color:#fff;border:none;padding:12px 14px;border-radius:8px;font-size:15px;cursor:pointer;transition:background 0.3s}
+    .btn:hover{background:#0959a8}
     .btn-gray{background:#6c757d}
+    .btn-gray:hover{background:#5a6268}
+    .btn-success{background:#28a745}
+    .btn-success:hover{background:#218838}
     .msg{color:green;margin-top:10px;display:none}
     .required-field {border: 2px solid #ff4444 !important;}
+    
+    /* ESTILOS PARA FILA DE ENVIO */
+    .fila-status {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin: 12px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .fila-status .indicadores {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .fila-status .indicador {
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fila-status .btn-sincronizar {
+      background: #0b73d6;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .fila-status .btn-sincronizar:hover { background: #0959a8; }
+    .fila-status .btn-sincronizar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      color: #666;
+      font-size: 14px;
+    }
+    .loading-indicator.active {
+      display: block;
+    }
+
+    /* Sugestão de veículo preenchido automaticamente */
+    .veiculo-sugerido {
+      font-size: 11px;
+      color: #28a745;
+      margin-top: 4px;
+      display: none;
+    }
+    .veiculo-sugerido.active {
+      display: block;
+    }
+
     @media(max-width:420px){
       .row {flex-direction: column;}
       .col {min-width: 100% !important; max-width: 100% !important;}
+      .fila-status{flex-direction:column;align-items:stretch;gap:6px}
+      .fila-status .indicadores{justify-content:center}
+      .actions{flex-direction:column}
+      .actions .btn{width:100%}
     }
   </style>
 </head>
@@ -39,32 +117,55 @@
 <div class="paper" id="paper">
   <h1>Check-List Diário — Veículos Leves</h1>
 
+  <div class="loading-indicator" id="loadingIndicator">🔄 Carregando dados do servidor...</div>
+
   <div class="row">
     <div class="col">
       <label for="matricula">Funcionário *</label>
       <select id="matricula" required>
-        <option value="">Selecione o funcionário</option>
+        <option value="">Carregando funcionários...</option>
       </select>
     </div>
     <div class="col">
       <label for="veiculo">Veículo *</label>
       <select id="veiculo" required>
-        <option value="">Selecione o veículo</option>
+        <option value="">Carregando veículos...</option>
       </select>
+      <div class="veiculo-sugerido" id="veiculoSugerido">
+        💡 Sugestão: <span id="veiculoSugeridoTexto"></span>
+      </div>
     </div>
     <div class="col"><label for="data">Data</label><input id="data" type="date" readonly></div>
     <div class="col" style="max-width:120px"><label for="hora">Horário</label><input id="hora" type="time" readonly></div>
     <div class="col" style="max-width:160px"><label for="hodometro">Hodômetro (km) *</label><input id="hodometro" type="text" placeholder="12345" required></div>
   </div>
 
+  <!-- FILA DE ENVIO - STATUS -->
+  <div class="fila-status" id="filaStatus">
+    <div class="indicadores">
+      <span class="indicador">
+        📦 Pendentes: <strong id="filaPendentes">0</strong>
+      </span>
+      <span class="indicador">
+        <span id="filaStatusIcone">✅</span>
+        <span id="filaStatusTexto">Sincronizado</span>
+      </span>
+      <span class="indicador" id="filaUltimoEnvio" style="font-size:12px;color:#666;"></span>
+    </div>
+    <div>
+      <button id="btnSincronizarAgora" class="btn-sincronizar">🔄 Sincronizar Agora</button>
+    </div>
+  </div>
+
   <div class="items" id="items"></div>
 
-  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn" id="btnSalvarLocal">Salvar Localmente</button>
-    <button class="btn" id="btnServidor">Enviar para o Servidor</button>
-    <button class="btn btn-gray" id="btnExcel">Gerar Excel</button>
-    <button class="btn btn-gray" id="btnGerar">Gerar PDF</button>
-    <button class="btn btn-gray" id="btnInstrucoes">Como enviar pelo WhatsApp</button>
+  <div class="actions">
+    <button class="btn btn-success" id="btnServidor">📤 Enviar para o Servidor</button>
+    <button class="btn btn-gray" id="btnSalvarLocal">💾 Salvar Localmente</button>
+    <button class="btn btn-gray" id="btnExcel">📊 Gerar Excel</button>
+    <button class="btn btn-gray" id="btnGerar">📄 Gerar PDF</button>
+    <button class="btn btn-gray" id="btnLimpar">🧹 Limpar</button>
+    <button class="btn btn-gray" id="btnInstrucoes">💬 Como enviar pelo WhatsApp</button>
   </div>
 
   <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
@@ -74,81 +175,576 @@
 </div>
 
 <script>
+// ============================================
+// CONFIGURAÇÃO DOS BINS
+// ============================================
+
+// BIN 1: APENAS para funcionários e veículos (dados mestres)
+const BIN_DADOS_MESTRES = '69023644ae596e708f35f300';
+
+// BIN 2: APENAS para os dados diários do checklist
+const BIN_DADOS_DIARIOS = '6a64f831da38895dfe8f0e44';
+
+const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
+
+// ============================================
+// SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA
+// ============================================
+
+class FilaEnvioChecklist {
+  constructor() {
+    this.dbName = 'ChecklistFilaDB';
+    this.storeName = 'fila_envios';
+    this.db = null;
+    this.inicializado = false;
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { 
+            keyPath: 'id', 
+            autoIncrement: true 
+          });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        this.inicializado = true;
+        resolve();
+      };
+
+      request.onerror = (event) => {
+        console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+
+  async adicionar(dados) {
+    await this.aguardarInicializacao();
+    
+    console.log('📦 ADICIONANDO à fila Checklist:', dados);
+    
+    const item = {
+      dados: dados,
+      criadoEm: Date.now()
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.add(item);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error('❌ Erro ao adicionar item:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async remover(id) {
+    await this.aguardarInicializacao();
+    
+    console.log(`🗑️ REMOVENDO item ${id} da fila Checklist`);
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete(id);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item ${id} removido com sucesso`);
+        resolve();
+      };
+      request.onerror = () => {
+        console.error(`❌ Erro ao remover item ${id}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async listarTodos() {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        console.error('❌ Erro ao listar itens:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async contar() {
+    const itens = await this.listarTodos();
+    return itens.length;
+  }
+
+  async aguardarInicializacao() {
+    if (this.inicializado) return;
+    
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.inicializado) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+}
+
+// ============================================
+// INSTÂNCIA GLOBAL DA FILA
+// ============================================
+const filaChecklist = new FilaEnvioChecklist();
+
+// ============================================
+// FUNÇÕES DE GERENCIAMENTO DO BIN DE DADOS MESTRES
+// ============================================
+
+async function carregarFuncionarios() {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    
+    const json = await res.json();
+    const data = json.record;
+    
+    if (data && data.funcionarios && Array.isArray(data.funcionarios)) {
+      return data.funcionarios;
+    } else {
+      console.warn('⚠️ Estrutura de funcionários não encontrada no BIN');
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar funcionários:', error);
+    return [];
+  }
+}
+
+async function carregarVeiculos() {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    
+    const json = await res.json();
+    const data = json.record;
+    
+    if (data && data.veiculos && Array.isArray(data.veiculos)) {
+      return data.veiculos;
+    } else {
+      console.warn('⚠️ Estrutura de veículos não encontrada no BIN');
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar veículos:', error);
+    return [];
+  }
+}
+
+// ============================================
+// FUNÇÕES DE ENVIO PARA O BIN DE DADOS DIÁRIOS
+// ============================================
+
+async function enviarDadosDiarios(dados) {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_DIARIOS}`;
+    
+    const resGet = await fetch(`${url}/latest`, { 
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    let dadosExistentes = [];
+    if (resGet.ok) {
+      const json = await resGet.json();
+      dadosExistentes = Array.isArray(json.record) ? json.record : [];
+    }
+
+    const dadosAtualizados = [...dadosExistentes, ...dados];
+    
+    const resPut = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Versioning': 'false'
+      },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (resPut.ok) {
+      console.log('✅ Dados diários enviados com sucesso para o BIN');
+      return true;
+    } else {
+      console.log('❌ Erro ao enviar dados diários:', resPut.status);
+      return false;
+    }
+
+  } catch (error) {
+    console.log('❌ Erro de rede:', error.message);
+    return false;
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA GERAR LISTA COMPACTA DE ITENS
+// ============================================
+function gerarListaCompacta(itens) {
+  const todosConforme = itens.every(item => 
+    item.status === 'conforme' || item.status === 'nao_se_aplica'
+  );
+  
+  if (todosConforme) {
+    return [
+      {
+        num: "0",
+        title: "Todos os itens",
+        desc: "Todos os itens estão conformes ou não se aplicam",
+        status: "conforme",
+        obs: ""
+      }
+    ];
+  } else {
+    const excecoes = itens.filter(item => 
+      item.status !== 'conforme' && item.status !== 'nao_se_aplica'
+    );
+    
+    return [
+      {
+        num: "0",
+        title: "Itens conformes e/ou não se aplicam",
+        desc: "Todos os itens não listados abaixo estão conformes ou não se aplicam",
+        status: "conforme",
+        obs: ""
+      },
+      ...excecoes
+    ];
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA SALVAR NA FILA
+// ============================================
+async function salvarNaFila(dados) {
+  try {
+    await filaChecklist.init();
+    const id = await filaChecklist.adicionar(dados);
+    console.log(`📦 Dados adicionados à fila (ID: ${id})`);
+    await atualizarContador();
+    
+    if (navigator.onLine) {
+      console.log('🌐 Online - tentando enviar imediatamente...');
+      setTimeout(async () => {
+        await sincronizarFila();
+      }, 500);
+    }
+    
+    return id;
+  } catch (error) {
+    console.error('❌ Erro ao salvar na fila:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// FUNÇÃO DE SINCRONIZAÇÃO DA FILA
+// ============================================
+let sincronizando = false;
+
+async function sincronizarFila() {
+  if (!navigator.onLine) {
+    console.log('📡 Offline - não é possível sincronizar');
+    atualizarContador();
+    return;
+  }
+
+  if (sincronizando) {
+    console.log('⏳ Já está sincronizando...');
+    return;
+  }
+
+  try {
+    sincronizando = true;
+    console.log('🔄 INICIANDO SINCRONIZAÇÃO...');
+    
+    const itens = await filaChecklist.listarTodos();
+    
+    if (itens.length === 0) {
+      console.log('✅ Nenhum item pendente');
+      atualizarContador();
+      sincronizando = false;
+      return;
+    }
+
+    console.log(`📦 ${itens.length} item(ns) pendente(s)`);
+    
+    let itensRemovidos = 0;
+    for (const item of itens) {
+      console.log(`🔄 Processando item ${item.id}...`);
+      
+      const enviado = await enviarDadosDiarios(item.dados);
+      
+      if (enviado) {
+        await filaChecklist.remover(item.id);
+        itensRemovidos++;
+        console.log(`✅ Item ${item.id} removido da fila`);
+      } else {
+        console.log(`❌ Falha no envio do item ${item.id} - mantendo na fila`);
+        break;
+      }
+    }
+
+    console.log(`✅ ${itensRemovidos} item(ns) removidos da fila`);
+
+  } catch (error) {
+    console.error('❌ Erro na sincronização:', error);
+  } finally {
+    sincronizando = false;
+    await atualizarContador();
+    console.log('🔄 SINCRONIZAÇÃO FINALIZADA');
+  }
+}
+
+// ============================================
+// ATUALIZAR CONTADOR DA FILA
+// ============================================
+async function atualizarContador() {
+  try {
+    const total = await filaChecklist.contar();
+    document.getElementById('filaPendentes').textContent = total;
+    
+    const statusIcone = document.getElementById('filaStatusIcone');
+    const statusTexto = document.getElementById('filaStatusTexto');
+    const ultimoEnvio = document.getElementById('filaUltimoEnvio');
+    
+    if (total === 0) {
+      statusIcone.textContent = '✅';
+      statusTexto.textContent = 'Sincronizado';
+      ultimoEnvio.textContent = `Último: ${new Date().toLocaleTimeString()}`;
+    } else if (sincronizando) {
+      statusIcone.textContent = '⏳';
+      statusTexto.textContent = 'Enviando...';
+    } else {
+      statusIcone.textContent = '📦';
+      statusTexto.textContent = `${total} pendente(s)`;
+    }
+    
+    console.log(`📊 Contador atualizado: ${total} pendente(s)`);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contador:', error);
+  }
+}
+
+// ============================================
+// INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+// ============================================
+function iniciarSincronizacaoAutomatica() {
+  window.addEventListener('online', async () => {
+    console.log('🌐 Conexão restaurada - sincronizando...');
+    await sincronizarFila();
+  });
+
+  setInterval(async () => {
+    if (navigator.onLine) {
+      const total = await filaChecklist.contar();
+      if (total > 0) {
+        console.log('⏰ Sincronização periódica...');
+        await sincronizarFila();
+      }
+    }
+  }, 30000);
+
+  setTimeout(async () => {
+    await filaChecklist.init();
+    await atualizarContador();
+    
+    if (navigator.onLine) {
+      const total = await filaChecklist.contar();
+      if (total > 0) {
+        console.log(`🔄 Sincronizando ${total} item(ns) pendentes...`);
+        await sincronizarFila();
+      }
+    }
+  }, 1500);
+}
+
+// ============================================
+// FUNÇÕES PRINCIPAIS DO CHECKLIST
+// ============================================
+
 (function(){
   const dataEl = document.getElementById('data');
   const horaEl = document.getElementById('hora');
   const hodometroEl = document.getElementById('hodometro');
+  const selectFuncionario = document.getElementById('matricula');
+  const selectVeiculo = document.getElementById('veiculo');
+  const veiculoSugerido = document.getElementById('veiculoSugerido');
+  const veiculoSugeridoTexto = document.getElementById('veiculoSugeridoTexto');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  
   const today = new Date();
   function pad(n){return String(n).padStart(2,'0')}
   dataEl.value = today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate());
   horaEl.value = pad(today.getHours()) + ':' + pad(today.getMinutes());
 
-  const funcionarios = [
-  {codigo:"80236", nome:"ADRIANO PERCILIO DA SILVA"},
-  {codigo:"80096", nome:"AILTON RODRIGO COUTINHO"},
-  {codigo:"80229", nome:"BEATRIZ ESTELA ELIAS DA SILVA"},
-  {codigo:"80150", nome:"BRUNA DA CUNHA ALVES"},
-  {codigo:"80227", nome:"BRUNO HENRIK GOMES SILVA"},
-  {codigo:"80239", nome:"CARLOS AUGUSTO DA COSTA"},
-  {codigo:"80234", nome:"CELIO GERALDO DE SOUZA"},
-  {codigo:"80230", nome:"DAIANY MINUCCI GARCIA"},
-  {codigo:"80235", nome:"ELIAS TIBURCIO DE SOUZA"},
-  {codigo:"90001", nome:"GENTIL JOSÉ DE OLIVEIRA"},
-  {codigo:"80240", nome:"GILSON GERALDO MINUCCI GARCIA SILVA"},
-  {codigo:"80116", nome:"GUSTAVO TEIXEIRA DA SILVA"},
-  {codigo:"80228", nome:"HEITOR FERREIRA ARAUJO"},
-  {codigo:"80237", nome:"IAN VICTOR MOREIRA GOMES"},
-  {codigo:"80215", nome:"JOÃO PEDRO ROCHA DOMINGOS"},
-  {codigo:"80219", nome:"JORDANYA ALVES PEREIRA SANTOS"},
-  {codigo:"80119", nome:"JOSE WALTER DE OLIVEIRA"},
-  {codigo:"80224", nome:"JOSE CARLOS RAMOS RODRIGUES"},
-  {codigo:"80065", nome:"JOYCE RAFAELA LOPES DA SILVA"},
-  {codigo:"80221", nome:"JULIA FERNANDES DA SILVA"},
-  {codigo:"80184", nome:"LARICE EDUARDA MARTINS"},
-  {codigo:"91002", nome:"LIVIA MENEZES OLIVEIRA"},
-  {codigo:"80231", nome:"LUIS ANTONIO LOPES VELOSO"},
-  {codigo:"80177", nome:"MAURICIO JOSE DO COUTO"},
-  {codigo:"91003", nome:"NICOMEDES AUGUSTO DE OLEIVEIRA"},
-  {codigo:"80060", nome:"POLIANA OLIVEIRA"},
-  {codigo:"80175", nome:"REINALDO DOS SANTOS VALADÃO"},
-  {codigo:"80225", nome:"RICARDO AUGUSTO DOS SANTOS"},
-  {codigo:"80021", nome:"RINALDO CESAR PEREIRA"},
-  {codigo:"80170", nome:"RODOLFO CARDOSO TEIXEIRA"},
-  {codigo:"80101", nome:"TIAGO LEONE RAMOS DA SILVA"},
-  {codigo:"80222", nome:"TIAGO SILVA DE OLIVEIRA"},
-  {codigo:"80226", nome:"VIVIANE DE FIGUEIREDO TEIXEIRA"}
-  ];
+  let funcionariosLista = [];
+  let veiculosLista = [];
 
-  const selectFuncionario = document.getElementById('matricula');
-  funcionarios.forEach(f => {
-    const option = document.createElement('option');
-    option.value = f.codigo;
-    option.textContent = `${f.codigo} - ${f.nome}`;
-    selectFuncionario.appendChild(option);
+  // ============================================
+  // NOVA FUNÇÃO: PREENCHER VEÍCULO POR POSIÇÃO
+  // ============================================
+  function preencherVeiculoPorPosicao(codigoFuncionario) {
+    // Encontrar a posição do funcionário selecionado
+    const indice = funcionariosLista.findIndex(f => f.codigo === codigoFuncionario);
+    
+    if (indice !== -1 && indice < veiculosLista.length) {
+      // Encontrou o funcionário e existe veículo na mesma posição
+      const veiculoSugeridoObj = veiculosLista[indice];
+      const valorSugerido = veiculoSugeridoObj.codigo;
+      
+      // Verificar se o veículo sugerido existe no select
+      const opcoes = Array.from(selectVeiculo.options);
+      const existe = opcoes.some(opt => opt.value === valorSugerido);
+      
+      if (existe) {
+        // Mostrar sugestão
+        veiculoSugeridoTexto.textContent = `${veiculoSugeridoObj.codigo} - ${veiculoSugeridoObj.descricao}`;
+        veiculoSugerido.classList.add('active');
+        
+        // Preencher automaticamente
+        selectVeiculo.value = valorSugerido;
+        console.log(`💡 Veículo sugerido pela posição ${indice}: ${valorSugerido}`);
+        
+        // Remover destaque de campo obrigatório se existir
+        selectVeiculo.classList.remove('required-field');
+      } else {
+        veiculoSugerido.classList.remove('active');
+        console.log(`⚠️ Veículo na posição ${indice} não encontrado no select`);
+      }
+    } else {
+      veiculoSugerido.classList.remove('active');
+      if (indice === -1) {
+        console.log('ℹ️ Funcionário não encontrado na lista');
+      } else {
+        console.log(`⚠️ Posição ${indice} não existe na lista de veículos (tamanho: ${veiculosLista.length})`);
+      }
+    }
+  }
+
+  // ============================================
+  // CARREGAR DADOS DO BIN DE DADOS MESTRES
+  // ============================================
+  async function carregarDadosDoBin() {
+    loadingIndicator.classList.add('active');
+    
+    try {
+      // Carregar funcionários
+      funcionariosLista = await carregarFuncionarios();
+      if (funcionariosLista.length === 0) {
+        console.warn('⚠️ Nenhum funcionário encontrado no BIN');
+        funcionariosLista = [];
+      }
+      
+      // Carregar veículos
+      veiculosLista = await carregarVeiculos();
+      if (veiculosLista.length === 0) {
+        console.warn('⚠️ Nenhum veículo encontrado no BIN');
+        veiculosLista = [];
+      }
+      
+      // Preencher selects
+      preencherSelectFuncionarios();
+      preencherSelectVeiculos();
+      
+      console.log(`✅ ${funcionariosLista.length} funcionários e ${veiculosLista.length} veículos carregados do BIN de dados mestres`);
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados:', error);
+      alert('⚠️ Erro ao carregar dados do servidor.');
+    } finally {
+      loadingIndicator.classList.remove('active');
+    }
+  }
+
+  // ============================================
+  // PREENCHER SELECTS
+  // ============================================
+  function preencherSelectFuncionarios() {
+    selectFuncionario.innerHTML = '<option value="">Selecione o funcionário</option>';
+    funcionariosLista.forEach(f => {
+      const option = document.createElement('option');
+      option.value = f.codigo;
+      option.textContent = `${f.codigo} - ${f.nome}`;
+      selectFuncionario.appendChild(option);
+    });
+  }
+
+  function preencherSelectVeiculos() {
+    selectVeiculo.innerHTML = '<option value="">Selecione o veículo</option>';
+    veiculosLista.forEach(v => {
+      const option = document.createElement('option');
+      option.value = v.codigo;
+      option.textContent = `${v.codigo} - ${v.descricao}`;
+      selectVeiculo.appendChild(option);
+    });
+  }
+
+  // ============================================
+  // EVENTO: SELECIONAR FUNCIONÁRIO
+  // ============================================
+  selectFuncionario.addEventListener('change', function() {
+    if (this.value) {
+      // Preencher veículo pela posição correspondente
+      preencherVeiculoPorPosicao(this.value);
+    } else {
+      // Limpar sugestão se nenhum funcionário selecionado
+      veiculoSugerido.classList.remove('active');
+      selectVeiculo.value = '';
+    }
   });
 
-  const veiculos = [
-    {codigo:"CAM04", descricao:"F-1000 SS 1993 - BIS-6668"},
-    {codigo:"CAM05", descricao:"STRADA TREKING CD 2012 - OMC-0835"},
-    {codigo:"CAM11", descricao:"SAVEIRO TROPPER 2012 - HNB-8162"},
-    {codigo:"CAM12", descricao:"MONTANA LS 2013 - BRANCA - OQV-3D95"},
-    {codigo:"CAR01", descricao:"UNO FIRE 2006 - GSZ-1347"},
-    {codigo:"CAR07", descricao:"FIAT/MOBI - QWY-4310"},
-    {codigo:"CAR11", descricao:"MONTANA 2017 - PRATA - PYC-9B75"},
-    {codigo:"CAR12", descricao:"PALIO FIRE WAY -FIAT - 2015 - BRANCA - PWU-2G17"},
-    {codigo:"CAR13", descricao:"FIORINO - SYB-6B40"},
-    {codigo:"CAR14", descricao:"FIORINO - SYB-5J50"},
-    {codigo:"CAR15", descricao:"ARGO DRI 1.0 FLEX - TEH-9I88"}
-  ];
-
-  const selectVeiculo = document.getElementById('veiculo');
-  veiculos.forEach(v => {
-    const option = document.createElement('option');
-    option.value = v.codigo;
-    option.textContent = `${v.codigo} - ${v.descricao}`;
-    selectVeiculo.appendChild(option);
+  // ============================================
+  // EVENTO: USUÁRIO ALTERA VEÍCULO MANUALMENTE
+  // ============================================
+  selectVeiculo.addEventListener('change', function() {
+    // Se o usuário alterar manualmente, esconder a sugestão
+    if (this.value) {
+      veiculoSugerido.classList.remove('active');
+      console.log('👤 Usuário alterou o veículo manualmente para:', this.value);
+    }
   });
 
+  // ============================================
+  // ITENS DO CHECKLIST
+  // ============================================
   const itens = [
     'Condição geral','Condições dos pneus e rodas','Água do radiador','Óleo do motor','Tanque de combustível','Extintor de incêndio',
     'Luzes e parte elétrica em geral','Buzina','Freios em geral','Bandeirola','Triângulo / macaco / chave roda',
@@ -202,28 +798,26 @@
     itemsContainer.appendChild(div);
   });
 
-  // Função para validar campos obrigatórios
+  // ============================================
+  // FUNÇÕES AUXILIARES
+  // ============================================
   function validarCamposObrigatorios() {
     let valido = true;
     
-    // Remover estilos de erro anteriores
     selectFuncionario.classList.remove('required-field');
     selectVeiculo.classList.remove('required-field');
     hodometroEl.classList.remove('required-field');
     
-    // Validar funcionário
     if (!selectFuncionario.value) {
       selectFuncionario.classList.add('required-field');
       valido = false;
     }
     
-    // Validar veículo
     if (!selectVeiculo.value) {
       selectVeiculo.classList.add('required-field');
       valido = false;
     }
     
-    // Validar hodômetro
     if (!hodometroEl.value.trim()) {
       hodometroEl.classList.add('required-field');
       valido = false;
@@ -232,30 +826,116 @@
     return valido;
   }
 
-  function coletarDados(){
+  function coletarDadosCompletos() {
     return Array.from(document.querySelectorAll('#items .item'))
-      .map(it => ({
-        num: it.getAttribute('data-num'),
-        title: it.querySelector('.item-title').textContent.replace(/^\d+\.\s*/,'').trim(),
-        desc: it.querySelector('.param-desc').value.trim(),
-        status: Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '',
-        obs: it.querySelector('.obs_input').value.trim()
-      }))
-      // FILTRAR: manter apenas itens com status "medio" ou "fora"
-      .filter(item => item.status === 'medio' || item.status === 'fora');
+      .map(it => {
+        const status = Array.from(it.querySelectorAll('input[type=radio]')).find(r=>r.checked)?.value || '';
+        const obs = it.querySelector('.obs_input').value.trim();
+        const obsFinal = (status === 'medio' || status === 'fora') ? obs : '';
+        
+        return {
+          num: it.getAttribute('data-num'),
+          title: it.querySelector('.item-title').textContent.replace(/^\d+\.\s*/,'').trim(),
+          desc: it.querySelector('.param-desc').value.trim(),
+          status: status,
+          obs: obsFinal
+        };
+      });
+  }
+
+  function getFuncionarioNome(codigo) {
+    const encontrado = funcionariosLista.find(f => f.codigo === codigo);
+    return encontrado ? encontrado.nome : 'sem_nome';
+  }
+
+  function getVeiculoDesc(codigo) {
+    const encontrado = veiculosLista.find(v => v.codigo === codigo);
+    return encontrado ? encontrado.descricao : codigo;
   }
 
   function limparNomeArquivo(nome){return nome.replace(/[^a-z0-9_-]/gi, '_');}
+  
   function msgOK(){const m = document.getElementById('msgOk'); m.style.display = 'block'; setTimeout(()=>m.style.display='none',6000);}
 
+  // ============================================
+  // GERAR DADOS COMPACTOS PARA ENVIO
+  // ============================================
+  function gerarDadosCompactos() {
+    const itensCompletos = coletarDadosCompletos();
+    const itensCompactos = gerarListaCompacta(itensCompletos);
+    
+    const dadosBase = {
+      Data: dataEl.value.split('-').reverse().join('/'),
+      Horario: horaEl.value,
+      Funcionario: selectFuncionario.value,
+      Veiculo: selectVeiculo.value,
+      Hodometro: hodometroEl.value.trim()
+    };
+    
+    return itensCompactos.map(item => ({
+      ...dadosBase,
+      Numero: item.num,
+      Item: item.title,
+      Descricao: item.desc,
+      Status: item.status,
+      Observacao: item.obs
+    }));
+  }
+
+  // ============================================
+  // GERAR DADOS PARA EXCEL
+  // ============================================
+  function gerarDadosExcel() {
+    const itensCompletos = coletarDadosCompletos();
+    const itensCompactos = gerarListaCompacta(itensCompletos);
+    
+    const dadosBase = {
+      Data: dataEl.value.split('-').reverse().join('/'),
+      Horario: horaEl.value,
+      Funcionario: selectFuncionario.value,
+      Veiculo: selectVeiculo.value,
+      Hodometro: hodometroEl.value.trim()
+    };
+    
+    return itensCompactos.map(item => ({
+      Data: dadosBase.Data,
+      Horario: dadosBase.Horario,
+      Funcionario: dadosBase.Funcionario,
+      Veiculo: dadosBase.Veiculo,
+      Hodometro: dadosBase.Hodometro,
+      Numero: item.num,
+      Item: item.title,
+      Descricao: item.desc,
+      Status: item.status,
+      Observacao: item.obs
+    }));
+  }
+
+  // ============================================
+  // GERAR PDF
+  // ============================================
   async function gerarPDFsalvar(){
     if (!validarCamposObrigatorios()) {
       alert('❌ Por favor, preencha todos os campos obrigatórios antes de gerar o PDF.');
       return;
     }
     
-    const dados = {data:dataEl.value, hora:horaEl.value, matricula:selectFuncionario.value.trim(), veiculo:selectVeiculo.value.trim(), hodometro:hodometroEl.value.trim(), items:coletarDados()};
-    const nomeFuncionarioCompleto = funcionarios.find(f => f.codigo===dados.matricula)?.nome || 'sem_nome';
+    const dados = {
+      data: dataEl.value,
+      hora: horaEl.value,
+      matricula: selectFuncionario.value.trim(),
+      veiculo: selectVeiculo.value.trim(),
+      hodometro: hodometroEl.value.trim(),
+      items: coletarDadosCompletos()
+    };
+    
+    const dadosCompactos = gerarDadosCompactos();
+    
+    if (dadosCompactos.length > 0) {
+      await salvarNaFila(dadosCompactos);
+    }
+    
+    const nomeFuncionarioCompleto = getFuncionarioNome(dados.matricula);
     const nomeFuncionario = limparNomeArquivo(nomeFuncionarioCompleto);
     const dataArquivo = `${dados.data}-${dados.hora.replace(':','-')}`;
     const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.pdf`;
@@ -274,196 +954,231 @@
     pdf.text(`Data: ${dados.data.split('-').reverse().join('/')}   Horário: ${dados.hora || '-'}`, margin, yOffset);
     yOffset += lineHeight;
     pdf.text(`Funcionário: ${nomeFuncionarioCompleto || '-'}`, margin, yOffset); yOffset += lineHeight;
-    pdf.text(`Veículo: ${dados.veiculo || '-'}`, margin, yOffset); yOffset += lineHeight;
+    pdf.text(`Veículo: ${getVeiculoDesc(dados.veiculo) || '-'}`, margin, yOffset); yOffset += lineHeight;
     pdf.text(`Hodômetro: ${dados.hodometro || '-'}`, margin, yOffset); yOffset += lineHeight + 8;
     pdf.line(margin, yOffset, pageWidth-margin, yOffset); yOffset += 12;
 
-    // Adicionar nota sobre itens filtrados
+    const itensCompactos = gerarListaCompacta(dados.items);
+    
     pdf.setFontSize(10);
-    pdf.text('Nota: Apenas itens com status "Médio" ou "Fora" são incluídos neste relatório.', margin, yOffset);
-    yOffset += lineHeight + 8;
+    pdf.text('Relatório Compacto: Apenas itens com status "Médio" ou "Fora" são listados.', margin, yOffset);
+    yOffset += lineHeight + 4;
 
-    dados.items.forEach(it=>{
+    itensCompactos.forEach(it=>{
       if(yOffset + 80 > pageHeight){ pdf.addPage(); yOffset = margin; }
       pdf.setFontSize(12); pdf.setFont(undefined,'bold');
-      pdf.text(`${it.num}. ${it.title}`, margin, yOffset); yOffset += lineHeight;
+      const titulo = it.num === "0" ? `0. ${it.title}` : `${it.num}. ${it.title}`;
+      pdf.text(titulo, margin, yOffset); yOffset += lineHeight;
       pdf.setFontSize(11); pdf.setFont(undefined,'normal');
       const descLines = pdf.splitTextToSize(it.desc, pageWidth - 2*margin);
       pdf.text(descLines, margin, yOffset); yOffset += descLines.length*lineHeight;
       pdf.text(`Status: ${it.status || '-'}`, margin, yOffset); yOffset += lineHeight;
-      const obsLines = pdf.splitTextToSize(`Observação: ${it.obs || '-'}`, pageWidth - 2*margin);
-      pdf.text(obsLines, margin, yOffset); yOffset += obsLines.length*lineHeight + 8;
+      if (it.obs && it.obs.trim() !== '') {
+        const obsLines = pdf.splitTextToSize(`Observação: ${it.obs}`, pageWidth - 2*margin);
+        pdf.text(obsLines, margin, yOffset); yOffset += obsLines.length*lineHeight + 8;
+      } else {
+        yOffset += 8;
+      }
     });
 
     pdf.save(nomeArquivo);
     msgOK();
   }
 
+  // ============================================
+  // GERAR EXCEL
+  // ============================================
   function gerarExcel(){
     if (!validarCamposObrigatorios()) {
       alert('❌ Por favor, preencha todos os campos obrigatórios antes de gerar o Excel.');
       return;
     }
     
-    const dados = coletarDados();
-    const matricula = selectFuncionario.value.trim();
-    const veiculo = selectVeiculo.value.trim();
-    const nomeFuncionario = limparNomeArquivo(funcionarios.find(f => f.codigo===matricula)?.nome || 'sem_nome');
+    const dadosExcel = gerarDadosExcel();
+    
+    if (dadosExcel.length > 0) {
+      salvarNaFila(dadosExcel);
+    }
+    
+    const nomeFuncionario = limparNomeArquivo(getFuncionarioNome(selectFuncionario.value));
     const dataArquivo = `${dataEl.value}-${horaEl.value.replace(':','-')}`;
     const nomeArquivo = `checklist_${nomeFuncionario}_${dataArquivo}.xlsx`;
 
-    // Se não houver itens, cria uma linha vazia com apenas os dados do cabeçalho
-    const linhas = dados.length > 0 
-      ? dados.map(it => ({
-          Data: dataEl.value.split('-').reverse().join('/'),
-          Horario: horaEl.value,
-          Funcionario: matricula,
-          Veiculo: veiculo,
-          Hodometro: hodometroEl.value.trim(),
-          Numero: it.num,
-          Item: it.title,
-          Descricao: it.desc,
-          Status: it.status,
-          Observacao: it.obs
-        }))
-      : [{
-          Data: dataEl.value.split('-').reverse().join('/'),
-          Horario: horaEl.value,
-          Funcionario: matricula,
-          Veiculo: veiculo,
-          Hodometro: hodometroEl.value.trim(),
-          Numero: '',
-          Item: '',
-          Descricao: '',
-          Status: '',
-          Observacao: 'Nenhum item com status "Médio" ou "Fora"'
-        }];
-
-    const ws = XLSX.utils.json_to_sheet(linhas);
+    const ws = XLSX.utils.json_to_sheet(dadosExcel);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Checklist');
     XLSX.writeFile(wb, nomeArquivo);
     msgOK();
   }
 
-  function salvarLocalmente(){
+  // ============================================
+  // ENVIAR PARA O SERVIDOR
+  // ============================================
+  async function enviarParaServidor() {
     if (!validarCamposObrigatorios()) {
-      alert('❌ Por favor, preencha todos os campos obrigatórios antes de salvar localmente.');
+      alert('❌ Por favor, preencha todos os campos obrigatórios antes de enviar.');
       return;
     }
     
-    const dadosLocal = {data:dataEl.value,hora:horaEl.value,matricula:selectFuncionario.value,veiculo:selectVeiculo.value,hodometro:hodometroEl.value.trim(),items:coletarDados()};
+    const dadosCompactos = gerarDadosCompactos();
+    
+    if (dadosCompactos.length === 0) {
+      alert('⚠️ Não há dados para enviar!');
+      return;
+    }
+    
+    const salvou = await salvarNaFila(dadosCompactos);
+    
+    if (salvou) {
+      const limpar = confirm('✅ Dados enviados para o servidor com sucesso!\n\nClique em OK para limpar os campos.\nClique em Cancelar para manter os dados.');
+      if (limpar) {
+        limparFormulario();
+      }
+    }
+  }
+
+  // ============================================
+  // SALVAR LOCALMENTE
+  // ============================================
+  function salvarLocalmente() {
+    if (!validarCamposObrigatorios()) {
+      alert('❌ Por favor, preencha todos os campos obrigatórios antes de salvar.');
+      return;
+    }
+    
+    const dadosLocal = {
+      data: dataEl.value,
+      hora: horaEl.value,
+      matricula: selectFuncionario.value,
+      veiculo: selectVeiculo.value,
+      hodometro: hodometroEl.value.trim(),
+      items: coletarDadosCompletos()
+    };
     localStorage.setItem('checklist_veiculos', JSON.stringify(dadosLocal));
     alert('✅ Checklist salvo localmente!');
   }
 
-  async function enviarParaServidor(){
-    if (!validarCamposObrigatorios()) {
-      alert('❌ Por favor, preencha todos os campos obrigatórios antes de enviar para o servidor.');
-      return;
-    }
-    
-    const dados = coletarDados();
-    
-    // Se não houver itens, cria uma linha vazia com apenas os dados do cabeçalho
-    const dadosNovo = dados.length > 0 
-      ? dados.map(it => ({
-          Data: dataEl.value.split('-').reverse().join('/'),
-          Horario: horaEl.value,
-          Funcionario: selectFuncionario.value.trim(),
-          Veiculo: selectVeiculo.value.trim(),
-          Hodometro: hodometroEl.value.trim(),
-          Numero: it.num,
-          Item: it.title,
-          Descricao: it.desc,
-          Status: it.status,
-          Observacao: it.obs
-        }))
-      : [{
-          Data: dataEl.value.split('-').reverse().join('/'),
-          Horario: horaEl.value,
-          Funcionario: selectFuncionario.value.trim(),
-          Veiculo: selectVeiculo.value.trim(),
-          Hodometro: hodometroEl.value.trim(),
-          Numero: '',
-          Item: '',
-          Descricao: '',
-          Status: '',
-          Observacao: 'Nenhum item com status "Médio" ou "Fora"'
-        }];
-
-    try {
-      const resGet = await fetch('https://api.jsonbin.io/v3/b/69023644ae596e708f35f300/latest', {
-        method:'GET',
-        headers:{'X-Master-Key':'$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi'}
+  // ============================================
+  // LIMPAR FORMULÁRIO
+  // ============================================
+  function limparFormulario() {
+    if (confirm('🧹 Deseja realmente limpar todos os campos?')) {
+      selectFuncionario.value = '';
+      selectVeiculo.value = '';
+      veiculoSugerido.classList.remove('active');
+      hodometroEl.value = '';
+      
+      const items = document.querySelectorAll('#items .item');
+      items.forEach(item => {
+        const radios = item.querySelectorAll('input[type="radio"]');
+        radios.forEach(r => r.checked = false);
+        
+        const naoAplica = item.querySelector('input[type="radio"][value="nao_se_aplica"]');
+        if (naoAplica) naoAplica.checked = true;
+        
+        const obs = item.querySelector('.obs_input');
+        if (obs) obs.value = '';
       });
-
-      let dadosExistentes = [];
-      if(resGet.ok){
-        const json = await resGet.json();
-        dadosExistentes = Array.isArray(json.record)? json.record : [];
-      }
-
-      const dadosAtualizados = [...dadosExistentes,...dadosNovo];
-
-      const resPut = await fetch('https://api.jsonbin.io/v3/b/69023644ae596e708f35f300',{
-        method:'PUT',
-        headers:{
-          'Content-Type':'application/json',
-          'X-Master-Key':'$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi',
-          'X-Bin-Versioning':'false'
-        },
-        body:JSON.stringify(dadosAtualizados)
-      });
-
-      if(resPut.ok){
-        alert('✅ Checklist enviado para o Servidor com sucesso!');
-        localStorage.removeItem('checklist_veiculos');
-        window.location.reload();
-      } else {
-        alert('❌ Erro ao atualizar o Servidor: '+resPut.statusText);
-      }
-    } catch(err){
-      alert('❌ Erro na requisição: '+err.message);
+      
+      alert('🧹 Formulário limpo!');
     }
   }
 
-  const dadosSalvos = localStorage.getItem('checklist_veiculos');
-  if(dadosSalvos){
-    try{
-      const obj = JSON.parse(dadosSalvos);
-      selectFuncionario.value = obj.matricula || '';
-      selectVeiculo.value = obj.veiculo || '';
-      hodometroEl.value = obj.hodometro || '';
-      if(obj.items && Array.isArray(obj.items)){
-        obj.items.forEach(it=>{
-          const el = document.querySelector(`.item[data-num="${it.num}"]`);
-          if(el){
-            el.querySelector('.param-desc').value = it.desc || '';
-            const radio = Array.from(el.querySelectorAll('input[type=radio]')).find(r=>r.value===it.status);
-            if(radio) radio.checked = true;
-            el.querySelector('.obs_input').value = it.obs || '';
-          }
-        });
-      }
-    } catch(e){}
-  }
-
-  window.addEventListener('online', ()=>{
+  // ============================================
+  // CARREGAR DADOS SALVOS
+  // ============================================
+  function carregarDadosSalvos() {
     const dadosSalvos = localStorage.getItem('checklist_veiculos');
     if(dadosSalvos){
-      enviarParaServidor();
+      try{
+        const obj = JSON.parse(dadosSalvos);
+        selectFuncionario.value = obj.matricula || '';
+        selectVeiculo.value = obj.veiculo || '';
+        hodometroEl.value = obj.hodometro || '';
+        if(obj.items && Array.isArray(obj.items)){
+          obj.items.forEach(it=>{
+            const el = document.querySelector(`.item[data-num="${it.num}"]`);
+            if(el){
+              el.querySelector('.param-desc').value = it.desc || '';
+              const radio = Array.from(el.querySelectorAll('input[type=radio]')).find(r=>r.value===it.status);
+              if(radio) radio.checked = true;
+              el.querySelector('.obs_input').value = it.obs || '';
+            }
+          });
+        }
+      } catch(e){}
     }
-  });
+  }
 
+  // ============================================
+  // BOTÕES E EVENTOS
+  // ============================================
   document.getElementById('btnGerar').onclick = gerarPDFsalvar;
   document.getElementById('btnExcel').onclick = gerarExcel;
   document.getElementById('btnSalvarLocal').onclick = salvarLocalmente;
   document.getElementById('btnServidor').onclick = enviarParaServidor;
+  document.getElementById('btnLimpar').onclick = limparFormulario;
   document.getElementById('btnInstrucoes').onclick = ()=>alert('Após gerar o PDF ou Excel, abra o WhatsApp e envie o arquivo como anexo para o contato desejado.');
+
+  document.getElementById('btnSincronizarAgora').onclick = async () => {
+    if (!navigator.onLine) {
+      alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+      return;
+    }
+    
+    console.log('🔄 Botão Sincronizar Agora clicado - APENAS sincronizando');
+    
+    document.getElementById('btnSincronizarAgora').disabled = true;
+    document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
+    
+    await sincronizarFila();
+    
+    document.getElementById('btnSincronizarAgora').disabled = false;
+    document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
+  };
+
+  // ============================================
+  // INICIALIZAÇÃO
+  // ============================================
+  
+  async function iniciarFila() {
+    try {
+      await filaChecklist.init();
+      console.log('✅ Fila de envio inicializada');
+      
+      iniciarSincronizacaoAutomatica();
+      await atualizarContador();
+    } catch (error) {
+      console.error('❌ Erro ao inicializar fila:', error);
+    }
+  }
+
+  (async function iniciar() {
+    await iniciarFila();
+    await carregarDadosDoBin();
+    carregarDadosSalvos();
+    
+    // Se houver funcionário selecionado ao carregar, preencher veículo
+    if (selectFuncionario.value) {
+      preencherVeiculoPorPosicao(selectFuncionario.value);
+    }
+    
+    if (navigator.onLine) {
+      const total = await filaChecklist.contar();
+      if (total > 0) {
+        console.log(`🔄 Enviando ${total} itens pendentes...`);
+        await sincronizarFila();
+      }
+    }
+  })();
+
+  console.log('✅ Checklist com dados do BIN e fila robusta carregado!');
+  console.log('📌 BIN de dados mestres (funcionários/veículos):', BIN_DADOS_MESTRES);
+  console.log('📌 BIN de dados diários:', BIN_DADOS_DIARIOS);
+  console.log('📌 Preenchimento automático do veículo por posição correspondente');
+  console.log('📌 O usuário pode alterar o veículo manualmente após o preenchimento automático');
+
 })();
 </script>
 </body>
 </html>
-
-
