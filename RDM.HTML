@@ -1250,7 +1250,7 @@ function atualizarTodosOsSelectsTipos() {
 }
 
 // ============================================
-// FUNÇÃO PARA VALIDAR LINHAS (CORRIGIDA)
+// FUNÇÃO PARA VALIDAR LINHAS (CORRIGIDA - IGNORA DATA AUTOMÁTICA)
 // ============================================
 
 function validarLinhasObrigatorias() {
@@ -1267,19 +1267,32 @@ function validarLinhasObrigatorias() {
     const tipoWrapper = row.querySelector('.tipo-wrapper');
     const inputData = row.querySelector('td:nth-child(3) input[type="date"]');
     
-    // Verificar se esta linha tem algum dado preenchido
-    const temEquip = selectEquip && selectEquip.value;
-    const temResp = selectResp && selectResp.value;
+    // Verificar se a linha tem dados preenchidos (ignorando a data automática)
+    const temEquip = selectEquip && selectEquip.value && selectEquip.value !== '';
+    const temResp = selectResp && selectResp.value && selectResp.value !== '';
     let temTipo = false;
     if (row._tipoComponent) {
-      temTipo = row._tipoComponent.getValor() !== '';
+      const valor = row._tipoComponent.getValor();
+      temTipo = valor && valor !== '';
     }
-    const temData = inputData && inputData.value;
     
-    const linhaPreenchida = temEquip || temResp || temTipo || temData;
+    // A data é automática, então não consideramos como "preenchida"
+    // Apenas verificamos se existe a data
+    const temData = inputData && inputData.value && inputData.value !== '';
     
-    // Se a linha estiver totalmente vazia, ignorar (não validar)
+    // Uma linha é considerada "preenchida" se tiver pelo menos um campo manual preenchido
+    const linhaPreenchida = temEquip || temResp || temTipo;
+    
+    // Se a linha estiver totalmente vazia (apenas com a data automática), ignorar
     if (!linhaPreenchida) {
+      // Limpar classes de erro se houver
+      if (selectEquip) selectEquip.classList.remove('required-field');
+      if (selectResp) selectResp.classList.remove('required-field');
+      if (inputData) inputData.classList.remove('required-field');
+      if (tipoWrapper) {
+        tipoWrapper.style.border = 'none';
+        tipoWrapper.style.padding = '0';
+      }
       return; // Pular esta linha
     }
     
@@ -1319,7 +1332,7 @@ function validarLinhasObrigatorias() {
       }
     }
     
-    // Validar data
+    // A data é automática, mas validamos se existe (sempre vai ter)
     if (!temData) {
       linhaValida = false;
       if (inputData) inputData.classList.add('required-field');
@@ -1431,14 +1444,14 @@ function getDadosFormulario() {
       tipoValor = r._tipoComponent.getValor();
     }
     
-    // Verificar se a linha tem algum dado
+    // Verificar se a linha tem algum dado manual preenchido
     const equip = selectEquip ? selectEquip.value : '';
     const resp = selectResp ? selectResp.value : '';
     const dataManu = dataManutencao;
     const tipo = tipoValor;
     
-    // Se todos os campos estiverem vazios, pular esta linha
-    if (!equip && !resp && !dataManu && !tipo) {
+    // Se não tiver equipamento, responsável ou tipo, pular (data é automática)
+    if (!equip && !resp && !tipo) {
       return null;
     }
     
@@ -1958,7 +1971,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
   console.log('📌 Campo "Horímetro" substituído por "Responsável"');
   console.log('📌 Combobox pesquisável integrado ao formulário (sem modal)');
-  console.log('📌 Validação: apenas linhas com dados são obrigatórias');
+  console.log('📌 Validação: apenas linhas com dados manuais são obrigatórias');
 });
 
 </script>
