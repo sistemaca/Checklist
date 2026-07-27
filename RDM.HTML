@@ -89,34 +89,50 @@
     white-space: nowrap;
   }
   
-  /* Estilo para tipo de manutenção com pesquisa */
+  /* Estilo para tipo de manutenção com pesquisa - VERSÃO COMPACTA */
   .tipo-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    min-width: 180px;
+    gap: 4px;
+    min-width: 160px;
   }
   
   .tipo-pesquisa {
     width: 100%;
-    padding: 6px 8px;
+    padding: 4px 8px;
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 12px;
-    height: 32px;
+    height: 28px;
     box-sizing: border-box;
+    background: #fafafa;
+  }
+  
+  .tipo-pesquisa:focus {
+    outline: none;
+    border-color: #0b73d6;
+    background: #fff;
+  }
+  
+  .tipo-pesquisa::placeholder {
+    color: #999;
+    font-size: 11px;
   }
   
   .tipo-select {
     width: 100%;
-    height: 38px;
+    height: 32px;
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
   }
   
   .tipo-input {
     width: 100%;
-    height: 38px;
+    height: 32px;
     display: none;
-    padding: 6px 8px;
+    padding: 4px 8px;
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 12px;
@@ -233,13 +249,6 @@
     display: none;
   }
   
-  .tipo-label {
-    font-size: 11px;
-    color: #666;
-    margin-bottom: 2px;
-    text-align: left;
-  }
-  
   /* Media query para mobile */
   @media (max-width: 768px) {
     body { padding: 8px; }
@@ -276,15 +285,14 @@
     }
     
     .tipo-wrapper {
-      min-width: 140px;
+      min-width: 120px;
       gap: 3px;
     }
     
     .tipo-select, .tipo-input, .tipo-pesquisa {
       font-size: 11px;
-      padding: 6px 4px;
-      height: 32px;
-      min-width: 70px;
+      padding: 4px 4px;
+      height: 28px;
     }
     
     .remove-row {
@@ -700,20 +708,47 @@ function criarSelectResponsavel() {
 }
 
 // ============================================
-// FUNÇÃO: ATUALIZAR OPÇÕES DO SELECT DE TIPO (NOVA)
+// FUNÇÃO: RECRIAR OPÇÕES DO SELECT (CORREÇÃO)
 // ============================================
-function atualizarOptionsSelectTipo(select, manterValor = true) {
+function recriarOpcoesSelect(select, filtro = '') {
   if (!select) return;
   
-  const valorAtual = manterValor ? select.value : '';
+  // Guardar valor atual
+  const valorAtual = select.value;
   
-  // Limpar opções (mantém as duas primeiras: vazia e OUTROS)
-  while (select.options.length > 2) {
-    select.remove(2);
+  // Limpar todas as opções (mantém apenas a primeira vazia e OUTROS)
+  while (select.options.length > 0) {
+    select.remove(0);
   }
   
-  // Adicionar novas opções
-  if (tiposManutencao && typeof tiposManutencao === 'object') {
+  // Adicionar opção vazia
+  const optionVazia = document.createElement('option');
+  optionVazia.value = '';
+  optionVazia.textContent = '-- Selecione --';
+  select.appendChild(optionVazia);
+  
+  // Adicionar opção OUTROS (sempre presente)
+  const optionOutros = document.createElement('option');
+  optionOutros.value = 'OUTROS';
+  optionOutros.textContent = 'OUTROS (digitar)';
+  select.appendChild(optionOutros);
+  
+  // Se há filtro, filtrar os tipos
+  if (filtro && filtro.trim() !== '') {
+    const termo = filtro.toLowerCase().trim();
+    const chaves = Object.keys(tiposManutencao)
+      .filter(key => key !== '0' && key !== '151')
+      .filter(key => key.toLowerCase().includes(termo))
+      .sort();
+    
+    chaves.forEach(descricao => {
+      const option = document.createElement('option');
+      option.value = descricao;
+      option.textContent = descricao;
+      select.appendChild(option);
+    });
+  } else {
+    // Sem filtro, mostrar todos
     const chaves = Object.keys(tiposManutencao)
       .filter(key => key !== '0' && key !== '151')
       .sort();
@@ -726,7 +761,7 @@ function atualizarOptionsSelectTipo(select, manterValor = true) {
     });
   }
   
-  // Restaurar valor
+  // Restaurar valor se ainda existir
   if (valorAtual && valorAtual !== 'OUTROS') {
     const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
     if (optionExists) select.value = valorAtual;
@@ -734,57 +769,29 @@ function atualizarOptionsSelectTipo(select, manterValor = true) {
 }
 
 // ============================================
-// FUNÇÃO: CRIAR TIPO MANUTENÇÃO COM PESQUISA (NOVA)
+// FUNÇÃO: CRIAR TIPO MANUTENÇÃO COM PESQUISA (CORRIGIDA)
 // ============================================
-function criarTipoManutencaoComPesquisa() {
+function criarTipoManutencao() {
   const wrapper = document.createElement('div');
   wrapper.className = 'tipo-wrapper';
   
-  // Label Pesquisar
-  const labelPesquisa = document.createElement('div');
-  labelPesquisa.className = 'tipo-label';
-  labelPesquisa.textContent = 'Pesquisar:';
-  wrapper.appendChild(labelPesquisa);
-  
-  // Input de pesquisa
+  // Input de pesquisa (compacto)
   const inputPesquisa = document.createElement('input');
   inputPesquisa.type = 'text';
   inputPesquisa.className = 'tipo-pesquisa';
-  inputPesquisa.placeholder = 'Digite para filtrar...';
+  inputPesquisa.placeholder = '🔍 Pesquisar...';
   wrapper.appendChild(inputPesquisa);
-  
-  // Label Selecionar
-  const labelSelect = document.createElement('div');
-  labelSelect.className = 'tipo-label';
-  labelSelect.textContent = 'Selecionar:';
-  wrapper.appendChild(labelSelect);
   
   // Select
   const select = document.createElement('select');
   select.className = 'tipo-select';
   
-  const optionVazia = document.createElement('option');
-  optionVazia.value = '';
-  optionVazia.textContent = '-- Selecione --';
-  select.appendChild(optionVazia);
-  
-  const optionOutros = document.createElement('option');
-  optionOutros.value = 'OUTROS';
-  optionOutros.textContent = 'OUTROS (digitar)';
-  select.appendChild(optionOutros);
-  
-  // Adicionar opções iniciais
-  atualizarOptionsSelectTipo(select, false);
+  // Opções iniciais
+  recriarOpcoesSelect(select, '');
   
   wrapper.appendChild(select);
   
-  // Label Digitar
-  const labelInput = document.createElement('div');
-  labelInput.className = 'tipo-label';
-  labelInput.textContent = 'Digitar:';
-  wrapper.appendChild(labelInput);
-  
-  // Input para digitar
+  // Input para digitar (OUTROS)
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'tipo-input';
@@ -793,47 +800,8 @@ function criarTipoManutencaoComPesquisa() {
   
   // ===== EVENTO: PESQUISA =====
   inputPesquisa.addEventListener('input', function() {
-    const termo = this.value.toLowerCase().trim();
-    const options = select.querySelectorAll('option');
-    
-    // A primeira opção é vazia, a segunda é OUTROS
-    // A partir da terceira são os tipos
-    options.forEach((opt, index) => {
-      if (index < 2) return; // Mantém as duas primeiras sempre visíveis
-      
-      const texto = opt.textContent.toLowerCase();
-      if (termo === '') {
-        opt.style.display = '';
-      } else {
-        opt.style.display = texto.includes(termo) ? '' : 'none';
-      }
-    });
-    
-    // Se não houver opções visíveis, mostrar uma mensagem
-    let temVisiveis = false;
-    options.forEach(opt => {
-      if (opt.style.display !== 'none' && opt.value !== '') {
-        temVisiveis = true;
-      }
-    });
-    
-    // Se o select está oculto (modo OUTROS), não precisa mostrar mensagem
-    if (!select.classList.contains('ocultar') && !temVisiveis && termo !== '') {
-      // Criar ou atualizar mensagem "Nenhum resultado"
-      let msg = wrapper.querySelector('.tipo-sem-resultado');
-      if (!msg) {
-        msg = document.createElement('div');
-        msg.className = 'tipo-sem-resultado';
-        msg.style.cssText = 'font-size: 11px; color: #999; text-align: center; padding: 4px;';
-        // Inserir após o select
-        select.parentNode.insertBefore(msg, select.nextSibling);
-      }
-      msg.textContent = 'Nenhum tipo encontrado';
-      msg.style.display = 'block';
-    } else {
-      const msg = wrapper.querySelector('.tipo-sem-resultado');
-      if (msg) msg.style.display = 'none';
-    }
+    const termo = this.value;
+    recriarOpcoesSelect(select, termo);
   });
   
   // ===== EVENTO: SELECIONAR OUTROS =====
@@ -842,16 +810,9 @@ function criarTipoManutencaoComPesquisa() {
       this.classList.add('ocultar');
       input.classList.add('mostrar');
       input.focus();
-    } else {
-      // Se selecionou uma opção válida, limpa a pesquisa
+      // Limpar pesquisa ao escolher OUTROS
       inputPesquisa.value = '';
-      // Mostrar todas as opções novamente
-      const options = this.querySelectorAll('option');
-      options.forEach(opt => {
-        opt.style.display = '';
-      });
-      const msg = wrapper.querySelector('.tipo-sem-resultado');
-      if (msg) msg.style.display = 'none';
+      recriarOpcoesSelect(this, '');
     }
   });
   
@@ -861,13 +822,7 @@ function criarTipoManutencaoComPesquisa() {
       this.classList.remove('mostrar');
       select.classList.remove('ocultar');
       select.value = '';
-      // Mostrar todas as opções novamente
-      const options = select.querySelectorAll('option');
-      options.forEach(opt => {
-        opt.style.display = '';
-      });
-      const msg = wrapper.querySelector('.tipo-sem-resultado');
-      if (msg) msg.style.display = 'none';
+      recriarOpcoesSelect(select, '');
     }
   });
   
@@ -954,8 +909,17 @@ function atualizarTodosOsSelectsTipos() {
     const select = row.querySelector('.tipo-select');
     if (!select) return;
     
-    // Usa a nova função para atualizar as opções
-    atualizarOptionsSelectTipo(select, true);
+    // Guardar valor atual
+    const valorAtual = select.value;
+    
+    // Recriar opções sem filtro
+    recriarOpcoesSelect(select, '');
+    
+    // Restaurar valor
+    if (valorAtual && valorAtual !== 'OUTROS') {
+      const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
+      if (optionExists) select.value = valorAtual;
+    }
   });
 }
 
@@ -1028,7 +992,7 @@ function validarLinhasObrigatorias() {
 }
 
 // ============================================
-// FUNÇÃO ADICIONAR LINHA (MODIFICADA)
+// FUNÇÃO ADICIONAR LINHA
 // ============================================
 
 function addRow() {
@@ -1038,9 +1002,9 @@ function addRow() {
   const tdEquip = document.createElement('td');
   tdEquip.appendChild(criarSelectEquipamento());
   
-  // Tipo - USANDO A NOVA FUNÇÃO COM PESQUISA
+  // Tipo - USANDO A FUNÇÃO CORRIGIDA
   const tdTipo = document.createElement('td');
-  const { wrapper } = criarTipoManutencaoComPesquisa();
+  const { wrapper } = criarTipoManutencao();
   tdTipo.appendChild(wrapper);
   
   // Data
@@ -1070,10 +1034,10 @@ function addRow() {
   tr.append(tdEquip, tdTipo, tdData, tdResponsavel, tdRemove);
   tblBody.appendChild(tr);
   
-  // Carregar tipos no select - usando a nova função
+  // Carregar tipos no select
   const selectTipo = tr.querySelector('.tipo-select');
   if (selectTipo && tiposCarregados) {
-    atualizarOptionsSelectTipo(selectTipo, true);
+    recriarOpcoesSelect(selectTipo, '');
   }
   
   return tr;
@@ -1644,7 +1608,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de relatório RDM:', BIN_RELATORIO);
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
   console.log('📌 Campo "Horímetro" substituído por "Responsável"');
-  console.log('📌 Adicionado campo de pesquisa no Tipo de Manutenção');
+  console.log('📌 Adicionado campo de pesquisa compacto no Tipo de Manutenção');
 });
 
 </script>
