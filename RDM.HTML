@@ -7,6 +7,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
   :root { --paper-w: 794px; --muted: #666; }
@@ -56,6 +57,8 @@
   .btn.gray { background: #6c757d; }
   .btn.warning { background: #ffc107; color: #000; }
   .btn.add-row { background: #28a745; margin-bottom: 16px; }
+  .btn-success { background: #28a745; }
+  .btn-success:hover { background: #218838; }
   
   /* Container da tabela com scroll */
   .table-container {
@@ -86,25 +89,38 @@
     white-space: nowrap;
   }
   
-  /* Estilo simplificado para tipo de manutenção */
+  /* Estilo para tipo de manutenção com pesquisa */
   .tipo-wrapper {
     display: flex;
+    flex-direction: column;
     gap: 5px;
-    align-items: center;
     min-width: 180px;
   }
   
+  .tipo-pesquisa {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    height: 32px;
+    box-sizing: border-box;
+  }
+  
   .tipo-select {
-    flex: 2;
-    min-width: 120px;
+    width: 100%;
     height: 38px;
   }
   
   .tipo-input {
-    flex: 1;
-    min-width: 80px;
+    width: 100%;
     height: 38px;
     display: none;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    box-sizing: border-box;
   }
   
   .tipo-input.mostrar {
@@ -148,6 +164,82 @@
     font-weight: bold;
   }
   
+  /* ESTILOS PARA FILA DE ENVIO */
+  .fila-status {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 12px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .fila-status .indicadores {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  .fila-status .indicador {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fila-status .btn-sincronizar {
+    background: #0b73d6;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .fila-status .btn-sincronizar:hover { background: #0959a8; }
+  .fila-status .btn-sincronizar:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  .loading-indicator {
+    display: none;
+    text-align: center;
+    padding: 10px;
+    color: #666;
+    font-size: 14px;
+  }
+  .loading-indicator.active {
+    display: block;
+  }
+
+  /* VALIDAÇÃO - Campos obrigatórios */
+  .required-field {
+    border: 2px solid #ff4444 !important;
+  }
+  .required-row {
+    background-color: #fff5f5 !important;
+    border-left: 4px solid #ff4444 !important;
+  }
+  .required-row td {
+    background-color: #fff5f5 !important;
+  }
+  
+  .msg {
+    color: green;
+    margin-top: 10px;
+    display: none;
+  }
+  
+  .tipo-label {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 2px;
+    text-align: left;
+  }
+  
   /* Media query para mobile */
   @media (max-width: 768px) {
     body { padding: 8px; }
@@ -173,19 +265,10 @@
       white-space: nowrap;
     }
     
-    /* Ajuste específico para a coluna do horímetro */
-    .table td:nth-child(4) input {
-      max-width: 70px;
-      padding: 6px 4px;
-      font-size: 11px;
-    }
-    
-    /* Ajuste para a coluna de data */
     .table td:nth-child(3) input {
       max-width: 110px;
     }
     
-    /* Ajuste para o select de equipamento */
     .table td:first-child select {
       max-width: 100px;
       font-size: 11px;
@@ -197,7 +280,7 @@
       gap: 3px;
     }
     
-    .tipo-select, .tipo-input {
+    .tipo-select, .tipo-input, .tipo-pesquisa {
       font-size: 11px;
       padding: 6px 4px;
       height: 32px;
@@ -208,6 +291,15 @@
       padding: 4px 8px;
       font-size: 11px;
     }
+    
+    .fila-status {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+    }
+    .fila-status .indicadores {
+      justify-content: center;
+    }
   }
 </style>
 </head>
@@ -217,9 +309,28 @@
   <div class="card">
     <h1>RDM — Relatório Diário de Manutenção Mecânica</h1>
 
+    <div class="loading-indicator" id="loadingIndicator">🔄 Carregando dados do servidor...</div>
+
     <div class="row">
       <div class="col"><label>Data do Documento</label><input id="rdm_data" type="date" readonly></div>
       <div class="col"><label>Hora do Documento</label><input id="rdm_hora_doc" type="text" readonly></div>
+    </div>
+
+    <!-- FILA DE ENVIO - STATUS -->
+    <div class="fila-status" id="filaStatus">
+      <div class="indicadores">
+        <span class="indicador">
+          📦 Pendentes: <strong id="filaPendentes">0</strong>
+        </span>
+        <span class="indicador">
+          <span id="filaStatusIcone">✅</span>
+          <span id="filaStatusTexto">Sincronizado</span>
+        </span>
+        <span class="indicador" id="filaUltimoEnvio" style="font-size:12px;color:#666;"></span>
+      </div>
+      <div>
+        <button id="btnSincronizarAgora" class="btn-sincronizar">🔄 Sincronizar Agora</button>
+      </div>
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px;">
@@ -231,10 +342,10 @@
       <table class="table" id="tblEquipamentos">
         <thead>
           <tr>
-            <th>EQUIPAMENTO</th>
-            <th>TIPO DE MANUTENÇÃO</th>
-            <th>DATA</th>
-            <th>HORÍMETRO</th>
+            <th>EQUIPAMENTO *</th>
+            <th>TIPO DE MANUTENÇÃO *</th>
+            <th>DATA *</th>
+            <th>RESPONSÁVEL *</th>
             <th></th>
           </tr>
         </thead>
@@ -243,13 +354,15 @@
     </div>
 
     <div class="actions">
-      <button id="btnServidor" class="btn">Enviar para o Servidor</button>
-      <button id="btnGerarPDF" class="btn">Gerar PDF</button>
-      <button id="btnLimpar" class="btn gray">Limpar</button>
-      <button id="btnRecarregarTipos" class="btn warning">Recarregar Tipos</button>
-      <button id="btnSalvarLocal" class="btn">Salvar Localmente</button>
+      <button class="btn btn-success" id="btnServidor">📤 Enviar para o Servidor</button>
+      <button id="btnGerarPDF" class="btn">📄 Gerar PDF</button>
+      <button id="btnExcel" class="btn gray">📊 Gerar Excel</button>
+      <button id="btnLimpar" class="btn gray">🧹 Limpar</button>
+      <button id="btnRecarregarTipos" class="btn warning">🔄 Recarregar Tipos</button>
+      <button id="btnSalvarLocal" class="btn gray">💾 Salvar Localmente</button>
     </div>
 
+    <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
   </div>
 </div>
 
@@ -273,7 +386,7 @@
           <th>EQUIPAMENTO</th>
           <th>TIPO DE MANUTENÇÃO</th>
           <th>DATA</th>
-          <th>HORÍMETRO</th>
+          <th>RESPONSÁVEL</th>
         </tr>
       </thead>
       <tbody id="rdm_equip_rows"></tbody>
@@ -282,59 +395,374 @@
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
+// ============================================
+// CONFIGURAÇÃO DOS BINS
+// ============================================
 
-// Configurações da API
-const BIN_MANUTENCAO = '69aac5b043b1c97be9b9b4ee';
+// BIN 1: APENAS para equipamentos e responsáveis (dados mestres)
+const BIN_DADOS_MESTRES = '6a675ec4f5f4af5e29c7e8f0';
+
+// BIN 2: APENAS para os dados diários do RDM
 const BIN_RELATORIO = '69ab07aa43b1c97be9ba9d4c';
+
+// BIN 3: Tipos de manutenção
+const BIN_MANUTENCAO = '69aac5b043b1c97be9b9b4ee';
+
 const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
-const API_MANUTENCAO = `https://api.jsonbin.io/v3/b/${BIN_MANUTENCAO}/latest`;
 
-// Lista de equipamentos
-const equipamentos = [
-  "EMP005","EMP006","EMP007","EMP008","EMP010","EMP011","EMP012","EMP013","EMP014","EMP015",
-  "EMP016","EMP017","EMP018","EMP019","EMP020","EMP021","EMP022","EMP023","EMP024","EMP025",
-  "MC002","MC004","MC005","MC006",
-  "PC001","PC002","PC004","PC005","PC006","PC007","PC008","PC009","PC010"
-];
+// ============================================
+// SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA
+// ============================================
 
+class FilaEnvioRDM {
+  constructor() {
+    this.dbName = 'RDMTempDB';
+    this.storeName = 'rdm_dados';
+    this.db = null;
+    this.inicializado = false;
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { 
+            keyPath: 'id', 
+            autoIncrement: true 
+          });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        this.inicializado = true;
+        resolve();
+      };
+
+      request.onerror = (event) => {
+        console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+
+  async adicionar(dados) {
+    await this.aguardarInicializacao();
+    
+    console.log('📦 ADICIONANDO à fila RDM:', dados);
+    
+    const item = {
+      dados: dados,
+      criadoEm: Date.now()
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.add(item);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item adicionado à fila com ID: ${request.result}`);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error('❌ Erro ao adicionar item:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async remover(id) {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.delete(id);
+
+      request.onsuccess = () => {
+        console.log(`✅ Item ${id} removido com sucesso`);
+        resolve();
+      };
+      request.onerror = () => {
+        console.error(`❌ Erro ao remover item ${id}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async listarTodos() {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        console.error('❌ Erro ao listar itens:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async contar() {
+    const itens = await this.listarTodos();
+    return itens.length;
+  }
+
+  async aguardarInicializacao() {
+    if (this.inicializado) return;
+    
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.inicializado) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+}
+
+// ============================================
+// INSTÂNCIA GLOBAL DA FILA
+// ============================================
+const filaRDM = new FilaEnvioRDM();
+
+// ============================================
+// VARIÁVEIS GLOBAIS
+// ============================================
+let equipamentosLista = [];
+let responsaveisLista = [];
 let tiposManutencao = {};
 let tiposCarregados = false;
 
-// Função para criar select de equipamentos
+const $ = id => document.getElementById(id);
+const tblBody = document.querySelector('#tblEquipamentos tbody');
+
+// ============================================
+// FUNÇÕES DE CARREGAMENTO DO BIN DE DADOS MESTRES
+// ============================================
+
+async function carregarDadosMestres() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  loadingIndicator.classList.add('active');
+  
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const res = await fetch(url, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    
+    const json = await res.json();
+    const data = json.record;
+    
+    // Carregar equipamentos
+    if (data && data.EQUIPAMENTO && Array.isArray(data.EQUIPAMENTO)) {
+      equipamentosLista = data.EQUIPAMENTO;
+      console.log(`✅ ${equipamentosLista.length} equipamentos carregados`);
+    } else {
+      console.warn('⚠️ Estrutura de equipamentos não encontrada no BIN');
+      equipamentosLista = [];
+    }
+    
+    // Carregar responsáveis
+    if (data && data.RESPONSAVEL && Array.isArray(data.RESPONSAVEL)) {
+      responsaveisLista = data.RESPONSAVEL;
+      console.log(`✅ ${responsaveisLista.length} responsáveis carregados`);
+    } else {
+      console.warn('⚠️ Estrutura de responsáveis não encontrada no BIN');
+      responsaveisLista = [];
+    }
+    
+    // Atualizar selects
+    atualizarTodosSelectsEquipamentos();
+    atualizarTodosSelectsResponsaveis();
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar dados mestres:', error);
+    alert('⚠️ Erro ao carregar dados do servidor. Usando lista padrão.');
+    
+    // Fallback para equipamentos
+    equipamentosLista = [
+      { codigo: "EMP005", descricao: "EMP005" },
+      { codigo: "EMP006", descricao: "EMP006" },
+      { codigo: "EMP007", descricao: "EMP007" }
+    ];
+    
+    // Fallback para responsáveis
+    responsaveisLista = [
+      { codigo: "0085566", descricao: "SILVIO ASSIS MOREIRA" },
+      { codigo: "0085567", descricao: "JOAO SILVA" }
+    ];
+    
+    atualizarTodosSelectsEquipamentos();
+    atualizarTodosSelectsResponsaveis();
+  } finally {
+    loadingIndicator.classList.remove('active');
+  }
+}
+
+// ============================================
+// FUNÇÕES PARA CARREGAR TIPOS DE MANUTENÇÃO
+// ============================================
+
+async function carregarTiposManutencao(mostrarAlerta = false) {
+  try {
+    const url = `https://api.jsonbin.io/v3/b/${BIN_MANUTENCAO}/latest`;
+    const response = await fetch(url, {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      tiposManutencao = data.record.descricao || {};
+      tiposCarregados = true;
+      atualizarTodosOsSelectsTipos();
+      if (mostrarAlerta) alert('✅ Tipos recarregados!');
+    } else {
+      throw new Error('Erro ao carregar tipos');
+    }
+  } catch (error) {
+    console.warn('⚠️ Usando lista padrão de tipos');
+    tiposManutencao = {
+      "PREVENTIVA": 28,
+      "CORRETIVA": 1,
+      "TROCA DE ÓLEO": 7,
+      "REVISÃO GERAL": 6,
+      "TROCA DE FILTROS": 49,
+      "LUBRIFICAÇÃO": 15
+    };
+    tiposCarregados = true;
+    atualizarTodosOsSelectsTipos();
+    if (mostrarAlerta) alert('⚠️ Usando lista padrão de tipos.');
+  }
+}
+
+// ============================================
+// FUNÇÕES PARA CRIAR SELECTS
+// ============================================
+
 function criarSelectEquipamento() {
   const select = document.createElement('select');
   select.style.width = '100%';
+  select.className = 'select-equipamento';
   
   const optionVazia = document.createElement('option');
   optionVazia.value = '';
   optionVazia.textContent = '-- Selecione --';
   select.appendChild(optionVazia);
   
-  equipamentos.forEach(equip => {
+  equipamentosLista.forEach(eq => {
     const option = document.createElement('option');
-    option.value = equip;
-    option.textContent = equip;
+    option.value = eq.codigo;
+    // Mostrar código + descrição truncada
+    const desc = eq.descricao && eq.descricao.length > 20 ? eq.descricao.substring(0, 20) + '...' : eq.descricao;
+    option.textContent = `${eq.codigo} - ${desc || eq.codigo}`;
     select.appendChild(option);
   });
   
   return select;
 }
 
-// Função simplificada para criar o campo de tipo
-function criarTipoManutencao() {
+function criarSelectResponsavel() {
+  const select = document.createElement('select');
+  select.style.width = '100%';
+  select.className = 'select-responsavel';
+  
+  const optionVazia = document.createElement('option');
+  optionVazia.value = '';
+  optionVazia.textContent = '-- Selecione --';
+  select.appendChild(optionVazia);
+  
+  responsaveisLista.forEach(resp => {
+    const option = document.createElement('option');
+    option.value = resp.codigo;
+    // Mostrar código + nome truncado
+    const nome = resp.descricao && resp.descricao.length > 20 ? resp.descricao.substring(0, 20) + '...' : resp.descricao;
+    option.textContent = `${resp.codigo} - ${nome || resp.codigo}`;
+    select.appendChild(option);
+  });
+  
+  return select;
+}
+
+// ============================================
+// FUNÇÃO: ATUALIZAR OPÇÕES DO SELECT DE TIPO (NOVA)
+// ============================================
+function atualizarOptionsSelectTipo(select, manterValor = true) {
+  if (!select) return;
+  
+  const valorAtual = manterValor ? select.value : '';
+  
+  // Limpar opções (mantém as duas primeiras: vazia e OUTROS)
+  while (select.options.length > 2) {
+    select.remove(2);
+  }
+  
+  // Adicionar novas opções
+  if (tiposManutencao && typeof tiposManutencao === 'object') {
+    const chaves = Object.keys(tiposManutencao)
+      .filter(key => key !== '0' && key !== '151')
+      .sort();
+    
+    chaves.forEach(descricao => {
+      const option = document.createElement('option');
+      option.value = descricao;
+      option.textContent = descricao;
+      select.appendChild(option);
+    });
+  }
+  
+  // Restaurar valor
+  if (valorAtual && valorAtual !== 'OUTROS') {
+    const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
+    if (optionExists) select.value = valorAtual;
+  }
+}
+
+// ============================================
+// FUNÇÃO: CRIAR TIPO MANUTENÇÃO COM PESQUISA (NOVA)
+// ============================================
+function criarTipoManutencaoComPesquisa() {
   const wrapper = document.createElement('div');
   wrapper.className = 'tipo-wrapper';
   
+  // Label Pesquisar
+  const labelPesquisa = document.createElement('div');
+  labelPesquisa.className = 'tipo-label';
+  labelPesquisa.textContent = 'Pesquisar:';
+  wrapper.appendChild(labelPesquisa);
+  
+  // Input de pesquisa
+  const inputPesquisa = document.createElement('input');
+  inputPesquisa.type = 'text';
+  inputPesquisa.className = 'tipo-pesquisa';
+  inputPesquisa.placeholder = 'Digite para filtrar...';
+  wrapper.appendChild(inputPesquisa);
+  
+  // Label Selecionar
+  const labelSelect = document.createElement('div');
+  labelSelect.className = 'tipo-label';
+  labelSelect.textContent = 'Selecionar:';
+  wrapper.appendChild(labelSelect);
+  
+  // Select
   const select = document.createElement('select');
   select.className = 'tipo-select';
   
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'tipo-input';
-  input.placeholder = 'Digite...';
-  
-  // Opções
   const optionVazia = document.createElement('option');
   optionVazia.value = '';
   optionVazia.textContent = '-- Selecione --';
@@ -345,108 +773,264 @@ function criarTipoManutencao() {
   optionOutros.textContent = 'OUTROS (digitar)';
   select.appendChild(optionOutros);
   
-  // Evento: quando selecionar OUTROS, mostra o input
-  select.addEventListener('change', () => {
-    if (select.value === 'OUTROS') {
-      select.classList.add('ocultar');
+  // Adicionar opções iniciais
+  atualizarOptionsSelectTipo(select, false);
+  
+  wrapper.appendChild(select);
+  
+  // Label Digitar
+  const labelInput = document.createElement('div');
+  labelInput.className = 'tipo-label';
+  labelInput.textContent = 'Digitar:';
+  wrapper.appendChild(labelInput);
+  
+  // Input para digitar
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tipo-input';
+  input.placeholder = 'Digite...';
+  wrapper.appendChild(input);
+  
+  // ===== EVENTO: PESQUISA =====
+  inputPesquisa.addEventListener('input', function() {
+    const termo = this.value.toLowerCase().trim();
+    const options = select.querySelectorAll('option');
+    
+    // A primeira opção é vazia, a segunda é OUTROS
+    // A partir da terceira são os tipos
+    options.forEach((opt, index) => {
+      if (index < 2) return; // Mantém as duas primeiras sempre visíveis
+      
+      const texto = opt.textContent.toLowerCase();
+      if (termo === '') {
+        opt.style.display = '';
+      } else {
+        opt.style.display = texto.includes(termo) ? '' : 'none';
+      }
+    });
+    
+    // Se não houver opções visíveis, mostrar uma mensagem
+    let temVisiveis = false;
+    options.forEach(opt => {
+      if (opt.style.display !== 'none' && opt.value !== '') {
+        temVisiveis = true;
+      }
+    });
+    
+    // Se o select está oculto (modo OUTROS), não precisa mostrar mensagem
+    if (!select.classList.contains('ocultar') && !temVisiveis && termo !== '') {
+      // Criar ou atualizar mensagem "Nenhum resultado"
+      let msg = wrapper.querySelector('.tipo-sem-resultado');
+      if (!msg) {
+        msg = document.createElement('div');
+        msg.className = 'tipo-sem-resultado';
+        msg.style.cssText = 'font-size: 11px; color: #999; text-align: center; padding: 4px;';
+        // Inserir após o select
+        select.parentNode.insertBefore(msg, select.nextSibling);
+      }
+      msg.textContent = 'Nenhum tipo encontrado';
+      msg.style.display = 'block';
+    } else {
+      const msg = wrapper.querySelector('.tipo-sem-resultado');
+      if (msg) msg.style.display = 'none';
+    }
+  });
+  
+  // ===== EVENTO: SELECIONAR OUTROS =====
+  select.addEventListener('change', function() {
+    if (this.value === 'OUTROS') {
+      this.classList.add('ocultar');
       input.classList.add('mostrar');
       input.focus();
+    } else {
+      // Se selecionou uma opção válida, limpa a pesquisa
+      inputPesquisa.value = '';
+      // Mostrar todas as opções novamente
+      const options = this.querySelectorAll('option');
+      options.forEach(opt => {
+        opt.style.display = '';
+      });
+      const msg = wrapper.querySelector('.tipo-sem-resultado');
+      if (msg) msg.style.display = 'none';
     }
   });
   
-  // Evento: quando input perde foco e está vazio, volta ao select
-  input.addEventListener('blur', () => {
-    if (!input.value.trim()) {
-      input.classList.remove('mostrar');
+  // ===== EVENTO: INPUT PERDE FOCO =====
+  input.addEventListener('blur', function() {
+    if (!this.value.trim()) {
+      this.classList.remove('mostrar');
       select.classList.remove('ocultar');
       select.value = '';
+      // Mostrar todas as opções novamente
+      const options = select.querySelectorAll('option');
+      options.forEach(opt => {
+        opt.style.display = '';
+      });
+      const msg = wrapper.querySelector('.tipo-sem-resultado');
+      if (msg) msg.style.display = 'none';
     }
   });
   
-  // Enter no input confirma e mantém
-  input.addEventListener('keypress', (e) => {
+  // ===== EVENTO: ENTER NO INPUT =====
+  input.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (input.value.trim()) {
+      if (this.value.trim()) {
         // Mantém como está
       }
     }
   });
   
-  wrapper.appendChild(select);
-  wrapper.appendChild(input);
-  
-  return { wrapper, select, input };
+  return { wrapper, select, input, inputPesquisa };
 }
 
-// Função para carregar tipos
-async function carregarTiposManutencao(mostrarAlerta = false) {
-  try {
-    const response = await fetch(API_MANUTENCAO, {
-      headers: { 'X-Master-Key': MASTER_KEY }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      tiposManutencao = data.record.descricao || {};
-      tiposCarregados = true;
-      atualizarTodosOsSelects();
-      if (mostrarAlerta) alert('✅ Tipos recarregados!');
-    } else {
-      tiposManutencao = {
-        "PREVENTIVA": 28,
-        "CORRETIVA": 1,
-        "TROCA DE ÓLEO": 7,
-        "REVISÃO GERAL": 6,
-        "TROCA DE FILTROS": 49,
-        "LUBRIFICAÇÃO": 15
-      };
-      atualizarTodosOsSelects();
-      if (mostrarAlerta) alert('⚠️ Usando lista padrão.');
-    }
-  } catch (error) {
-    console.error('Erro:', error);
-  }
-}
+// ============================================
+// FUNÇÕES PARA ATUALIZAR SELECTS EXISTENTES
+// ============================================
 
-// Atualizar selects
-function atualizarTodosOsSelects() {
+function atualizarTodosSelectsEquipamentos() {
   const rows = tblBody.querySelectorAll('tr');
   rows.forEach(row => {
-    const select = row.querySelector('.tipo-select');
+    const select = row.querySelector('.select-equipamento');
     if (!select) return;
     
     const valorAtual = select.value;
     
-    // Limpar opções (mantém as duas primeiras)
-    while (select.options.length > 2) {
-      select.remove(2);
+    // Limpar opções (mantém a primeira vazia)
+    while (select.options.length > 1) {
+      select.remove(1);
     }
     
-    // Adicionar novas opções
-    if (tiposManutencao && typeof tiposManutencao === 'object') {
-      Object.keys(tiposManutencao)
-        .filter(key => key !== '0' && key !== '151')
-        .sort()
-        .forEach(descricao => {
-          const option = document.createElement('option');
-          option.value = descricao;
-          option.textContent = descricao;
-          select.appendChild(option);
-        });
-    }
+    // Adicionar opções
+    equipamentosLista.forEach(eq => {
+      const option = document.createElement('option');
+      option.value = eq.codigo;
+      const desc = eq.descricao && eq.descricao.length > 20 ? eq.descricao.substring(0, 20) + '...' : eq.descricao;
+      option.textContent = `${eq.codigo} - ${desc || eq.codigo}`;
+      select.appendChild(option);
+    });
     
     // Restaurar valor
-    if (valorAtual && valorAtual !== 'OUTROS') {
+    if (valorAtual) {
       const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
       if (optionExists) select.value = valorAtual;
     }
   });
 }
 
-const tblBody = document.querySelector('#tblEquipamentos tbody');
+function atualizarTodosSelectsResponsaveis() {
+  const rows = tblBody.querySelectorAll('tr');
+  rows.forEach(row => {
+    const select = row.querySelector('.select-responsavel');
+    if (!select) return;
+    
+    const valorAtual = select.value;
+    
+    // Limpar opções (mantém a primeira vazia)
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    
+    // Adicionar opções
+    responsaveisLista.forEach(resp => {
+      const option = document.createElement('option');
+      option.value = resp.codigo;
+      const nome = resp.descricao && resp.descricao.length > 20 ? resp.descricao.substring(0, 20) + '...' : resp.descricao;
+      option.textContent = `${resp.codigo} - ${nome || resp.codigo}`;
+      select.appendChild(option);
+    });
+    
+    // Restaurar valor
+    if (valorAtual) {
+      const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
+      if (optionExists) select.value = valorAtual;
+    }
+  });
+}
 
-// Adicionar linha
+function atualizarTodosOsSelectsTipos() {
+  const rows = tblBody.querySelectorAll('tr');
+  rows.forEach(row => {
+    const select = row.querySelector('.tipo-select');
+    if (!select) return;
+    
+    // Usa a nova função para atualizar as opções
+    atualizarOptionsSelectTipo(select, true);
+  });
+}
+
+// ============================================
+// FUNÇÃO PARA VALIDAR LINHAS
+// ============================================
+
+function validarLinhasObrigatorias() {
+  let valido = true;
+  const rows = tblBody.querySelectorAll('tr');
+  
+  rows.forEach((row, index) => {
+    // Remove classe de erro anterior
+    row.classList.remove('required-row');
+    
+    const selectEquip = row.querySelector('.select-equipamento');
+    const selectResp = row.querySelector('.select-responsavel');
+    const tipoWrapper = row.querySelector('.tipo-wrapper');
+    const inputData = row.querySelector('td:nth-child(3) input[type="date"]');
+    
+    let linhaValida = true;
+    
+    // Validar equipamento
+    if (!selectEquip || !selectEquip.value) {
+      linhaValida = false;
+      if (selectEquip) selectEquip.classList.add('required-field');
+    } else {
+      if (selectEquip) selectEquip.classList.remove('required-field');
+    }
+    
+    // Validar responsável
+    if (!selectResp || !selectResp.value) {
+      linhaValida = false;
+      if (selectResp) selectResp.classList.add('required-field');
+    } else {
+      if (selectResp) selectResp.classList.remove('required-field');
+    }
+    
+    // Validar tipo de manutenção
+    const tipoValor = getValorTipo(tipoWrapper);
+    if (!tipoValor) {
+      linhaValida = false;
+      if (tipoWrapper) {
+        tipoWrapper.style.border = '2px solid #ff4444';
+        tipoWrapper.style.borderRadius = '4px';
+        tipoWrapper.style.padding = '4px';
+      }
+    } else {
+      if (tipoWrapper) {
+        tipoWrapper.style.border = 'none';
+        tipoWrapper.style.padding = '0';
+      }
+    }
+    
+    // Validar data
+    if (!inputData || !inputData.value) {
+      linhaValida = false;
+      if (inputData) inputData.classList.add('required-field');
+    } else {
+      if (inputData) inputData.classList.remove('required-field');
+    }
+    
+    if (!linhaValida) {
+      row.classList.add('required-row');
+      valido = false;
+    }
+  });
+  
+  return valido;
+}
+
+// ============================================
+// FUNÇÃO ADICIONAR LINHA (MODIFICADA)
+// ============================================
+
 function addRow() {
   const tr = document.createElement('tr');
   
@@ -454,9 +1038,9 @@ function addRow() {
   const tdEquip = document.createElement('td');
   tdEquip.appendChild(criarSelectEquipamento());
   
-  // Tipo
+  // Tipo - USANDO A NOVA FUNÇÃO COM PESQUISA
   const tdTipo = document.createElement('td');
-  const { wrapper } = criarTipoManutencao();
+  const { wrapper } = criarTipoManutencaoComPesquisa();
   tdTipo.appendChild(wrapper);
   
   // Data
@@ -468,13 +1052,9 @@ function addRow() {
   inputData.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
   tdData.appendChild(inputData);
   
-  // Horímetro
-  const tdHorimetro = document.createElement('td');
-  const inputHorimetro = document.createElement('input');
-  inputHorimetro.type = 'text';
-  inputHorimetro.placeholder = 'Horímetro';
-  inputHorimetro.style.width = '100%';
-  tdHorimetro.appendChild(inputHorimetro);
+  // Responsável
+  const tdResponsavel = document.createElement('td');
+  tdResponsavel.appendChild(criarSelectResponsavel());
   
   // Remover
   const tdRemove = document.createElement('td');
@@ -487,13 +1067,22 @@ function addRow() {
   };
   tdRemove.appendChild(btnRemove);
   
-  tr.append(tdEquip, tdTipo, tdData, tdHorimetro, tdRemove);
+  tr.append(tdEquip, tdTipo, tdData, tdResponsavel, tdRemove);
   tblBody.appendChild(tr);
+  
+  // Carregar tipos no select - usando a nova função
+  const selectTipo = tr.querySelector('.tipo-select');
+  if (selectTipo && tiposCarregados) {
+    atualizarOptionsSelectTipo(selectTipo, true);
+  }
   
   return tr;
 }
 
-// Obter valor do tipo
+// ============================================
+// FUNÇÃO OBTER VALOR DO TIPO (MANTIDA IGUAL)
+// ============================================
+
 function getValorTipo(wrapper) {
   if (!wrapper) return '';
   
@@ -511,15 +1100,19 @@ function getValorTipo(wrapper) {
   return '';
 }
 
-// Obter dados
+// ============================================
+// FUNÇÃO OBTER DADOS DO FORMULÁRIO
+// ============================================
+
 function getDadosFormulario() {
   const dataIso = $('rdm_data').value;
   const data = dataIso ? dataIso.split('-').reverse().join('/') : '';
   const horaDoc = $('rdm_hora_doc').value;
 
   return Array.from(tblBody.querySelectorAll('tr')).map(r => {
-    const selectEquip = r.querySelector('td:first-child select');
-    const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+    const selectEquip = r.querySelector('.select-equipamento');
+    const selectResp = r.querySelector('.select-responsavel');
+    const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"]');
     const tipoWrapper = r.querySelector('.tipo-wrapper');
     
     let dataManutencao = inputs[0] ? inputs[0].value : '';
@@ -534,39 +1127,41 @@ function getDadosFormulario() {
       equipamento: selectEquip ? selectEquip.value : '',
       tipo_manutencao: getValorTipo(tipoWrapper),
       data_manutencao: dataManutencao,
-      horimetro_atual: inputs[1] ? inputs[1].value : ''
+      responsavel: selectResp ? selectResp.value : ''
     };
-  }).filter(l => l.equipamento || l.tipo_manutencao || l.horimetro_atual);
+  }).filter(l => l.equipamento || l.tipo_manutencao || l.responsavel);
 }
 
-// Event Listeners
-window.addEventListener('DOMContentLoaded', () => {
-  const now = new Date();
-  $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  
-  for (let i = 0; i < 10; i++) addRow();
-  carregarTiposManutencao(false);
-});
+// ============================================
+// FUNÇÃO PARA SALVAR NA FILA
+// ============================================
 
-$('btnAdicionarLinha').onclick = () => addRow();
-
-$('btnLimpar').onclick = () => {
-  if (confirm('🧹 Limpar todos os lançamentos?')) {
-    tblBody.innerHTML = '';
-    for (let i = 0; i < 10; i++) addRow();
-    setTimeout(atualizarTodosOsSelects, 100);
+async function salvarNaFila(dados) {
+  try {
+    await filaRDM.init();
+    const id = await filaRDM.adicionar(dados);
+    console.log(`📦 Dados adicionados à fila RDM (ID: ${id})`);
+    await atualizarContador();
+    
+    if (navigator.onLine) {
+      console.log('🌐 Online - tentando enviar imediatamente...');
+      setTimeout(async () => {
+        await sincronizarFila();
+      }, 500);
+    }
+    
+    return id;
+  } catch (error) {
+    console.error('❌ Erro ao salvar na fila:', error);
+    throw error;
   }
-};
+}
 
-// Enviar para servidor
-async function enviarParaServidorRDM(mostrarAlerta = true) {
-  const linhas = getDadosFormulario();
-  if (linhas.length === 0) {
-    if (mostrarAlerta) alert("⚠️ Não há dados!");
-    return false;
-  }
+// ============================================
+// FUNÇÃO DE ENVIO PARA O SERVIDOR
+// ============================================
 
+async function enviarDadosServidor(dados) {
   try {
     const GET_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}/latest`;
     const PUT_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}`;
@@ -584,6 +1179,8 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
       else if (Array.isArray(json)) dadosExistentes = json;
     }
     
+    const dadosAtualizados = [...dadosExistentes, ...dados];
+    
     const resPut = await fetch(PUT_URL, {
       method:'PUT',
       headers:{
@@ -591,22 +1188,208 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
         'X-Master-Key':MASTER_KEY,
         'X-Bin-Versioning':'false'
       },
-      body:JSON.stringify({ rdm_registros: [...dadosExistentes, ...linhas] })
+      body:JSON.stringify({ rdm_registros: dadosAtualizados })
     });
 
     if(resPut.ok) {
-      localStorage.removeItem('rdm_offline_cache');
+      console.log('✅ Dados RDM enviados com sucesso');
       return true;
     }
     return false;
   } catch(err){
-    console.log('Erro:', err);
+    console.log('❌ Erro ao enviar dados:', err);
     return false;
   }
 }
 
-// Gerar PDF
+// ============================================
+// FUNÇÃO DE SINCRONIZAÇÃO DA FILA
+// ============================================
+
+let sincronizando = false;
+
+async function sincronizarFila() {
+  if (!navigator.onLine) {
+    console.log('📡 Offline - não é possível sincronizar');
+    atualizarContador();
+    return;
+  }
+
+  if (sincronizando) {
+    console.log('⏳ Já está sincronizando...');
+    return;
+  }
+
+  try {
+    sincronizando = true;
+    console.log('🔄 INICIANDO SINCRONIZAÇÃO RDM...');
+    
+    const itens = await filaRDM.listarTodos();
+    
+    if (itens.length === 0) {
+      console.log('✅ Nenhum item pendente');
+      atualizarContador();
+      sincronizando = false;
+      return;
+    }
+
+    console.log(`📦 ${itens.length} item(ns) pendente(s)`);
+    
+    let itensRemovidos = 0;
+    for (const item of itens) {
+      console.log(`🔄 Processando item ${item.id}...`);
+      
+      const enviado = await enviarDadosServidor(item.dados);
+      
+      if (enviado) {
+        await filaRDM.remover(item.id);
+        itensRemovidos++;
+        console.log(`✅ Item ${item.id} removido da fila`);
+      } else {
+        console.log(`❌ Falha no envio do item ${item.id} - mantendo na fila`);
+        break;
+      }
+    }
+
+    console.log(`✅ ${itensRemovidos} item(ns) removidos da fila`);
+
+  } catch (error) {
+    console.error('❌ Erro na sincronização:', error);
+  } finally {
+    sincronizando = false;
+    await atualizarContador();
+    console.log('🔄 SINCRONIZAÇÃO RDM FINALIZADA');
+  }
+}
+
+// ============================================
+// ATUALIZAR CONTADOR DA FILA
+// ============================================
+
+async function atualizarContador() {
+  try {
+    const total = await filaRDM.contar();
+    document.getElementById('filaPendentes').textContent = total;
+    
+    const statusIcone = document.getElementById('filaStatusIcone');
+    const statusTexto = document.getElementById('filaStatusTexto');
+    const ultimoEnvio = document.getElementById('filaUltimoEnvio');
+    
+    if (total === 0) {
+      statusIcone.textContent = '✅';
+      statusTexto.textContent = 'Sincronizado';
+      ultimoEnvio.textContent = `Último: ${new Date().toLocaleTimeString()}`;
+    } else if (sincronizando) {
+      statusIcone.textContent = '⏳';
+      statusTexto.textContent = 'Enviando...';
+    } else {
+      statusIcone.textContent = '📦';
+      statusTexto.textContent = `${total} pendente(s)`;
+    }
+    
+    console.log(`📊 Contador atualizado: ${total} pendente(s)`);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contador:', error);
+  }
+}
+
+// ============================================
+// INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+// ============================================
+
+function iniciarSincronizacaoAutomatica() {
+  window.addEventListener('online', async () => {
+    console.log('🌐 Conexão restaurada - sincronizando RDM...');
+    await sincronizarFila();
+  });
+
+  setInterval(async () => {
+    if (navigator.onLine) {
+      const total = await filaRDM.contar();
+      if (total > 0) {
+        console.log('⏰ Sincronização periódica RDM...');
+        await sincronizarFila();
+      }
+    }
+  }, 30000);
+
+  setTimeout(async () => {
+    await filaRDM.init();
+    await atualizarContador();
+    
+    if (navigator.onLine) {
+      const total = await filaRDM.contar();
+      if (total > 0) {
+        console.log(`🔄 Sincronizando ${total} item(ns) pendentes RDM...`);
+        await sincronizarFila();
+      }
+    }
+  }, 1500);
+}
+
+// ============================================
+// FUNÇÃO PARA ENVIAR PARA O SERVIDOR (PRINCIPAL)
+// ============================================
+
+async function enviarParaServidorRDM(mostrarAlerta = true) {
+  // Validar campos obrigatórios
+  if (!validarLinhasObrigatorias()) {
+    if (mostrarAlerta) {
+      alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    }
+    return false;
+  }
+  
+  const linhas = getDadosFormulario();
+  if (linhas.length === 0) {
+    if (mostrarAlerta) alert("⚠️ Não há dados para enviar!");
+    return false;
+  }
+
+  const salvou = await salvarNaFila(linhas);
+  
+  if (salvou) {
+    if (mostrarAlerta) {
+      alert('✅ Dados enviados para a fila com sucesso!');
+    }
+    return true;
+  } else {
+    if (mostrarAlerta) {
+      alert('❌ Falha ao salvar na fila. Tente novamente.');
+    }
+    return false;
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA SALVAR LOCALMENTE
+// ============================================
+
+function salvarLocalmente() {
+  // Validar campos obrigatórios
+  if (!validarLinhasObrigatorias()) {
+    alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    return;
+  }
+  
+  const linhas = getDadosFormulario();
+  if (linhas.length) {
+    localStorage.setItem('rdm_offline_cache', JSON.stringify(linhas));
+    alert('💾 Salvo localmente!');
+  } else alert("⚠️ Não há dados!");
+}
+
+// ============================================
+// FUNÇÃO PARA GERAR PDF
+// ============================================
+
 $('btnGerarPDF').onclick = async () => {
+  // Validar campos obrigatórios
+  if (!validarLinhasObrigatorias()) {
+    alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    return;
+  }
+  
   try {
     const { jsPDF } = window.jspdf;
     const [yyyy,mm,dd] = $('rdm_data').value.split('-');
@@ -620,16 +1403,17 @@ $('btnGerarPDF').onclick = async () => {
     let hasData = false;
     
     Array.from(tblBody.querySelectorAll('tr')).forEach(r => {
-      const selectEquip = r.querySelector('td:first-child select');
+      const selectEquip = r.querySelector('.select-equipamento');
+      const selectResp = r.querySelector('.select-responsavel');
       const tipoWrapper = r.querySelector('.tipo-wrapper');
-      const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+      const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"]');
       
       const equipValue = selectEquip ? selectEquip.value : '';
       const tipoValue = getValorTipo(tipoWrapper);
       const dataValue = inputs[0] ? inputs[0].value : '';
-      const horimetroValue = inputs[1] ? inputs[1].value : '';
+      const respValue = selectResp ? selectResp.value : '';
       
-      if (equipValue || tipoValue || dataValue || horimetroValue) {
+      if (equipValue || tipoValue || dataValue || respValue) {
         hasData = true;
         let dataManutencaoFormatada = dataValue;
         if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
@@ -637,8 +1421,12 @@ $('btnGerarPDF').onclick = async () => {
           dataManutencaoFormatada = `${dia}/${mes}/${ano}`;
         }
         
+        // Buscar descrições para exibição
+        const equipDesc = equipamentosLista.find(e => e.codigo === equipValue)?.descricao || equipValue;
+        const respDesc = responsaveisLista.find(r => r.codigo === respValue)?.descricao || respValue;
+        
         const tr2 = document.createElement('tr');
-        tr2.innerHTML = `<td>${equipValue}</td><td>${tipoValue}</td><td>${dataManutencaoFormatada}</td><td>${horimetroValue}</td>`;
+        tr2.innerHTML = `<td>${equipDesc}</td><td>${tipoValue}</td><td>${dataManutencaoFormatada}</td><td>${respDesc}</td>`;
         tbody.appendChild(tr2);
       }
     });
@@ -666,54 +1454,149 @@ $('btnGerarPDF').onclick = async () => {
     pdf.save(`RDM_${dataFormatada.replace(/\//g,'-')}.pdf`);
     document.body.removeChild(wrapper);
     
-    alert('✅ PDF gerado!');
+    document.getElementById('msgOk').style.display = 'block';
+    setTimeout(() => document.getElementById('msgOk').style.display = 'none', 5000);
     
+    // Tentar enviar automaticamente
     if (await enviarParaServidorRDM(false)) {
-      if (!confirm('✅ Enviado! Manter dados?')) $('btnLimpar').click();
-    } else {
-      alert('❌ Falha no envio. Salvando localmente.');
-      salvarLocalmente();
+      if (!confirm('✅ Dados enviados para o servidor!\n\nDeseja limpar os campos?')) {
+        // Mantém os dados
+      }
     }
   } catch (error) {
     alert('❌ Erro ao gerar PDF');
+    console.error(error);
+  }
+};
+
+// ============================================
+// FUNÇÃO PARA GERAR EXCEL
+// ============================================
+
+$('btnExcel').onclick = () => {
+  // Validar campos obrigatórios
+  if (!validarLinhasObrigatorias()) {
+    alert('❌ Por favor, preencha todos os campos obrigatórios (linhas com borda vermelha).');
+    return;
+  }
+  
+  try {
+    const linhas = getDadosFormulario();
+    if (linhas.length === 0) {
+      alert('⚠️ Não há dados!');
+      return;
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'RDM');
+    
+    const dataFormatada = $('rdm_data').value.split('-').reverse().join('-');
+    XLSX.writeFile(wb, `RDM_${dataFormatada}.xlsx`);
+    
+    document.getElementById('msgOk').style.display = 'block';
+    setTimeout(() => document.getElementById('msgOk').style.display = 'none', 5000);
+  } catch (error) {
+    alert('❌ Erro ao gerar Excel');
+    console.error(error);
+  }
+};
+
+// ============================================
+// EVENTOS DOS BOTÕES
+// ============================================
+
+$('btnAdicionarLinha').onclick = () => addRow();
+
+$('btnLimpar').onclick = () => {
+  if (confirm('🧹 Limpar todos os lançamentos?')) {
+    tblBody.innerHTML = '';
+    for (let i = 0; i < 10; i++) addRow();
+    setTimeout(() => {
+      atualizarTodosSelectsEquipamentos();
+      atualizarTodosSelectsResponsaveis();
+      atualizarTodosOsSelectsTipos();
+    }, 100);
   }
 };
 
 $('btnServidor').onclick = async () => {
   if (await enviarParaServidorRDM(true)) {
-    if (confirm('✅ Enviado! Limpar?')) $('btnLimpar').click();
-  } else {
-    alert('❌ Falha no envio');
-    salvarLocalmente();
+    if (confirm('✅ Dados enviados!\n\nDeseja limpar os campos?')) {
+      $('btnLimpar').click();
+    }
   }
 };
-
-function salvarLocalmente() {
-  const linhas = getDadosFormulario();
-  if (linhas.length) {
-    localStorage.setItem('rdm_offline_cache', JSON.stringify(linhas));
-    alert('💾 Salvo localmente!');
-  } else alert("⚠️ Não há dados!");
-}
 
 $('btnRecarregarTipos').onclick = () => carregarTiposManutencao(true);
 $('btnSalvarLocal').onclick = salvarLocalmente;
 
-// Carregar cache
-window.addEventListener('load', () => {
+$('btnSincronizarAgora').onclick = async () => {
+  if (!navigator.onLine) {
+    alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+    return;
+  }
+  
+  console.log('🔄 Botão Sincronizar Agora clicado - APENAS sincronizando');
+  
+  document.getElementById('btnSincronizarAgora').disabled = true;
+  document.getElementById('btnSincronizarAgora').innerHTML = '⏳ Enviando...';
+  
+  await sincronizarFila();
+  
+  document.getElementById('btnSincronizarAgora').disabled = false;
+  document.getElementById('btnSincronizarAgora').innerHTML = '🔄 Sincronizar Agora';
+};
+
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+
+async function iniciarFila() {
+  try {
+    await filaRDM.init();
+    console.log('✅ Fila de envio RDM inicializada');
+    
+    iniciarSincronizacaoAutomatica();
+    await atualizarContador();
+  } catch (error) {
+    console.error('❌ Erro ao inicializar fila RDM:', error);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const now = new Date();
+  $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  
+  // Inicializar fila
+  await iniciarFila();
+  
+  // Carregar dados mestres (equipamentos e responsáveis)
+  await carregarDadosMestres();
+  
+  // Carregar tipos de manutenção
+  await carregarTiposManutencao(false);
+  
+  // Adicionar linhas iniciais
+  for (let i = 0; i < 10; i++) addRow();
+  
+  // Carregar dados salvos localmente
   const cache = localStorage.getItem('rdm_offline_cache');
   if (cache) {
     try {
       const linhas = JSON.parse(cache);
-      if (linhas.length && confirm('📦 Carregar dados salvos?')) {
+      if (linhas.length && confirm('📦 Carregar dados salvos localmente?')) {
         tblBody.innerHTML = '';
         linhas.forEach(dado => {
           const tr = addRow();
-          const selectEquip = tr.querySelector('td:first-child select');
+          const selectEquip = tr.querySelector('.select-equipamento');
+          const selectResp = tr.querySelector('.select-responsavel');
           const tipoWrapper = tr.querySelector('.tipo-wrapper');
-          const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"], td:nth-child(4) input[type="text"]');
+          const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"]');
           
           if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
+          if (selectResp && dado.responsavel) selectResp.value = dado.responsavel;
           
           if (inputs[0] && dado.data_manutencao) {
             if (dado.data_manutencao.includes('/')) {
@@ -721,8 +1604,6 @@ window.addEventListener('load', () => {
               inputs[0].value = `${ano}-${mes}-${dia}`;
             }
           }
-          
-          if (inputs[1] && dado.horimetro_atual) inputs[1].value = dado.horimetro_atual;
           
           if (tipoWrapper && dado.tipo_manutencao) {
             const select = tipoWrapper.querySelector('.tipo-select');
@@ -740,26 +1621,32 @@ window.addEventListener('load', () => {
             }
           }
         });
-        setTimeout(atualizarTodosOsSelects, 500);
+        setTimeout(() => {
+          atualizarTodosSelectsEquipamentos();
+          atualizarTodosSelectsResponsaveis();
+          atualizarTodosOsSelectsTipos();
+        }, 500);
       }
     } catch (e) {}
   }
-});
-
-// Online detector
-window.addEventListener('online', async () => {
-  const cache = localStorage.getItem('rdm_offline_cache');
-  if (cache && confirm('🌐 Conexão restaurada! Enviar dados?')) {
-    if (await enviarParaServidorRDM(false)) {
-      localStorage.removeItem('rdm_offline_cache');
-      alert('✅ Dados enviados!');
+  
+  // Sincronizar pendentes ao carregar
+  if (navigator.onLine) {
+    const total = await filaRDM.contar();
+    if (total > 0) {
+      console.log(`🔄 Enviando ${total} itens pendentes RDM...`);
+      await sincronizarFila();
     }
   }
+  
+  console.log('✅ RDM carregado com sucesso!');
+  console.log('📌 BIN de dados mestres (equipamentos/responsáveis):', BIN_DADOS_MESTRES);
+  console.log('📌 BIN de relatório RDM:', BIN_RELATORIO);
+  console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
+  console.log('📌 Campo "Horímetro" substituído por "Responsável"');
+  console.log('📌 Adicionado campo de pesquisa no Tipo de Manutenção');
 });
 
 </script>
 </body>
-
 </html>
-
-
