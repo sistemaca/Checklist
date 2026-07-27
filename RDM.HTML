@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
 <title>RDM — Relatório Diário de Manutenção Mecânica</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -10,12 +10,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
+  /* Correção para iPhone - impedir aumento automático de fontes */
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
   :root { --paper-w: 794px; --muted: #666; }
   body {
     font-family: "Arial", Helvetica, sans-serif;
     background: #f2f4f7;
     margin: 0;
     padding: 12px;
+    -webkit-font-smoothing: antialiased;
   }
   .container { max-width: 1200px; margin: 0 auto; }
   .card {
@@ -32,12 +39,14 @@
     margin-bottom: 8px;
   }
   label { font-size: 13px; margin-bottom: 4px; color: #222; font-weight: 500; }
-  input[type=text], input[type=date], select {
+  input[type=text], input[type=date], input[type=number], select {
     padding: 10px; border: 1px solid #ddd;
     border-radius: 8px; font-size: 14px;
     background: #fff; width: 100%;
     box-sizing: border-box;
     height: 42px;
+    -webkit-appearance: none;
+    appearance: none;
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
     padding: 8px;
@@ -52,6 +61,7 @@
     border: none; padding: 12px 16px;
     border-radius: 8px; font-size: 14px;
     cursor: pointer; font-weight: 500;
+    -webkit-touch-callout: none;
   }
   .btn:hover { background: #0959a8; }
   .btn.gray { background: #6c757d; }
@@ -75,19 +85,32 @@
     border-collapse: collapse; 
     background: #fff;
     min-width: 650px;
+    table-layout: fixed;
   }
   .table th, .table td {
     border: 1px solid #e0e0e0; 
-    padding: 10px 8px;
+    padding: 8px 6px;
     font-size: 13px; 
     text-align: center;
     vertical-align: middle;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   .table th { 
     background: #f8f9fa; 
     font-weight: 600;
     white-space: nowrap;
+    font-size: 12px;
   }
+  
+  /* Larguras das colunas */
+  .table th:nth-child(1), .table td:nth-child(1) { width: 18%; min-width: 90px; }
+  .table th:nth-child(2), .table td:nth-child(2) { width: 22%; min-width: 120px; }
+  .table th:nth-child(3), .table td:nth-child(3) { width: 10%; min-width: 65px; }
+  .table th:nth-child(4), .table td:nth-child(4) { width: 12%; min-width: 75px; }
+  .table th:nth-child(5), .table td:nth-child(5) { width: 16%; min-width: 90px; }
+  .table th:nth-child(6), .table td:nth-child(6) { width: 20%; min-width: 100px; }
+  .table th:nth-child(7), .table td:nth-child(7) { width: 5%; min-width: 40px; }
   
   /* ============================================
      COMBOBOX PESQUISÁVEL - ESTILO INTEGRADO
@@ -96,7 +119,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    min-width: 160px;
+    min-width: 120px;
+    width: 100%;
   }
   
   .tipo-combobox {
@@ -115,6 +139,8 @@
     box-sizing: border-box;
     cursor: pointer;
     transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
   }
   
   .tipo-combobox input:focus {
@@ -208,6 +234,8 @@
     font-size: 14px;
     box-sizing: border-box;
     display: none;
+    -webkit-appearance: none;
+    appearance: none;
   }
   
   .tipo-input-outros.mostrar {
@@ -234,11 +262,19 @@
   }
   .rds-table {
     width: 100%; border-collapse: collapse; margin-top: 8px;
+    table-layout: fixed;
   }
   .rds-table td, .rds-table th {
     border: 1px solid #333; padding: 6px;
     font-size: 12px; text-align: center;
+    word-wrap: break-word;
   }
+  .rds-table th:nth-child(1) { width: 20%; }
+  .rds-table th:nth-child(2) { width: 20%; }
+  .rds-table th:nth-child(3) { width: 10%; }
+  .rds-table th:nth-child(4) { width: 12%; }
+  .rds-table th:nth-child(5) { width: 18%; }
+  .rds-table th:nth-child(6) { width: 20%; }
   
   .remove-row {
     background: #dc3545;
@@ -249,6 +285,7 @@
     font-size: 14px;
     cursor: pointer;
     font-weight: bold;
+    -webkit-touch-callout: none;
   }
   
   /* ESTILOS PARA FILA DE ENVIO */
@@ -284,6 +321,7 @@
     font-size: 12px;
     cursor: pointer;
     transition: background 0.3s;
+    -webkit-touch-callout: none;
   }
   .fila-status .btn-sincronizar:hover { background: #0959a8; }
   .fila-status .btn-sincronizar:disabled {
@@ -336,27 +374,25 @@
     }
     
     .table {
-      min-width: 550px;
+      min-width: 580px;
+      table-layout: fixed;
     }
     
     .table th, .table td { 
-      font-size: 12px; 
-      padding: 8px 2px;
-      white-space: nowrap;
+      font-size: 11px; 
+      padding: 6px 3px;
     }
     
-    .table td:nth-child(3) input {
-      max-width: 110px;
-    }
-    
-    .table td:first-child select {
-      max-width: 100px;
-      font-size: 11px;
-      padding: 6px 4px;
-    }
+    .table th:nth-child(1), .table td:nth-child(1) { width: 16%; min-width: 70px; }
+    .table th:nth-child(2), .table td:nth-child(2) { width: 20%; min-width: 90px; }
+    .table th:nth-child(3), .table td:nth-child(3) { width: 10%; min-width: 55px; }
+    .table th:nth-child(4), .table td:nth-child(4) { width: 12%; min-width: 65px; }
+    .table th:nth-child(5), .table td:nth-child(5) { width: 16%; min-width: 70px; }
+    .table th:nth-child(6), .table td:nth-child(6) { width: 18%; min-width: 80px; }
+    .table th:nth-child(7), .table td:nth-child(7) { width: 5%; min-width: 35px; }
     
     .tipo-wrapper {
-      min-width: 120px;
+      min-width: 90px;
     }
     
     .tipo-combobox input,
@@ -383,6 +419,49 @@
     }
     .fila-status .indicadores {
       justify-content: center;
+    }
+    
+    input[type=text], input[type=date], input[type=number], select {
+      font-size: 12px;
+      padding: 6px 4px;
+      height: 34px;
+    }
+  }
+  
+  /* iPhone específico */
+  @media (max-width: 480px) {
+    .table {
+      min-width: 520px;
+      table-layout: fixed;
+    }
+    
+    .table th, .table td { 
+      font-size: 10px; 
+      padding: 4px 2px;
+    }
+    
+    .table th:nth-child(1), .table td:nth-child(1) { width: 15%; min-width: 60px; }
+    .table th:nth-child(2), .table td:nth-child(2) { width: 20%; min-width: 80px; }
+    .table th:nth-child(3), .table td:nth-child(3) { width: 9%; min-width: 45px; }
+    .table th:nth-child(4), .table td:nth-child(4) { width: 12%; min-width: 55px; }
+    .table th:nth-child(5), .table td:nth-child(5) { width: 16%; min-width: 60px; }
+    .table th:nth-child(6), .table td:nth-child(6) { width: 18%; min-width: 70px; }
+    .table th:nth-child(7), .table td:nth-child(7) { width: 5%; min-width: 30px; }
+    
+    .tipo-wrapper {
+      min-width: 75px;
+    }
+    
+    .tipo-combobox input,
+    .tipo-input-outros {
+      height: 30px;
+      font-size: 10px;
+      padding: 4px 24px 4px 4px;
+    }
+    
+    .tipo-dropdown-item {
+      padding: 6px 8px;
+      font-size: 10px;
     }
   }
 </style>
@@ -428,8 +507,10 @@
           <tr>
             <th>EQUIPAMENTO *</th>
             <th>TIPO DE MANUTENÇÃO *</th>
+            <th>QTD</th>
             <th>DATA *</th>
             <th>RESPONSÁVEL *</th>
+            <th>OBSERVAÇÃO</th>
             <th></th>
           </tr>
         </thead>
@@ -469,8 +550,10 @@
         <tr>
           <th>EQUIPAMENTO</th>
           <th>TIPO DE MANUTENÇÃO</th>
+          <th>QTD</th>
           <th>DATA</th>
           <th>RESPONSÁVEL</th>
+          <th>OBSERVAÇÃO</th>
         </tr>
       </thead>
       <tbody id="rdm_equip_rows"></tbody>
@@ -849,26 +932,44 @@ function criarTipoManutencao() {
     
     resultados.sort();
     
-    if (resultados.length === 0) {
+    // SEMPRE adicionar OUTROS como primeiro item
+    const itemOutros = document.createElement('div');
+    itemOutros.className = 'tipo-dropdown-item';
+    itemOutros.textContent = '📝 OUTROS (digitar)';
+    itemOutros.dataset.valor = 'OUTROS';
+    itemOutros.style.borderBottom = '2px solid #ddd';
+    itemOutros.style.marginBottom = '4px';
+    itemOutros.style.color = '#0b73d6';
+    itemOutros.style.fontWeight = 'bold';
+    
+    itemOutros.addEventListener('click', function() {
+      combobox.classList.add('ocultar');
+      inputOutros.classList.add('mostrar');
+      inputOutros.focus();
+      fecharDropdown();
+    });
+    
+    dropdown.appendChild(itemOutros);
+    
+    if (resultados.length === 0 && termoNormalizado) {
       const vazio = document.createElement('div');
       vazio.className = 'tipo-dropdown-vazio';
       vazio.textContent = 'Nenhum tipo encontrado';
       dropdown.appendChild(vazio);
-      return;
-    }
-    
-    resultados.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'tipo-dropdown-item';
-      div.textContent = item;
-      div.dataset.valor = item;
-      
-      div.addEventListener('click', function() {
-        selecionarTipo(this.dataset.valor);
+    } else {
+      resultados.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'tipo-dropdown-item';
+        div.textContent = item;
+        div.dataset.valor = item;
+        
+        div.addEventListener('click', function() {
+          selecionarTipo(this.dataset.valor);
+        });
+        
+        dropdown.appendChild(div);
       });
-      
-      dropdown.appendChild(div);
-    });
+    }
   }
   
   // ===== FUNÇÃO: SELECIONAR TIPO =====
@@ -933,8 +1034,15 @@ function criarTipoManutencao() {
     
     if (e.key === 'Enter') {
       e.preventDefault();
-      // Selecionar o primeiro item visível
-      const primeiro = dropdown.querySelector('.tipo-dropdown-item:not(.tipo-dropdown-vazio)');
+      // Selecionar o primeiro item visível (exceto OUTROS se for o primeiro)
+      const itemsVisiveis = dropdown.querySelectorAll('.tipo-dropdown-item:not(.tipo-dropdown-vazio)');
+      let primeiro = null;
+      for (let item of itemsVisiveis) {
+        if (item.dataset.valor !== 'OUTROS') {
+          primeiro = item;
+          break;
+        }
+      }
       if (primeiro) {
         selecionarTipo(primeiro.dataset.valor);
       }
@@ -1014,96 +1122,6 @@ function criarTipoManutencao() {
       fecharDropdown();
     }
   });
-  
-  // ===== EVENTO: OUTROS =====
-  // Adicionar opção OUTROS na lista
-  function adicionarOpcaoOutros() {
-    const chaves = Object.keys(tiposManutencao)
-      .filter(key => key !== '0' && key !== '151');
-    
-    // Verificar se OUTROS já existe
-    if (!chaves.includes('OUTROS')) {
-      // Adicionar visualmente na lista
-      const dropdown = combobox.querySelector('.tipo-dropdown');
-      const itemOutros = document.createElement('div');
-      itemOutros.className = 'tipo-dropdown-item';
-      itemOutros.textContent = '📝 OUTROS (digitar)';
-      itemOutros.dataset.valor = 'OUTROS';
-      itemOutros.style.borderTop = '2px solid #ddd';
-      itemOutros.style.marginTop = '4px';
-      itemOutros.style.color = '#0b73d6';
-      itemOutros.style.fontWeight = 'bold';
-      
-      itemOutros.addEventListener('click', function() {
-        // Ativar modo OUTROS
-        combobox.classList.add('ocultar');
-        inputOutros.classList.add('mostrar');
-        inputOutros.focus();
-        fecharDropdown();
-      });
-      
-      dropdown.appendChild(itemOutros);
-    }
-  }
-  
-  // Sobrescrever atualizarLista para incluir OUTROS
-  const atualizarListaOriginal = atualizarLista;
-  atualizarLista = function(filtro = '') {
-    dropdown.innerHTML = '';
-    
-    const chaves = Object.keys(tiposManutencao)
-      .filter(key => key !== '0' && key !== '151');
-    
-    const termoNormalizado = normalizarTexto(filtro);
-    let resultados = chaves;
-    
-    if (termoNormalizado) {
-      resultados = chaves.filter(key => 
-        normalizarTexto(key).includes(termoNormalizado)
-      );
-    }
-    
-    resultados.sort();
-    
-    if (resultados.length === 0 && termoNormalizado) {
-      const vazio = document.createElement('div');
-      vazio.className = 'tipo-dropdown-vazio';
-      vazio.textContent = 'Nenhum tipo encontrado';
-      dropdown.appendChild(vazio);
-    } else {
-      resultados.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'tipo-dropdown-item';
-        div.textContent = item;
-        div.dataset.valor = item;
-        
-        div.addEventListener('click', function() {
-          selecionarTipo(this.dataset.valor);
-        });
-        
-        dropdown.appendChild(div);
-      });
-    }
-    
-    // Sempre adicionar opção OUTROS (exceto se já estiver na lista)
-    const itemOutros = document.createElement('div');
-    itemOutros.className = 'tipo-dropdown-item';
-    itemOutros.textContent = '📝 OUTROS (digitar)';
-    itemOutros.dataset.valor = 'OUTROS';
-    itemOutros.style.borderTop = '2px solid #ddd';
-    itemOutros.style.marginTop = '4px';
-    itemOutros.style.color = '#0b73d6';
-    itemOutros.style.fontWeight = 'bold';
-    
-    itemOutros.addEventListener('click', function() {
-      combobox.classList.add('ocultar');
-      inputOutros.classList.add('mostrar');
-      inputOutros.focus();
-      fecharDropdown();
-    });
-    
-    dropdown.appendChild(itemOutros);
-  };
   
   // ===== EVENTO: INPUT OUTROS =====
   inputOutros.addEventListener('blur', function() {
@@ -1250,7 +1268,7 @@ function atualizarTodosOsSelectsTipos() {
 }
 
 // ============================================
-// FUNÇÃO PARA VALIDAR LINHAS (CORRIGIDA - IGNORA DATA AUTOMÁTICA)
+// FUNÇÃO PARA VALIDAR LINHAS (CORRIGIDA)
 // ============================================
 
 function validarLinhasObrigatorias() {
@@ -1265,7 +1283,9 @@ function validarLinhasObrigatorias() {
     const selectEquip = row.querySelector('.select-equipamento');
     const selectResp = row.querySelector('.select-responsavel');
     const tipoWrapper = row.querySelector('.tipo-wrapper');
-    const inputData = row.querySelector('td:nth-child(3) input[type="date"]');
+    const inputData = row.querySelector('td:nth-child(4) input[type="date"]');
+    const inputQtd = row.querySelector('td:nth-child(3) input[type="number"]');
+    const inputObs = row.querySelector('td:nth-child(6) input[type="text"]');
     
     // Verificar se a linha tem dados preenchidos (ignorando a data automática)
     const temEquip = selectEquip && selectEquip.value && selectEquip.value !== '';
@@ -1275,13 +1295,14 @@ function validarLinhasObrigatorias() {
       const valor = row._tipoComponent.getValor();
       temTipo = valor && valor !== '';
     }
+    const temQtd = inputQtd && inputQtd.value && inputQtd.value !== '' && parseInt(inputQtd.value) > 0;
+    const temObs = inputObs && inputObs.value && inputObs.value.trim() !== '';
     
     // A data é automática, então não consideramos como "preenchida"
-    // Apenas verificamos se existe a data
     const temData = inputData && inputData.value && inputData.value !== '';
     
     // Uma linha é considerada "preenchida" se tiver pelo menos um campo manual preenchido
-    const linhaPreenchida = temEquip || temResp || temTipo;
+    const linhaPreenchida = temEquip || temResp || temTipo || temQtd || temObs;
     
     // Se a linha estiver totalmente vazia (apenas com a data automática), ignorar
     if (!linhaPreenchida) {
@@ -1289,6 +1310,7 @@ function validarLinhasObrigatorias() {
       if (selectEquip) selectEquip.classList.remove('required-field');
       if (selectResp) selectResp.classList.remove('required-field');
       if (inputData) inputData.classList.remove('required-field');
+      if (inputQtd) inputQtd.classList.remove('required-field');
       if (tipoWrapper) {
         tipoWrapper.style.border = 'none';
         tipoWrapper.style.padding = '0';
@@ -1332,6 +1354,14 @@ function validarLinhasObrigatorias() {
       }
     }
     
+    // Validar quantidade (obrigatória quando linha tem dados)
+    if (!temQtd) {
+      linhaValida = false;
+      if (inputQtd) inputQtd.classList.add('required-field');
+    } else {
+      if (inputQtd) inputQtd.classList.remove('required-field');
+    }
+    
     // A data é automática, mas validamos se existe (sempre vai ter)
     if (!temData) {
       linhaValida = false;
@@ -1339,6 +1369,8 @@ function validarLinhasObrigatorias() {
     } else {
       if (inputData) inputData.classList.remove('required-field');
     }
+    
+    // Observação é opcional - nunca marca erro
     
     if (!linhaValida) {
       row.classList.add('required-row');
@@ -1370,6 +1402,17 @@ function addRow() {
   const tipoComponent = criarTipoManutencao();
   tdTipo.appendChild(tipoComponent.wrapper);
   
+  // Quantidade
+  const tdQtd = document.createElement('td');
+  const inputQtd = document.createElement('input');
+  inputQtd.type = 'number';
+  inputQtd.min = 1;
+  inputQtd.step = 1;
+  inputQtd.placeholder = '1';
+  inputQtd.style.width = '100%';
+  inputQtd.className = 'input-quantidade';
+  tdQtd.appendChild(inputQtd);
+  
   // Data
   const tdData = document.createElement('td');
   const inputData = document.createElement('input');
@@ -1383,6 +1426,15 @@ function addRow() {
   const tdResponsavel = document.createElement('td');
   tdResponsavel.appendChild(criarSelectResponsavel());
   
+  // Observação
+  const tdObs = document.createElement('td');
+  const inputObs = document.createElement('input');
+  inputObs.type = 'text';
+  inputObs.placeholder = 'Observação';
+  inputObs.style.width = '100%';
+  inputObs.className = 'input-observacao';
+  tdObs.appendChild(inputObs);
+  
   // Remover
   const tdRemove = document.createElement('td');
   const btnRemove = document.createElement('button');
@@ -1394,7 +1446,7 @@ function addRow() {
   };
   tdRemove.appendChild(btnRemove);
   
-  tr.append(tdEquip, tdTipo, tdData, tdResponsavel, tdRemove);
+  tr.append(tdEquip, tdTipo, tdQtd, tdData, tdResponsavel, tdObs, tdRemove);
   tblBody.appendChild(tr);
   
   // Armazenar referência do componente na linha
@@ -1429,7 +1481,9 @@ function getDadosFormulario() {
   return Array.from(tblBody.querySelectorAll('tr')).map(r => {
     const selectEquip = r.querySelector('.select-equipamento');
     const selectResp = r.querySelector('.select-responsavel');
-    const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"]');
+    const inputs = r.querySelectorAll('td:nth-child(4) input[type="date"]');
+    const inputQtd = r.querySelector('td:nth-child(3) input[type="number"]');
+    const inputObs = r.querySelector('td:nth-child(6) input[type="text"]');
     const tipoWrapper = r.querySelector('.tipo-wrapper');
     
     let dataManutencao = inputs[0] ? inputs[0].value : '';
@@ -1449,9 +1503,11 @@ function getDadosFormulario() {
     const resp = selectResp ? selectResp.value : '';
     const dataManu = dataManutencao;
     const tipo = tipoValor;
+    const qtd = inputQtd ? inputQtd.value : '';
+    const obs = inputObs ? inputObs.value.trim() : '';
     
-    // Se não tiver equipamento, responsável ou tipo, pular (data é automática)
-    if (!equip && !resp && !tipo) {
+    // Se não tiver equipamento, responsável, tipo ou quantidade, pular (data é automática)
+    if (!equip && !resp && !tipo && !qtd && !obs) {
       return null;
     }
     
@@ -1460,8 +1516,10 @@ function getDadosFormulario() {
       hora_documento: horaDoc,
       equipamento: equip,
       tipo_manutencao: tipo,
+      quantidade: qtd,
       data_manutencao: dataManu,
-      responsavel: resp
+      responsavel: resp,
+      observacao: obs
     };
   }).filter(l => l !== null);
 }
@@ -1740,17 +1798,21 @@ $('btnGerarPDF').onclick = async () => {
       const selectEquip = r.querySelector('.select-equipamento');
       const selectResp = r.querySelector('.select-responsavel');
       const tipoWrapper = r.querySelector('.tipo-wrapper');
-      const inputs = r.querySelectorAll('td:nth-child(3) input[type="date"]');
+      const inputs = r.querySelectorAll('td:nth-child(4) input[type="date"]');
+      const inputQtd = r.querySelector('td:nth-child(3) input[type="number"]');
+      const inputObs = r.querySelector('td:nth-child(6) input[type="text"]');
       
       const equipValue = selectEquip ? selectEquip.value : '';
       let tipoValue = '';
       if (r._tipoComponent) {
         tipoValue = r._tipoComponent.getValor();
       }
+      const qtdValue = inputQtd ? inputQtd.value : '';
       const dataValue = inputs[0] ? inputs[0].value : '';
       const respValue = selectResp ? selectResp.value : '';
+      const obsValue = inputObs ? inputObs.value.trim() : '';
       
-      if (equipValue || tipoValue || dataValue || respValue) {
+      if (equipValue || tipoValue || qtdValue || dataValue || respValue || obsValue) {
         hasData = true;
         let dataManutencaoFormatada = dataValue;
         if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
@@ -1763,7 +1825,7 @@ $('btnGerarPDF').onclick = async () => {
         const respDesc = responsaveisLista.find(r => r.codigo === respValue)?.descricao || respValue;
         
         const tr2 = document.createElement('tr');
-        tr2.innerHTML = `<td>${equipDesc}</td><td>${tipoValue}</td><td>${dataManutencaoFormatada}</td><td>${respDesc}</td>`;
+        tr2.innerHTML = `<td>${equipDesc}</td><td>${tipoValue}</td><td>${qtdValue}</td><td>${dataManutencaoFormatada}</td><td>${respDesc}</td><td>${obsValue}</td>`;
         tbody.appendChild(tr2);
       }
     });
@@ -1930,7 +1992,9 @@ window.addEventListener('DOMContentLoaded', async () => {
           const selectEquip = tr.querySelector('.select-equipamento');
           const selectResp = tr.querySelector('.select-responsavel');
           const tipoWrapper = tr.querySelector('.tipo-wrapper');
-          const inputs = tr.querySelectorAll('td:nth-child(3) input[type="date"]');
+          const inputs = tr.querySelectorAll('td:nth-child(4) input[type="date"]');
+          const inputQtd = tr.querySelector('td:nth-child(3) input[type="number"]');
+          const inputObs = tr.querySelector('td:nth-child(6) input[type="text"]');
           
           if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
           if (selectResp && dado.responsavel) selectResp.value = dado.responsavel;
@@ -1940,6 +2004,16 @@ window.addEventListener('DOMContentLoaded', async () => {
               const [dia, mes, ano] = dado.data_manutencao.split('/');
               inputs[0].value = `${ano}-${mes}-${dia}`;
             }
+          }
+          
+          // Restaurar quantidade
+          if (inputQtd && dado.quantidade) {
+            inputQtd.value = dado.quantidade;
+          }
+          
+          // Restaurar observação
+          if (inputObs && dado.observacao) {
+            inputObs.value = dado.observacao;
           }
           
           // Restaurar tipo
@@ -1972,6 +2046,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 Campo "Horímetro" substituído por "Responsável"');
   console.log('📌 Combobox pesquisável integrado ao formulário (sem modal)');
   console.log('📌 Validação: apenas linhas com dados manuais são obrigatórias');
+  console.log('📌 Novas colunas: Quantidade e Observação');
+  console.log('📌 OUTROS agora é o primeiro item da lista');
 });
 
 </script>
