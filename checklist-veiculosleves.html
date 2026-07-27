@@ -33,6 +33,7 @@
     .btn-success:hover{background:#218838}
     .msg{color:green;margin-top:10px;display:none}
     .required-field {border: 2px solid #ff4444 !important;}
+    .required-radio {border: 2px solid #ff4444 !important; padding: 8px; border-radius: 4px; background: #fff5f5;}
     
     /* ESTILOS PARA FILA DE ENVIO */
     .fila-status {
@@ -597,6 +598,35 @@ function iniciarSincronizacaoAutomatica() {
 }
 
 // ============================================
+// FUNÇÃO DE VALIDAÇÃO OBRIGATÓRIA DOS RADIOS
+// ============================================
+function validarRadiosObrigatorios() {
+  let valido = true;
+  const itens = document.querySelectorAll('#items .item');
+  
+  itens.forEach(item => {
+    const num = item.getAttribute('data-num');
+    const radios = item.querySelectorAll('input[type="radio"]');
+    const estaMarcado = Array.from(radios).some(r => r.checked);
+    
+    // Remove classe de erro anterior
+    item.classList.remove('required-radio');
+    
+    // Verifica se algum radio está marcado
+    if (!estaMarcado) {
+      // Se não estiver marcado, adiciona classe de erro
+      item.classList.add('required-radio');
+      valido = false;
+      console.log(`❌ Item ${num} não foi marcado`);
+    } else {
+      console.log(`✅ Item ${num} marcado com sucesso`);
+    }
+  });
+  
+  return valido;
+}
+
+// ============================================
 // FUNÇÕES PRINCIPAIS DO CHECKLIST
 // ============================================
 
@@ -920,6 +950,12 @@ function iniciarSincronizacaoAutomatica() {
       return;
     }
     
+    // VALIDAÇÃO NOVA: Verifica se todos os radios estão marcados
+    if (!validarRadiosObrigatorios()) {
+      alert('❌ Por favor, marque uma opção para TODAS as perguntas do checklist. Os itens com borda vermelha precisam ser respondidos.');
+      return;
+    }
+    
     const dados = {
       data: dataEl.value,
       hora: horaEl.value,
@@ -994,6 +1030,12 @@ function iniciarSincronizacaoAutomatica() {
       return;
     }
     
+    // VALIDAÇÃO NOVA: Verifica se todos os radios estão marcados
+    if (!validarRadiosObrigatorios()) {
+      alert('❌ Por favor, marque uma opção para TODAS as perguntas do checklist. Os itens com borda vermelha precisam ser respondidos.');
+      return;
+    }
+    
     const dadosExcel = gerarDadosExcel();
     
     if (dadosExcel.length > 0) {
@@ -1020,6 +1062,12 @@ function iniciarSincronizacaoAutomatica() {
       return;
     }
     
+    // VALIDAÇÃO NOVA: Verifica se todos os radios estão marcados
+    if (!validarRadiosObrigatorios()) {
+      alert('❌ Por favor, marque uma opção para TODAS as perguntas do checklist. Os itens com borda vermelha precisam ser respondidos.');
+      return;
+    }
+    
     const dadosCompactos = gerarDadosCompactos();
     
     if (dadosCompactos.length === 0) {
@@ -1043,6 +1091,12 @@ function iniciarSincronizacaoAutomatica() {
   function salvarLocalmente() {
     if (!validarCamposObrigatorios()) {
       alert('❌ Por favor, preencha todos os campos obrigatórios antes de salvar.');
+      return;
+    }
+    
+    // VALIDAÇÃO NOVA: Verifica se todos os radios estão marcados
+    if (!validarRadiosObrigatorios()) {
+      alert('❌ Por favor, marque uma opção para TODAS as perguntas do checklist. Os itens com borda vermelha precisam ser respondidos.');
       return;
     }
     
@@ -1078,6 +1132,9 @@ function iniciarSincronizacaoAutomatica() {
         
         const obs = item.querySelector('.obs_input');
         if (obs) obs.value = '';
+        
+        // Remove classe de erro
+        item.classList.remove('required-radio');
       });
       
       alert('🧹 Formulário limpo!');
@@ -1177,6 +1234,7 @@ function iniciarSincronizacaoAutomatica() {
   console.log('📌 BIN de dados diários:', BIN_DADOS_DIARIOS);
   console.log('📌 Preenchimento automático do veículo por posição correspondente');
   console.log('📌 O usuário pode alterar o veículo manualmente após o preenchimento automático');
+  console.log('📌 VALIDAÇÃO: Todas as perguntas são obrigatórias, exceto as que já vêm com "Não se aplica" marcado');
 
 })();
 </script>
