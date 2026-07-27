@@ -89,54 +89,34 @@
     white-space: nowrap;
   }
   
-  /* Estilo para tipo de manutenção com pesquisa - VERSÃO COMPACTA */
+  /* Estilo para tipo de manutenção - APENAS O SELECT (MESMO VISUAL DOS OUTROS) */
   .tipo-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     min-width: 160px;
-  }
-  
-  .tipo-pesquisa {
-    width: 100%;
-    padding: 4px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 12px;
-    height: 28px;
-    box-sizing: border-box;
-    background: #fafafa;
-  }
-  
-  .tipo-pesquisa:focus {
-    outline: none;
-    border-color: #0b73d6;
-    background: #fff;
-  }
-  
-  .tipo-pesquisa::placeholder {
-    color: #999;
-    font-size: 11px;
   }
   
   .tipo-select {
     width: 100%;
-    height: 32px;
-    font-size: 12px;
-    padding: 4px 6px;
-    border-radius: 6px;
+    height: 42px;
+    padding: 10px;
     border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    box-sizing: border-box;
   }
   
   .tipo-input {
     width: 100%;
-    height: 32px;
+    height: 42px;
     display: none;
-    padding: 4px 8px;
+    padding: 10px;
     border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 12px;
+    border-radius: 8px;
+    font-size: 14px;
     box-sizing: border-box;
+    margin-top: 4px;
   }
   
   .tipo-input.mostrar {
@@ -145,6 +125,82 @@
   
   .tipo-select.ocultar {
     display: none;
+  }
+  
+  /* MODAL DE PESQUISA - ESTILO DROPDOWN */
+  .modal-pesquisa-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999;
+    background: rgba(0,0,0,0.3);
+  }
+  
+  .modal-pesquisa-overlay.active {
+    display: block;
+  }
+  
+  .modal-pesquisa {
+    position: fixed;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    max-width: 400px;
+    width: 90%;
+    max-height: 400px;
+    z-index: 1000;
+    padding: 12px;
+    display: none;
+  }
+  
+  .modal-pesquisa.active {
+    display: block;
+  }
+  
+  .modal-pesquisa input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #0b73d6;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+  }
+  
+  .modal-pesquisa input:focus {
+    outline: none;
+  }
+  
+  .modal-pesquisa-lista {
+    max-height: 280px;
+    overflow-y: auto;
+    margin-top: 4px;
+  }
+  
+  .modal-pesquisa-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: background 0.2s;
+  }
+  
+  .modal-pesquisa-item:hover {
+    background: #e8f0fe;
+  }
+  
+  .modal-pesquisa-item.selecionado {
+    background: #d2e3fc;
+  }
+  
+  .modal-pesquisa-sem-resultado {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
   }
   
   .actions {
@@ -286,13 +342,12 @@
     
     .tipo-wrapper {
       min-width: 120px;
-      gap: 3px;
     }
     
-    .tipo-select, .tipo-input, .tipo-pesquisa {
+    .tipo-select, .tipo-input {
       font-size: 11px;
-      padding: 4px 4px;
-      height: 28px;
+      padding: 6px 4px;
+      height: 34px;
     }
     
     .remove-row {
@@ -307,6 +362,11 @@
     }
     .fila-status .indicadores {
       justify-content: center;
+    }
+    
+    .modal-pesquisa {
+      max-width: 320px;
+      width: 95%;
     }
   }
 </style>
@@ -372,6 +432,13 @@
 
     <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
   </div>
+</div>
+
+<!-- MODAL DE PESQUISA -->
+<div class="modal-pesquisa-overlay" id="modalPesquisaOverlay"></div>
+<div class="modal-pesquisa" id="modalPesquisa">
+  <input type="text" id="modalPesquisaInput" placeholder="🔍 Digite para pesquisar..." autofocus>
+  <div class="modal-pesquisa-lista" id="modalPesquisaLista"></div>
 </div>
 
 <div id="paper" style="visibility:hidden; position:absolute; left:-9999px; top:0">
@@ -554,6 +621,7 @@ let equipamentosLista = [];
 let responsaveisLista = [];
 let tiposManutencao = {};
 let tiposCarregados = false;
+let selectAtualParaPesquisa = null;
 
 const $ = id => document.getElementById(id);
 const tblBody = document.querySelector('#tblEquipamentos tbody');
@@ -676,7 +744,6 @@ function criarSelectEquipamento() {
   equipamentosLista.forEach(eq => {
     const option = document.createElement('option');
     option.value = eq.codigo;
-    // Mostrar código + descrição truncada
     const desc = eq.descricao && eq.descricao.length > 20 ? eq.descricao.substring(0, 20) + '...' : eq.descricao;
     option.textContent = `${eq.codigo} - ${desc || eq.codigo}`;
     select.appendChild(option);
@@ -698,7 +765,6 @@ function criarSelectResponsavel() {
   responsaveisLista.forEach(resp => {
     const option = document.createElement('option');
     option.value = resp.codigo;
-    // Mostrar código + nome truncado
     const nome = resp.descricao && resp.descricao.length > 20 ? resp.descricao.substring(0, 20) + '...' : resp.descricao;
     option.textContent = `${resp.codigo} - ${nome || resp.codigo}`;
     select.appendChild(option);
@@ -708,15 +774,14 @@ function criarSelectResponsavel() {
 }
 
 // ============================================
-// FUNÇÃO: RECRIAR OPÇÕES DO SELECT (CORREÇÃO)
+// FUNÇÃO: RECRIAR OPÇÕES DO SELECT (SEM PESQUISA)
 // ============================================
-function recriarOpcoesSelect(select, filtro = '') {
+function recriarOpcoesSelect(select, manterValor = true) {
   if (!select) return;
   
-  // Guardar valor atual
-  const valorAtual = select.value;
+  const valorAtual = manterValor ? select.value : '';
   
-  // Limpar todas as opções (mantém apenas a primeira vazia e OUTROS)
+  // Limpar todas as opções
   while (select.options.length > 0) {
     select.remove(0);
   }
@@ -727,28 +792,22 @@ function recriarOpcoesSelect(select, filtro = '') {
   optionVazia.textContent = '-- Selecione --';
   select.appendChild(optionVazia);
   
-  // Adicionar opção OUTROS (sempre presente)
+  // Adicionar opção de pesquisa
+  const optionPesquisa = document.createElement('option');
+  optionPesquisa.value = '__PESQUISAR__';
+  optionPesquisa.textContent = '🔍 Pesquisar...';
+  optionPesquisa.style.color = '#0b73d6';
+  optionPesquisa.style.fontWeight = 'bold';
+  select.appendChild(optionPesquisa);
+  
+  // Adicionar opção OUTROS
   const optionOutros = document.createElement('option');
   optionOutros.value = 'OUTROS';
   optionOutros.textContent = 'OUTROS (digitar)';
   select.appendChild(optionOutros);
   
-  // Se há filtro, filtrar os tipos
-  if (filtro && filtro.trim() !== '') {
-    const termo = filtro.toLowerCase().trim();
-    const chaves = Object.keys(tiposManutencao)
-      .filter(key => key !== '0' && key !== '151')
-      .filter(key => key.toLowerCase().includes(termo))
-      .sort();
-    
-    chaves.forEach(descricao => {
-      const option = document.createElement('option');
-      option.value = descricao;
-      option.textContent = descricao;
-      select.appendChild(option);
-    });
-  } else {
-    // Sem filtro, mostrar todos
+  // Adicionar tipos
+  if (tiposManutencao && typeof tiposManutencao === 'object') {
     const chaves = Object.keys(tiposManutencao)
       .filter(key => key !== '0' && key !== '151')
       .sort();
@@ -762,57 +821,47 @@ function recriarOpcoesSelect(select, filtro = '') {
   }
   
   // Restaurar valor se ainda existir
-  if (valorAtual && valorAtual !== 'OUTROS') {
+  if (valorAtual && valorAtual !== '__PESQUISAR__' && valorAtual !== 'OUTROS') {
     const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
     if (optionExists) select.value = valorAtual;
   }
 }
 
 // ============================================
-// FUNÇÃO: CRIAR TIPO MANUTENÇÃO COM PESQUISA (CORRIGIDA)
+// FUNÇÃO: CRIAR TIPO MANUTENÇÃO (APENAS SELECT)
 // ============================================
 function criarTipoManutencao() {
   const wrapper = document.createElement('div');
   wrapper.className = 'tipo-wrapper';
   
-  // Input de pesquisa (compacto)
-  const inputPesquisa = document.createElement('input');
-  inputPesquisa.type = 'text';
-  inputPesquisa.className = 'tipo-pesquisa';
-  inputPesquisa.placeholder = '🔍 Pesquisar...';
-  wrapper.appendChild(inputPesquisa);
-  
-  // Select
+  // Apenas o select (mesmo visual dos outros campos)
   const select = document.createElement('select');
   select.className = 'tipo-select';
   
-  // Opções iniciais
-  recriarOpcoesSelect(select, '');
+  // Adicionar opções
+  recriarOpcoesSelect(select, false);
   
   wrapper.appendChild(select);
   
-  // Input para digitar (OUTROS)
+  // Input para digitar (OUTROS) - mantido oculto
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'tipo-input';
   input.placeholder = 'Digite...';
   wrapper.appendChild(input);
   
-  // ===== EVENTO: PESQUISA =====
-  inputPesquisa.addEventListener('input', function() {
-    const termo = this.value;
-    recriarOpcoesSelect(select, termo);
-  });
-  
-  // ===== EVENTO: SELECIONAR OUTROS =====
+  // ===== EVENTO: SELECIONAR =====
   select.addEventListener('change', function() {
-    if (this.value === 'OUTROS') {
+    if (this.value === '__PESQUISAR__') {
+      // Abrir modal de pesquisa
+      abrirPesquisa(this);
+      // Voltar para a opção anterior ou vazia
+      this.value = '';
+    } else if (this.value === 'OUTROS') {
+      // Mostrar input para digitar
       this.classList.add('ocultar');
       input.classList.add('mostrar');
       input.focus();
-      // Limpar pesquisa ao escolher OUTROS
-      inputPesquisa.value = '';
-      recriarOpcoesSelect(this, '');
     }
   });
   
@@ -822,7 +871,6 @@ function criarTipoManutencao() {
       this.classList.remove('mostrar');
       select.classList.remove('ocultar');
       select.value = '';
-      recriarOpcoesSelect(select, '');
     }
   });
   
@@ -836,8 +884,150 @@ function criarTipoManutencao() {
     }
   });
   
-  return { wrapper, select, input, inputPesquisa };
+  return { wrapper, select, input };
 }
+
+// ============================================
+// FUNÇÃO: ABRIR PESQUISA (MODAL/DROPDOWN)
+// ============================================
+function abrirPesquisa(select) {
+  selectAtualParaPesquisa = select;
+  
+  const modal = document.getElementById('modalPesquisa');
+  const overlay = document.getElementById('modalPesquisaOverlay');
+  const input = document.getElementById('modalPesquisaInput');
+  const lista = document.getElementById('modalPesquisaLista');
+  
+  // Posicionar o modal próximo ao select
+  const rect = select.getBoundingClientRect();
+  const modalWidth = Math.min(400, rect.width * 1.2);
+  
+  modal.style.width = modalWidth + 'px';
+  modal.style.left = Math.min(
+    rect.left + (rect.width - modalWidth) / 2,
+    window.innerWidth - modalWidth - 20
+  );
+  modal.style.top = (rect.bottom + 8) + 'px';
+  modal.style.maxHeight = '400px';
+  
+  // Limpar e focar
+  input.value = '';
+  lista.innerHTML = '';
+  modal.classList.add('active');
+  overlay.classList.add('active');
+  
+  // Carregar todos os tipos inicialmente
+  carregarListaPesquisa('');
+  
+  // Focar no input
+  setTimeout(() => input.focus(), 50);
+}
+
+// ============================================
+// FUNÇÃO: CARREGAR LISTA DE PESQUISA
+// ============================================
+function carregarListaPesquisa(filtro) {
+  const lista = document.getElementById('modalPesquisaLista');
+  lista.innerHTML = '';
+  
+  const termo = filtro.toLowerCase().trim();
+  
+  // Filtrar tipos
+  const chaves = Object.keys(tiposManutencao)
+    .filter(key => key !== '0' && key !== '151')
+    .filter(key => termo === '' || key.toLowerCase().includes(termo))
+    .sort();
+  
+  if (chaves.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'modal-pesquisa-sem-resultado';
+    div.textContent = 'Nenhum tipo encontrado';
+    lista.appendChild(div);
+    return;
+  }
+  
+  chaves.forEach(descricao => {
+    const div = document.createElement('div');
+    div.className = 'modal-pesquisa-item';
+    div.textContent = descricao;
+    div.addEventListener('click', function() {
+      selecionarTipoPesquisado(descricao);
+    });
+    lista.appendChild(div);
+  });
+}
+
+// ============================================
+// FUNÇÃO: SELECIONAR TIPO PESQUISADO
+// ============================================
+function selecionarTipoPesquisado(valor) {
+  if (selectAtualParaPesquisa) {
+    // Verificar se o valor existe no select
+    const optionExists = Array.from(selectAtualParaPesquisa.options).some(opt => opt.value === valor);
+    if (optionExists) {
+      selectAtualParaPesquisa.value = valor;
+    } else {
+      // Se não existe, adicionar temporariamente
+      const option = document.createElement('option');
+      option.value = valor;
+      option.textContent = valor;
+      selectAtualParaPesquisa.appendChild(option);
+      selectAtualParaPesquisa.value = valor;
+    }
+    
+    // Disparar evento change para validações
+    const event = new Event('change', { bubbles: true });
+    selectAtualParaPesquisa.dispatchEvent(event);
+  }
+  
+  fecharPesquisa();
+}
+
+// ============================================
+// FUNÇÃO: FECHAR PESQUISA
+// ============================================
+function fecharPesquisa() {
+  const modal = document.getElementById('modalPesquisa');
+  const overlay = document.getElementById('modalPesquisaOverlay');
+  
+  modal.classList.remove('active');
+  overlay.classList.remove('active');
+  selectAtualParaPesquisa = null;
+}
+
+// ============================================
+// EVENTOS DO MODAL DE PESQUISA
+// ============================================
+document.getElementById('modalPesquisaInput').addEventListener('input', function() {
+  carregarListaPesquisa(this.value);
+});
+
+document.getElementById('modalPesquisaInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    fecharPesquisa();
+  }
+  if (e.key === 'Enter') {
+    // Selecionar o primeiro item da lista
+    const primeiroItem = document.querySelector('.modal-pesquisa-item');
+    if (primeiroItem) {
+      primeiroItem.click();
+    }
+  }
+});
+
+document.getElementById('modalPesquisaOverlay').addEventListener('click', function() {
+  fecharPesquisa();
+});
+
+// Fechar com ESC global
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('modalPesquisa');
+    if (modal.classList.contains('active')) {
+      fecharPesquisa();
+    }
+  }
+});
 
 // ============================================
 // FUNÇÕES PARA ATUALIZAR SELECTS EXISTENTES
@@ -909,17 +1099,7 @@ function atualizarTodosOsSelectsTipos() {
     const select = row.querySelector('.tipo-select');
     if (!select) return;
     
-    // Guardar valor atual
-    const valorAtual = select.value;
-    
-    // Recriar opções sem filtro
-    recriarOpcoesSelect(select, '');
-    
-    // Restaurar valor
-    if (valorAtual && valorAtual !== 'OUTROS') {
-      const optionExists = Array.from(select.options).some(opt => opt.value === valorAtual);
-      if (optionExists) select.value = valorAtual;
-    }
+    recriarOpcoesSelect(select, true);
   });
 }
 
@@ -1002,7 +1182,7 @@ function addRow() {
   const tdEquip = document.createElement('td');
   tdEquip.appendChild(criarSelectEquipamento());
   
-  // Tipo - USANDO A FUNÇÃO CORRIGIDA
+  // Tipo - APENAS SELECT (MESMO VISUAL)
   const tdTipo = document.createElement('td');
   const { wrapper } = criarTipoManutencao();
   tdTipo.appendChild(wrapper);
@@ -1037,7 +1217,7 @@ function addRow() {
   // Carregar tipos no select
   const selectTipo = tr.querySelector('.tipo-select');
   if (selectTipo && tiposCarregados) {
-    recriarOpcoesSelect(selectTipo, '');
+    recriarOpcoesSelect(selectTipo, false);
   }
   
   return tr;
@@ -1057,7 +1237,7 @@ function getValorTipo(wrapper) {
     return input.value.trim();
   }
   
-  if (select && select.value && select.value !== 'OUTROS') {
+  if (select && select.value && select.value !== 'OUTROS' && select.value !== '__PESQUISAR__') {
     return select.value;
   }
   
@@ -1608,7 +1788,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de relatório RDM:', BIN_RELATORIO);
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
   console.log('📌 Campo "Horímetro" substituído por "Responsável"');
-  console.log('📌 Adicionado campo de pesquisa compacto no Tipo de Manutenção');
+  console.log('📌 Pesquisa de tipos via modal (opção "🔍 Pesquisar..." no select)');
 });
 
 </script>
