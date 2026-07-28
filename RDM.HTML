@@ -140,11 +140,14 @@
   
   /* ===== BOTÕES ===== */
   .btn {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     background: #6b7280;
     color: #ffffff;
     border: none;
-    padding: 8px 16px;
+    padding: 8px 14px;
     border-radius: var(--border-radius);
     font-size: var(--font-size);
     cursor: pointer;
@@ -154,9 +157,8 @@
     -webkit-touch-callout: none;
     line-height: 1.4;
     height: 38px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    white-space: nowrap;
+    min-width: 60px;
   }
   .btn:hover { background: #5a6268; }
   .btn:active { transform: scale(0.98); }
@@ -179,9 +181,10 @@
   
   .btn.add-row {
     background: #28a745;
-    padding: 6px 14px;
+    padding: 6px 12px;
     font-size: 12px;
     height: 34px;
+    min-width: 50px;
   }
   .btn.add-row:hover { background: #218838; }
   
@@ -200,7 +203,7 @@
     width: 100%;
     border-collapse: collapse;
     background: #ffffff;
-    min-width: 720px;
+    min-width: 740px;
     table-layout: fixed;
   }
   
@@ -226,47 +229,54 @@
     border-bottom: 2px solid #e5e7eb;
   }
   
-  /* ===== LARGURAS DAS COLUNAS ===== */
+  /* ===== LARGURAS DAS COLUNAS - OTIMIZADAS ===== */
   .table th:nth-child(1),
   .table td:nth-child(1) {
-    width: 16%;
-    min-width: 85px;
+    width: 15%;
+    min-width: 80px;
+    max-width: 18%;
   } /* EQUIPAMENTO */
   
   .table th:nth-child(2),
   .table td:nth-child(2) {
-    width: 26%;
+    width: 27%;
     min-width: 140px;
+    max-width: 30%;
   } /* TIPO MANUTENÇÃO - MAIOR */
   
   .table th:nth-child(3),
   .table td:nth-child(3) {
     width: 8%;
     min-width: 50px;
+    max-width: 10%;
   } /* QUANTIDADE */
   
   .table th:nth-child(4),
   .table td:nth-child(4) {
-    width: 12%;
-    min-width: 70px;
+    width: 13%;
+    min-width: 85px;
+    max-width: 15%;
   } /* DATA */
   
   .table th:nth-child(5),
   .table td:nth-child(5) {
     width: 16%;
-    min-width: 85px;
+    min-width: 80px;
+    max-width: 19%;
   } /* RESPONSÁVEL */
   
   .table th:nth-child(6),
   .table td:nth-child(6) {
     width: 18%;
     min-width: 90px;
+    max-width: 22%;
   } /* OBSERVAÇÃO */
   
   .table th:nth-child(7),
   .table td:nth-child(7) {
-    width: 4%;
+    width: 5%;
     min-width: 35px;
+    max-width: 6%;
   } /* REMOVER */
   
   /* ===== INPUTS DENTRO DA TABELA ===== */
@@ -292,17 +302,18 @@
     box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.12);
   }
   
-  /* ===== DATA COMPACTA ===== */
+  /* ===== DATA NA TABELA - CORREÇÃO ANDROID ===== */
   .table td input[type="date"] {
-    min-width: 0;
-    padding: 4px 4px;
-    font-size: 11px;
     height: 30px;
-    letter-spacing: -0.01em;
+    padding: 3px 4px;
+    font-size: 12px;
+    min-width: 0;
+    width: 100%;
+    letter-spacing: 0.02em;
   }
   
   .table td input[type="date"]::-webkit-datetime-edit {
-    font-size: 11px;
+    font-size: 12px;
     padding: 0 2px;
   }
   
@@ -310,6 +321,11 @@
   .table td input[type="date"]::-webkit-datetime-edit-day-field,
   .table td input[type="date"]::-webkit-datetime-edit-year-field {
     padding: 0 1px;
+  }
+  
+  .table td input[type="date"]::-webkit-calendar-picker-indicator {
+    padding: 2px;
+    margin-left: 1px;
   }
   
   /* ===== QUANTIDADE ===== */
@@ -324,19 +340,14 @@
     margin: 0;
   }
   
-  /* ===== OBSERVAÇÃO ===== */
-  .table td input[type="text"].input-observacao {
-    font-size: 11px;
-  }
-  
   /* ===== REMOVER BOTÃO ===== */
   .remove-row {
     background: #dc3545;
     color: #ffffff;
     border: none;
     border-radius: 4px;
-    padding: 4px 10px;
-    font-size: 13px;
+    padding: 0;
+    font-size: 14px;
     cursor: pointer;
     font-weight: 600;
     line-height: 1;
@@ -346,18 +357,19 @@
     align-items: center;
     justify-content: center;
     transition: background 0.15s ease;
+    min-width: 0;
   }
   .remove-row:hover { background: #c82333; }
   .remove-row:active { transform: scale(0.95); }
   
   /* ============================================
-     COMBOBOX PESQUISÁVEL - ESTILO DISCRETO
+     COMBOBOX PESQUISÁVEL
      ============================================ */
   .tipo-wrapper {
     position: relative;
     display: flex;
     flex-direction: column;
-    min-width: 130px;
+    min-width: 120px;
     width: 100%;
   }
   
@@ -409,7 +421,6 @@
     transform: translateY(-50%) rotate(180deg);
   }
   
-  /* Dropdown da lista */
   .tipo-dropdown {
     display: none;
     position: absolute;
@@ -460,7 +471,6 @@
     font-size: 12px;
   }
   
-  /* OUTROS - estilo */
   .tipo-dropdown-item[data-valor="OUTROS"] {
     border-bottom: 2px solid #e5e7eb;
     margin-bottom: 4px;
@@ -472,7 +482,6 @@
     background: #e5e7eb;
   }
   
-  /* Input OUTROS */
   .tipo-input-outros {
     width: 100%;
     height: 32px;
@@ -535,6 +544,7 @@
     transition: background 0.15s ease;
     font-family: inherit;
     height: 32px;
+    white-space: nowrap;
   }
   .fila-status .btn-sincronizar:hover { background: #5a6268; }
   .fila-status .btn-sincronizar:disabled {
@@ -564,7 +574,6 @@
     font-weight: 500;
   }
   
-  /* ===== LOADING ===== */
   .loading-indicator {
     display: none;
     text-align: center;
@@ -649,7 +658,8 @@
       width: 100%;
       font-size: 12px;
       height: 36px;
-      padding: 6px 12px;
+      padding: 6px 10px;
+      min-width: 50px;
     }
     .actions {
       flex-direction: column;
@@ -661,7 +671,7 @@
     }
   
     .table {
-      min-width: 620px;
+      min-width: 680px;
       table-layout: fixed;
     }
   
@@ -678,12 +688,12 @@
   
     .table th:nth-child(1),
     .table td:nth-child(1) {
-      width: 15%;
+      width: 14%;
       min-width: 65px;
     }
     .table th:nth-child(2),
     .table td:nth-child(2) {
-      width: 24%;
+      width: 25%;
       min-width: 110px;
     }
     .table th:nth-child(3),
@@ -693,8 +703,8 @@
     }
     .table th:nth-child(4),
     .table td:nth-child(4) {
-      width: 13%;
-      min-width: 60px;
+      width: 14%;
+      min-width: 70px;
     }
     .table th:nth-child(5),
     .table td:nth-child(5) {
@@ -724,7 +734,7 @@
     .table td input[type="date"] {
       height: 26px;
       font-size: 10px;
-      padding: 2px 2px;
+      padding: 2px 3px;
     }
   
     .table td input[type="date"]::-webkit-datetime-edit {
@@ -735,7 +745,6 @@
       height: 24px;
       width: 24px;
       font-size: 11px;
-      padding: 0;
     }
   
     .tipo-wrapper {
@@ -770,10 +779,10 @@
     }
   }
   
-  /* ===== IPHONE ESPECÍFICO ===== */
+  /* ===== IPHONE / ANDROID PEQUENO ===== */
   @media (max-width: 480px) {
     .table {
-      min-width: 560px;
+      min-width: 580px;
       table-layout: fixed;
     }
   
@@ -790,7 +799,7 @@
   
     .table th:nth-child(1),
     .table td:nth-child(1) {
-      width: 14%;
+      width: 13%;
       min-width: 55px;
     }
     .table th:nth-child(2),
@@ -805,8 +814,8 @@
     }
     .table th:nth-child(4),
     .table td:nth-child(4) {
-      width: 14%;
-      min-width: 52px;
+      width: 15%;
+      min-width: 60px;
     }
     .table th:nth-child(5),
     .table td:nth-child(5) {
@@ -901,7 +910,7 @@
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0 6px;">
       <div class="muted">Registros de Manutenção</div>
-      <button id="btnAdicionarLinha" class="btn add-row">+ Adicionar Linha</button>
+      <button id="btnAdicionarLinha" class="btn add-row">➕ Adicionar</button>
     </div>
     
     <div class="table-container">
@@ -922,12 +931,12 @@
     </div>
 
     <div class="actions">
-      <button class="btn btn-success" id="btnServidor">📤 Enviar</button>
-      <button id="btnGerarPDF" class="btn btn-gray">📄 PDF</button>
-      <button id="btnExcel" class="btn btn-gray">📊 Excel</button>
+      <button class="btn btn-success" id="btnServidor">📤 Enviar para o Servidor</button>
+      <button id="btnGerarPDF" class="btn btn-gray">📄 Gerar PDF</button>
+      <button id="btnExcel" class="btn btn-gray">📊 Gerar Excel</button>
       <button id="btnLimpar" class="btn btn-gray">🧹 Limpar</button>
-      <button id="btnRecarregarTipos" class="btn btn-warning">🔄 Tipos</button>
-      <button id="btnSalvarLocal" class="btn btn-gray">💾 Salvar</button>
+      <button id="btnRecarregarTipos" class="btn btn-warning">🔄 Recarregar Tipos</button>
+      <button id="btnSalvarLocal" class="btn btn-gray">💾 Salvar Localmente</button>
     </div>
 
     <div class="msg" id="msgOk">✅ Arquivo gerado com sucesso! Verifique sua pasta de downloads.</div>
@@ -2175,7 +2184,7 @@ function salvarLocalmente() {
 }
 
 // ============================================
-// FUNÇÃO PARA GERAR PDF
+// FUNÇÃO PARA GERAR PDF - CORRIGIDA
 // ============================================
 
 $('btnGerarPDF').onclick = async () => {
@@ -2197,40 +2206,30 @@ $('btnGerarPDF').onclick = async () => {
     
     let hasData = false;
     
-    Array.from(tblBody.querySelectorAll('tr')).forEach(r => {
-      const selectEquip = r.querySelector('.select-equipamento');
-      const selectResp = r.querySelector('.select-responsavel');
-      const tipoWrapper = r.querySelector('.tipo-wrapper');
-      const inputs = r.querySelectorAll('td:nth-child(4) input[type="date"]');
-      const inputQtd = r.querySelector('td:nth-child(3) input[type="number"]');
-      const inputObs = r.querySelector('td:nth-child(6) input[type="text"]');
+    // Obter dados diretamente do formulário
+    const dados = getDadosFormulario();
+    
+    if (dados.length === 0) {
+      alert('⚠️ Não há dados para gerar o PDF! Preencha pelo menos uma linha.');
+      return;
+    }
+    
+    dados.forEach(item => {
+      // Buscar descrições para exibição
+      const equipDesc = equipamentosLista.find(e => e.codigo === item.equipamento)?.descricao || item.equipamento;
+      const respDesc = responsaveisLista.find(r => r.codigo === item.responsavel)?.descricao || item.responsavel;
       
-      const equipValue = selectEquip ? selectEquip.value : '';
-      let tipoValue = '';
-      if (r._tipoComponent) {
-        tipoValue = r._tipoComponent.getValor();
-      }
-      const qtdValue = inputQtd ? inputQtd.value : '';
-      const dataValue = inputs[0] ? inputs[0].value : '';
-      const respValue = selectResp ? selectResp.value : '';
-      const obsValue = inputObs ? inputObs.value.trim() : '';
-      
-      if (equipValue || tipoValue || qtdValue || dataValue || respValue || obsValue) {
-        hasData = true;
-        let dataManutencaoFormatada = dataValue;
-        if (dataManutencaoFormatada && dataManutencaoFormatada.includes('-')) {
-          const [ano, mes, dia] = dataManutencaoFormatada.split('-');
-          dataManutencaoFormatada = `${dia}/${mes}/${ano}`;
-        }
-        
-        // Buscar descrições para exibição
-        const equipDesc = equipamentosLista.find(e => e.codigo === equipValue)?.descricao || equipValue;
-        const respDesc = responsaveisLista.find(r => r.codigo === respValue)?.descricao || respValue;
-        
-        const tr2 = document.createElement('tr');
-        tr2.innerHTML = `<td>${equipDesc}</td><td>${tipoValue}</td><td>${qtdValue}</td><td>${dataManutencaoFormatada}</td><td>${respDesc}</td><td>${obsValue}</td>`;
-        tbody.appendChild(tr2);
-      }
+      const tr2 = document.createElement('tr');
+      tr2.innerHTML = `
+        <td>${equipDesc || ''}</td>
+        <td>${item.tipo_manutencao || ''}</td>
+        <td>${item.quantidade || ''}</td>
+        <td>${item.data_manutencao || ''}</td>
+        <td>${respDesc || ''}</td>
+        <td>${item.observacao || ''}</td>
+      `;
+      tbody.appendChild(tr2);
+      hasData = true;
     });
     
     if (!hasData) {
