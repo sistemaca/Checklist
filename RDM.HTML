@@ -1159,6 +1159,7 @@ let responsaveisLista = [];
 let tiposManutencao = {};
 let tiposCarregados = false;
 let sincronizando = false;
+let dadosRestaurados = null; // Cache para restauração
 
 const $ = id => document.getElementById(id);
 const tblBody = document.querySelector('#tblEquipamentos tbody');
@@ -1217,10 +1218,6 @@ async function carregarDadosMestres() {
       responsaveisLista = [];
     }
     
-    // Atualizar selects
-    atualizarTodosSelectsEquipamentos();
-    atualizarTodosSelectsResponsaveis();
-    
   } catch (error) {
     if (error.name === 'AbortError') {
       console.error('❌ Timeout ao carregar dados mestres');
@@ -1240,9 +1237,6 @@ async function carregarDadosMestres() {
       { codigo: "0085566", descricao: "SILVIO ASSIS MOREIRA" },
       { codigo: "0085567", descricao: "JOAO SILVA" }
     ];
-    
-    atualizarTodosSelectsEquipamentos();
-    atualizarTodosSelectsResponsaveis();
   } finally {
     loadingIndicator.classList.remove('active');
   }
@@ -1269,7 +1263,6 @@ async function carregarTiposManutencao(mostrarAlerta = false) {
       const data = await response.json();
       tiposManutencao = data.record.descricao || {};
       tiposCarregados = true;
-      atualizarTodosOsSelectsTipos();
       if (mostrarAlerta) alert('✅ Tipos recarregados!');
     } else {
       throw new Error('Erro ao carregar tipos');
@@ -1285,7 +1278,6 @@ async function carregarTiposManutencao(mostrarAlerta = false) {
       "LUBRIFICAÇÃO": 15
     };
     tiposCarregados = true;
-    atualizarTodosOsSelectsTipos();
     if (mostrarAlerta) alert('⚠️ Usando lista padrão de tipos.');
   }
 }
@@ -1339,7 +1331,7 @@ function criarSelectResponsavel() {
 // ============================================
 // FUNÇÃO: CRIAR TIPO MANUTENÇÃO (COMBOBOX PESQUISÁVEL)
 // ============================================
-function criarTipoManutencao() {
+function criarTipoManutencao(valorInicial) {
   const wrapper = document.createElement('div');
   wrapper.className = 'tipo-wrapper';
   
@@ -1644,6 +1636,11 @@ function criarTipoManutencao() {
     }
   }
   
+  // Se tiver valor inicial, definir
+  if (valorInicial) {
+    setValor(valorInicial);
+  }
+  
   // ===== EXPOR FUNÇÕES =====
   return {
     wrapper,
@@ -1848,19 +1845,23 @@ function validarLinhasObrigatorias() {
 }
 
 // ============================================
-// FUNÇÃO ADICIONAR LINHA
+// FUNÇÃO ADICIONAR LINHA (COM SUPORTE A VALORES INICIAIS)
 // ============================================
 
-function addRow() {
+function addRow(dados) {
   const tr = document.createElement('tr');
   
   // Equipamento
   const tdEquip = document.createElement('td');
-  tdEquip.appendChild(criarSelectEquipamento());
+  const selectEquip = criarSelectEquipamento();
+  if (dados && dados.equipamento) {
+    selectEquip.value = dados.equipamento;
+  }
+  tdEquip.appendChild(selectEquip);
   
   // Tipo - COMBOBOX PESQUISÁVEL
   const tdTipo = document.createElement('td');
-  const tipoComponent = criarTipoManutencao();
+  const tipoComponent = criarTipoManutencao(dados ? dados.tipo_manutencao : null);
   tdTipo.appendChild(tipoComponent.wrapper);
   
   // Quantidade
@@ -1872,6 +1873,9 @@ function addRow() {
   inputQtd.placeholder = '1';
   inputQtd.style.width = '100%';
   inputQtd.className = 'input-quantidade';
+  if (dados && dados.quantidade) {
+    inputQtd.value = dados.quantidade;
+  }
   tdQtd.appendChild(inputQtd);
   
   // Data
@@ -1881,11 +1885,25 @@ function addRow() {
   inputData.style.width = '100%';
   const hoje = new Date();
   inputData.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+  if (dados && dados.data_manutencao) {
+    // Verificar se está no formato DD/MM/YYYY
+    if (dados.data_manutencao.includes('/')) {
+      const [dia, mes, ano] = dados.data_manutencao.split('/');
+      inputData.value = `${ano}-${mes}-${dia}`;
+    } else {
+      // Tentar usar como está
+      inputData.value = dados.data_manutencao;
+    }
+  }
   tdData.appendChild(inputData);
   
   // Responsável
   const tdResponsavel = document.createElement('td');
-  tdResponsavel.appendChild(criarSelectResponsavel());
+  const selectResp = criarSelectResponsavel();
+  if (dados && dados.responsavel) {
+    selectResp.value = dados.responsavel;
+  }
+  tdResponsavel.appendChild(selectResp);
   
   // Observação
   const tdObs = document.createElement('td');
@@ -1894,6 +1912,9 @@ function addRow() {
   inputObs.placeholder = 'Observação';
   inputObs.style.width = '100%';
   inputObs.className = 'input-observacao';
+  if (dados && dados.observacao) {
+    inputObs.value = dados.observacao;
+  }
   tdObs.appendChild(inputObs);
   
   // Remover
@@ -2260,6 +2281,76 @@ function salvarLocalmente() {
 }
 
 // ============================================
+// FUNÇÃO PARA RESTAURAR DADOS SALVOS
+// ============================================
+
+function restaurarDadosSalvos() {
+  const cache = localStorage.getItem('rdm_offline_cache');
+  if (!cache) return false;
+  
+  try {
+    const linhas = JSON.parse(cache);
+    if (!linhas || linhas.length === 0) return false;
+    
+    console.log(`📦 Restaurando ${linhas.length} linhas salvas localmente`);
+    dadosRestaurados = linhas;
+    return true;
+  } catch (e) {
+    console.error('❌ Erro ao restaurar dados:', e);
+    return false;
+  }
+}
+
+// ============================================
+// FUNÇÃO PARA APLICAR RESTAURAÇÃO APÓS CARREGAMENTO DOS DADOS
+// ============================================
+
+function aplicarRestauracao() {
+  if (!dadosRestaurados || dadosRestaurados.length === 0) return;
+  
+  console.log('🔄 Aplicando restauração de dados...');
+  
+  // Limpar tabela
+  tblBody.innerHTML = '';
+  
+  // Recriar linhas com os dados restaurados
+  dadosRestaurados.forEach(dado => {
+    addRow(dado);
+  });
+  
+  // Garantir que temos pelo menos 10 linhas
+  const linhasAtuais = tblBody.querySelectorAll('tr').length;
+  if (linhasAtuais < 10) {
+    for (let i = linhasAtuais; i < 10; i++) {
+      addRow(null);
+    }
+  }
+  
+  // Atualizar selects com os dados carregados
+  setTimeout(() => {
+    atualizarTodosSelectsEquipamentos();
+    atualizarTodosSelectsResponsaveis();
+    atualizarTodosOsSelectsTipos();
+    
+    // Reaplicar valores dos tipos (importante para o combobox)
+    const rows = tblBody.querySelectorAll('tr');
+    rows.forEach((row, index) => {
+      if (index < dadosRestaurados.length && dadosRestaurados[index]) {
+        const dado = dadosRestaurados[index];
+        if (dado.tipo_manutencao && row._tipoComponent) {
+          row._tipoComponent.setValor(dado.tipo_manutencao);
+        }
+      }
+    });
+    
+    console.log(`✅ ${dadosRestaurados.length} linhas restauradas com sucesso`);
+  }, 100);
+  
+  // Limpar cache após restaurar
+  dadosRestaurados = null;
+}
+
+// ============================================
 // FUNÇÃO PARA GERAR PDF - CORRIGIDA COM FLUXO DO CHECKLIST
 // ============================================
 
@@ -2393,12 +2484,14 @@ $('btnExcel').onclick = async () => {
 // EVENTOS DOS BOTÕES
 // ============================================
 
-$('btnAdicionarLinha').onclick = () => addRow();
+$('btnAdicionarLinha').onclick = () => addRow(null);
 
 $('btnLimpar').onclick = () => {
   if (confirm('🧹 Limpar todos os lançamentos?')) {
     tblBody.innerHTML = '';
-    for (let i = 0; i < 10; i++) addRow();
+    for (let i = 0; i < 10; i++) addRow(null);
+    // Limpar cache local também
+    localStorage.removeItem('rdm_offline_cache');
     setTimeout(() => {
       atualizarTodosSelectsEquipamentos();
       atualizarTodosSelectsResponsaveis();
@@ -2445,7 +2538,7 @@ $('btnSincronizarAgora').onclick = async () => {
 };
 
 // ============================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO - CORRIGIDA
 // ============================================
 
 async function iniciarFila() {
@@ -2461,73 +2554,43 @@ async function iniciarFila() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // 1. Definir data e hora
   const now = new Date();
   $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   
-  // Inicializar fila
+  // 2. Inicializar fila
   await iniciarFila();
   
-  // Carregar dados mestres (equipamentos e responsáveis)
+  // 3. VERIFICAR SE HÁ DADOS SALVOS LOCALMENTE (antes de carregar os BINs)
+  const temDadosSalvos = restaurarDadosSalvos();
+  
+  // 4. Carregar dados mestres (equipamentos e responsáveis)
   await carregarDadosMestres();
   
-  // Carregar tipos de manutenção
+  // 5. Carregar tipos de manutenção
   await carregarTiposManutencao(false);
   
-  // Adicionar linhas iniciais
-  for (let i = 0; i < 10; i++) addRow();
-  
-  // Carregar dados salvos localmente
-  const cache = localStorage.getItem('rdm_offline_cache');
-  if (cache) {
-    try {
-      const linhas = JSON.parse(cache);
-      if (linhas.length && confirm('📦 Carregar dados salvos localmente?')) {
-        tblBody.innerHTML = '';
-        linhas.forEach(dado => {
-          const tr = addRow();
-          const selectEquip = tr.querySelector('.select-equipamento');
-          const selectResp = tr.querySelector('.select-responsavel');
-          const tipoWrapper = tr.querySelector('.tipo-wrapper');
-          const inputs = tr.querySelectorAll('td:nth-child(4) input[type="date"]');
-          const inputQtd = tr.querySelector('td:nth-child(3) input[type="number"]');
-          const inputObs = tr.querySelector('td:nth-child(6) input[type="text"]');
-          
-          if (selectEquip && dado.equipamento) selectEquip.value = dado.equipamento;
-          if (selectResp && dado.responsavel) selectResp.value = dado.responsavel;
-          
-          if (inputs[0] && dado.data_manutencao) {
-            if (dado.data_manutencao.includes('/')) {
-              const [dia, mes, ano] = dado.data_manutencao.split('/');
-              inputs[0].value = `${ano}-${mes}-${dia}`;
-            }
-          }
-          
-          // Restaurar quantidade
-          if (inputQtd && dado.quantidade) {
-            inputQtd.value = dado.quantidade;
-          }
-          
-          // Restaurar observação
-          if (inputObs && dado.observacao) {
-            inputObs.value = dado.observacao;
-          }
-          
-          // Restaurar tipo
-          if (dado.tipo_manutencao && tr._tipoComponent) {
-            tr._tipoComponent.setValor(dado.tipo_manutencao);
-          }
-        });
-        setTimeout(() => {
-          atualizarTodosSelectsEquipamentos();
-          atualizarTodosSelectsResponsaveis();
-          atualizarTodosOsSelectsTipos();
-        }, 500);
-      }
-    } catch (e) {}
+  // 6. Se houver dados salvos, restaurar ANTES de criar linhas padrão
+  if (temDadosSalvos && dadosRestaurados) {
+    console.log('🔄 Restaurando dados salvos...');
+    aplicarRestauracao();
+  } else {
+    // 7. Se não houver dados salvos, criar linhas padrão
+    console.log('📋 Criando linhas padrão...');
+    for (let i = 0; i < 10; i++) {
+      addRow(null);
+    }
   }
   
-  // Sincronizar pendentes ao carregar
+  // 8. Garantir que os selects estejam atualizados
+  setTimeout(() => {
+    atualizarTodosSelectsEquipamentos();
+    atualizarTodosSelectsResponsaveis();
+    atualizarTodosOsSelectsTipos();
+  }, 200);
+  
+  // 9. Sincronizar pendentes ao carregar
   if (navigator.onLine && !sincronizando) {
     const total = await filaRDM.contar();
     if (total > 0) {
@@ -2541,6 +2604,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de relatório RDM:', BIN_RELATORIO);
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
   console.log('📌 Arquitetura de sincronização migrada do Checklist');
+  console.log('📌 Restauração de dados: ' + (temDadosSalvos ? '✅ Ativada' : '❌ Nenhum dado salvo'));
 
 });
 
