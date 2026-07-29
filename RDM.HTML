@@ -585,6 +585,23 @@
     display: block;
   }
   
+  /* ===== INDICADOR DE MODO OFFLINE ===== */
+  .offline-banner {
+    display: none;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--border-radius);
+    padding: 8px 14px;
+    margin: 8px 0;
+    color: #856404;
+    font-size: 13px;
+    text-align: center;
+    font-weight: 500;
+  }
+  .offline-banner.active {
+    display: block;
+  }
+  
   /* ===== VALIDAÇÃO ===== */
   .required-field {
     border: 2px solid #dc3545 !important;
@@ -885,6 +902,11 @@
     <h1>RDM — Relatório Diário de Manutenção Mecânica</h1>
 
     <div class="loading-indicator" id="loadingIndicator">🔄 Carregando dados do servidor...</div>
+    
+    <!-- BANNER OFFLINE -->
+    <div class="offline-banner" id="offlineBanner">
+      📡 Modo Offline — Utilizando dados armazenados localmente
+    </div>
 
     <div class="row">
       <div class="col"><label>Data do Documento</label><input id="rdm_data" type="date" readonly></div>
@@ -1147,9 +1169,182 @@ class FilaEnvioRDM {
 }
 
 // ============================================
-// INSTÂNCIA GLOBAL DA FILA
+// SISTEMA DE CACHE OFFLINE PARA DADOS MESTRES
+// ============================================
+
+class CacheDadosMestresRDM {
+  constructor() {
+    this.dbName = 'RDMCacheDB';
+    this.storeName = 'dados_mestres';
+    this.db = null;
+    this.inicializado = false;
+    this.inicializando = false;
+  }
+
+  async init() {
+    if (this.inicializado && this.db) return;
+    if (this.inicializando) {
+      return new Promise((resolve) => {
+        const checkInit = () => {
+          if (this.inicializado) {
+            resolve();
+          } else {
+            setTimeout(checkInit, 50);
+          }
+        };
+        checkInit();
+      });
+    }
+    
+    this.inicializando = true;
+    
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const store = db.createObjectStore(this.storeName, { 
+            keyPath: 'id',
+            autoIncrement: true
+          });
+          store.createIndex('tipo', 'tipo', { unique: false });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        this.inicializado = true;
+        this.inicializando = false;
+        resolve();
+      };
+
+      request.onerror = (event) => {
+        console.error('❌ Erro ao abrir cache DB:', event.target.error);
+        this.inicializando = false;
+        reject(event.target.error);
+      };
+    });
+  }
+
+  async salvar(tipo, dados) {
+    await this.aguardarInicializacao();
+    
+    // Remover dados antigos do mesmo tipo
+    await this.removerPorTipo(tipo);
+    
+    // Salvar novos dados
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const request = store.add({
+        tipo: tipo,
+        dados: dados,
+        timestamp: Date.now()
+      });
+
+      request.onsuccess = () => {
+        console.log(`✅ Cache ${tipo} salvo com sucesso`);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error(`❌ Erro ao salvar cache ${tipo}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async removerPorTipo(tipo) {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      const index = store.index('tipo');
+      const request = index.getAll(tipo);
+
+      request.onsuccess = () => {
+        const items = request.result;
+        if (items.length === 0) {
+          resolve();
+          return;
+        }
+        
+        let removidos = 0;
+        items.forEach(item => {
+          const deleteRequest = store.delete(item.id);
+          deleteRequest.onsuccess = () => {
+            removidos++;
+            if (removidos === items.length) {
+              console.log(`✅ ${removidos} itens do tipo ${tipo} removidos do cache`);
+              resolve();
+            }
+          };
+          deleteRequest.onerror = () => {
+            console.error(`❌ Erro ao remover item ${item.id}:`, deleteRequest.error);
+            reject(deleteRequest.error);
+          };
+        });
+      };
+
+      request.onerror = () => {
+        console.error(`❌ Erro ao buscar itens do tipo ${tipo}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async carregar(tipo) {
+    await this.aguardarInicializacao();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const index = store.index('tipo');
+      const request = index.getAll(tipo);
+
+      request.onsuccess = () => {
+        const items = request.result;
+        if (items.length === 0) {
+          resolve(null);
+          return;
+        }
+        
+        // Pegar o mais recente
+        const maisRecente = items.reduce((a, b) => a.timestamp > b.timestamp ? a : b);
+        console.log(`✅ Cache ${tipo} carregado (${items.length} itens)`);
+        resolve(maisRecente.dados);
+      };
+
+      request.onerror = () => {
+        console.error(`❌ Erro ao carregar cache ${tipo}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  async aguardarInicializacao() {
+    if (this.inicializado) return;
+    
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.inicializado) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+}
+
+// ============================================
+// INSTÂNCIAS GLOBAIS
 // ============================================
 const filaRDM = new FilaEnvioRDM();
+const cacheMestres = new CacheDadosMestresRDM();
 
 // ============================================
 // VARIÁVEIS GLOBAIS
@@ -1160,6 +1355,7 @@ let tiposManutencao = {};
 let tiposCarregados = false;
 let sincronizando = false;
 let dadosRestaurados = null; // Cache para restauração
+let modoOffline = false;
 
 const $ = id => document.getElementById(id);
 const tblBody = document.querySelector('#tblEquipamentos tbody');
@@ -1176,7 +1372,26 @@ function normalizarTexto(texto) {
 }
 
 // ============================================
-// FUNÇÕES DE CARREGAMENTO DO BIN DE DADOS MESTRES
+// FUNÇÕES DE GERENCIAMENTO DO CACHE OFFLINE
+// ============================================
+
+function atualizarBannerOffline() {
+  const banner = document.getElementById('offlineBanner');
+  if (modoOffline) {
+    banner.classList.add('active');
+  } else {
+    banner.classList.remove('active');
+  }
+}
+
+function detectarModoOffline() {
+  modoOffline = !navigator.onLine;
+  atualizarBannerOffline();
+  return modoOffline;
+}
+
+// ============================================
+// FUNÇÕES DE CARREGAMENTO DOS DADOS MESTRES - COM CACHE
 // ============================================
 
 async function carregarDadosMestres() {
@@ -1184,6 +1399,39 @@ async function carregarDadosMestres() {
   loadingIndicator.classList.add('active');
   
   try {
+    // Verificar modo offline
+    if (!navigator.onLine) {
+      console.log('📡 OFFLINE - Tentando carregar do cache...');
+      const cacheEquip = await cacheMestres.carregar('equipamentos');
+      const cacheResp = await cacheMestres.carregar('responsaveis');
+      
+      if (cacheEquip && cacheResp) {
+        equipamentosLista = cacheEquip;
+        responsaveisLista = cacheResp;
+        modoOffline = true;
+        atualizarBannerOffline();
+        console.log(`📦 Cache offline carregado: ${equipamentosLista.length} equipamentos, ${responsaveisLista.length} responsáveis`);
+        loadingIndicator.classList.remove('active');
+        return;
+      } else {
+        console.warn('⚠️ Cache offline vazio. Usando fallback.');
+        equipamentosLista = [
+          { codigo: "EMP005", descricao: "EMP005" },
+          { codigo: "EMP006", descricao: "EMP006" },
+          { codigo: "EMP007", descricao: "EMP007" }
+        ];
+        responsaveisLista = [
+          { codigo: "0085566", descricao: "SILVIO ASSIS MOREIRA" },
+          { codigo: "0085567", descricao: "JOAO SILVA" }
+        ];
+        modoOffline = true;
+        atualizarBannerOffline();
+        loadingIndicator.classList.remove('active');
+        return;
+      }
+    }
+    
+    // ONLINE - Buscar do servidor
     const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -1203,7 +1451,9 @@ async function carregarDadosMestres() {
     // Carregar equipamentos
     if (data && data.EQUIPAMENTO && Array.isArray(data.EQUIPAMENTO)) {
       equipamentosLista = data.EQUIPAMENTO;
-      console.log(`✅ ${equipamentosLista.length} equipamentos carregados`);
+      // SALVAR NO CACHE
+      await cacheMestres.salvar('equipamentos', equipamentosLista);
+      console.log(`✅ ${equipamentosLista.length} equipamentos carregados e cacheados`);
     } else {
       console.warn('⚠️ Estrutura de equipamentos não encontrada no BIN');
       equipamentosLista = [];
@@ -1212,11 +1462,16 @@ async function carregarDadosMestres() {
     // Carregar responsáveis
     if (data && data.RESPONSAVEL && Array.isArray(data.RESPONSAVEL)) {
       responsaveisLista = data.RESPONSAVEL;
-      console.log(`✅ ${responsaveisLista.length} responsáveis carregados`);
+      // SALVAR NO CACHE
+      await cacheMestres.salvar('responsaveis', responsaveisLista);
+      console.log(`✅ ${responsaveisLista.length} responsáveis carregados e cacheados`);
     } else {
       console.warn('⚠️ Estrutura de responsáveis não encontrada no BIN');
       responsaveisLista = [];
     }
+    
+    modoOffline = false;
+    atualizarBannerOffline();
     
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -1225,29 +1480,70 @@ async function carregarDadosMestres() {
       console.error('❌ Erro ao carregar dados mestres:', error);
     }
     
-    // Fallback para equipamentos
-    equipamentosLista = [
-      { codigo: "EMP005", descricao: "EMP005" },
-      { codigo: "EMP006", descricao: "EMP006" },
-      { codigo: "EMP007", descricao: "EMP007" }
-    ];
+    // Tentar carregar do cache em caso de erro
+    const cacheEquip = await cacheMestres.carregar('equipamentos');
+    const cacheResp = await cacheMestres.carregar('responsaveis');
     
-    // Fallback para responsáveis
-    responsaveisLista = [
-      { codigo: "0085566", descricao: "SILVIO ASSIS MOREIRA" },
-      { codigo: "0085567", descricao: "JOAO SILVA" }
-    ];
+    if (cacheEquip && cacheResp) {
+      equipamentosLista = cacheEquip;
+      responsaveisLista = cacheResp;
+      modoOffline = true;
+      atualizarBannerOffline();
+      console.log(`📦 Cache offline carregado (após erro): ${equipamentosLista.length} equipamentos, ${responsaveisLista.length} responsáveis`);
+    } else {
+      // Fallback
+      equipamentosLista = [
+        { codigo: "EMP005", descricao: "EMP005" },
+        { codigo: "EMP006", descricao: "EMP006" },
+        { codigo: "EMP007", descricao: "EMP007" }
+      ];
+      responsaveisLista = [
+        { codigo: "0085566", descricao: "SILVIO ASSIS MOREIRA" },
+        { codigo: "0085567", descricao: "JOAO SILVA" }
+      ];
+      modoOffline = true;
+      atualizarBannerOffline();
+      console.warn('⚠️ Usando fallback sem cache');
+    }
   } finally {
     loadingIndicator.classList.remove('active');
   }
 }
 
 // ============================================
-// FUNÇÕES PARA CARREGAR TIPOS DE MANUTENÇÃO
+// FUNÇÕES PARA CARREGAR TIPOS DE MANUTENÇÃO - COM CACHE
 // ============================================
 
 async function carregarTiposManutencao(mostrarAlerta = false) {
   try {
+    // Verificar modo offline
+    if (!navigator.onLine) {
+      console.log('📡 OFFLINE - Tentando carregar tipos do cache...');
+      const cacheTipos = await cacheMestres.carregar('tipos_manutencao');
+      
+      if (cacheTipos) {
+        tiposManutencao = cacheTipos;
+        tiposCarregados = true;
+        console.log(`📦 ${Object.keys(tiposManutencao).length} tipos de manutenção carregados do cache`);
+        if (mostrarAlerta) alert('✅ Tipos carregados do cache offline!');
+        return;
+      } else {
+        console.warn('⚠️ Cache de tipos vazio. Usando padrão.');
+        tiposManutencao = {
+          "PREVENTIVA": 28,
+          "CORRETIVA": 1,
+          "TROCA DE ÓLEO": 7,
+          "REVISÃO GERAL": 6,
+          "TROCA DE FILTROS": 49,
+          "LUBRIFICAÇÃO": 15
+        };
+        tiposCarregados = true;
+        if (mostrarAlerta) alert('⚠️ Usando lista padrão de tipos.');
+        return;
+      }
+    }
+    
+    // ONLINE - Buscar do servidor
     const url = `https://api.jsonbin.io/v3/b/${BIN_MANUTENCAO}/latest`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -1263,22 +1559,37 @@ async function carregarTiposManutencao(mostrarAlerta = false) {
       const data = await response.json();
       tiposManutencao = data.record.descricao || {};
       tiposCarregados = true;
+      
+      // SALVAR NO CACHE
+      await cacheMestres.salvar('tipos_manutencao', tiposManutencao);
+      console.log(`✅ ${Object.keys(tiposManutencao).length} tipos de manutenção carregados e cacheados`);
+      
       if (mostrarAlerta) alert('✅ Tipos recarregados!');
     } else {
       throw new Error('Erro ao carregar tipos');
     }
   } catch (error) {
-    console.warn('⚠️ Usando lista padrão de tipos');
-    tiposManutencao = {
-      "PREVENTIVA": 28,
-      "CORRETIVA": 1,
-      "TROCA DE ÓLEO": 7,
-      "REVISÃO GERAL": 6,
-      "TROCA DE FILTROS": 49,
-      "LUBRIFICAÇÃO": 15
-    };
-    tiposCarregados = true;
-    if (mostrarAlerta) alert('⚠️ Usando lista padrão de tipos.');
+    console.warn('⚠️ Erro ao carregar tipos, usando cache se disponível');
+    
+    // Tentar carregar do cache
+    const cacheTipos = await cacheMestres.carregar('tipos_manutencao');
+    if (cacheTipos) {
+      tiposManutencao = cacheTipos;
+      tiposCarregados = true;
+      console.log(`📦 Tipos carregados do cache (${Object.keys(tiposManutencao).length} itens)`);
+      if (mostrarAlerta) alert('✅ Tipos carregados do cache!');
+    } else {
+      tiposManutencao = {
+        "PREVENTIVA": 28,
+        "CORRETIVA": 1,
+        "TROCA DE ÓLEO": 7,
+        "REVISÃO GERAL": 6,
+        "TROCA DE FILTROS": 49,
+        "LUBRIFICAÇÃO": 15
+      };
+      tiposCarregados = true;
+      if (mostrarAlerta) alert('⚠️ Usando lista padrão de tipos.');
+    }
   }
 }
 
@@ -2192,7 +2503,15 @@ async function atualizarContador() {
 function iniciarSincronizacaoAutomatica() {
   window.addEventListener('online', async () => {
     console.log('🌐 Conexão restaurada - sincronizando RDM...');
+    modoOffline = false;
+    atualizarBannerOffline();
     await sincronizarFila();
+  });
+
+  window.addEventListener('offline', () => {
+    console.log('📡 Conexão perdida - modo offline ativado');
+    modoOffline = true;
+    atualizarBannerOffline();
   });
 
   setInterval(async () => {
@@ -2538,7 +2857,7 @@ $('btnSincronizarAgora').onclick = async () => {
 };
 
 // ============================================
-// INICIALIZAÇÃO - CORRIGIDA
+// INICIALIZAÇÃO - CORRIGIDA COM CACHE OFFLINE
 // ============================================
 
 async function iniciarFila() {
@@ -2559,38 +2878,45 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('rdm_data').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   $('rdm_hora_doc').value = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   
-  // 2. Inicializar fila
+  // 2. Verificar modo offline inicial
+  detectarModoOffline();
+  
+  // 3. Inicializar cache de dados mestres
+  await cacheMestres.init();
+  console.log('✅ Cache de dados mestres inicializado');
+  
+  // 4. Inicializar fila
   await iniciarFila();
   
-  // 3. VERIFICAR SE HÁ DADOS SALVOS LOCALMENTE (antes de carregar os BINs)
+  // 5. VERIFICAR SE HÁ DADOS SALVOS LOCALMENTE (antes de carregar os BINs)
   const temDadosSalvos = restaurarDadosSalvos();
   
-  // 4. Carregar dados mestres (equipamentos e responsáveis)
+  // 6. Carregar dados mestres (equipamentos e responsáveis) - COM CACHE
   await carregarDadosMestres();
   
-  // 5. Carregar tipos de manutenção
+  // 7. Carregar tipos de manutenção - COM CACHE
   await carregarTiposManutencao(false);
   
-  // 6. Se houver dados salvos, restaurar ANTES de criar linhas padrão
+  // 8. Se houver dados salvos, restaurar ANTES de criar linhas padrão
   if (temDadosSalvos && dadosRestaurados) {
     console.log('🔄 Restaurando dados salvos...');
     aplicarRestauracao();
   } else {
-    // 7. Se não houver dados salvos, criar linhas padrão
+    // 9. Se não houver dados salvos, criar linhas padrão
     console.log('📋 Criando linhas padrão...');
     for (let i = 0; i < 10; i++) {
       addRow(null);
     }
   }
   
-  // 8. Garantir que os selects estejam atualizados
+  // 10. Garantir que os selects estejam atualizados
   setTimeout(() => {
     atualizarTodosSelectsEquipamentos();
     atualizarTodosSelectsResponsaveis();
     atualizarTodosOsSelectsTipos();
   }, 200);
   
-  // 9. Sincronizar pendentes ao carregar
+  // 11. Sincronizar pendentes ao carregar
   if (navigator.onLine && !sincronizando) {
     const total = await filaRDM.contar();
     if (total > 0) {
@@ -2604,6 +2930,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de relatório RDM:', BIN_RELATORIO);
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
   console.log('📌 Arquitetura de sincronização migrada do Checklist');
+  console.log('📌 Cache offline de dados mestres ATIVADO');
+  console.log('📌 Modo offline: ' + (modoOffline ? '✅ ATIVADO' : '❌ Desativado'));
   console.log('📌 Restauração de dados: ' + (temDadosSalvos ? '✅ Ativada' : '❌ Nenhum dado salvo'));
 
 });
