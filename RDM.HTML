@@ -990,7 +990,7 @@ const BIN_MANUTENCAO = '69aac5b043b1c97be9b9b4ee';
 const MASTER_KEY = '$2a$10$xR7zwFrjQCoS2LoogAgVfOhRVOufQ4AVodOT8T/m./XkGbS1UICxi';
 
 // ============================================
-// SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA
+// SISTEMA DE FILA DE ENVIO - VERSÃO ROBUSTA (MIGRADA DO CHECKLIST)
 // ============================================
 
 class FilaEnvioRDM {
@@ -999,9 +999,26 @@ class FilaEnvioRDM {
     this.storeName = 'rdm_dados';
     this.db = null;
     this.inicializado = false;
+    this.inicializando = false;
   }
 
   async init() {
+    if (this.inicializado && this.db) return;
+    if (this.inicializando) {
+      return new Promise((resolve) => {
+        const checkInit = () => {
+          if (this.inicializado) {
+            resolve();
+          } else {
+            setTimeout(checkInit, 50);
+          }
+        };
+        checkInit();
+      });
+    }
+    
+    this.inicializando = true;
+    
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, 1);
       
@@ -1018,11 +1035,13 @@ class FilaEnvioRDM {
       request.onsuccess = (event) => {
         this.db = event.target.result;
         this.inicializado = true;
+        this.inicializando = false;
         resolve();
       };
 
       request.onerror = (event) => {
         console.error('❌ Erro ao abrir IndexedDB:', event.target.error);
+        this.inicializando = false;
         reject(event.target.error);
       };
     });
@@ -1030,6 +1049,18 @@ class FilaEnvioRDM {
 
   async adicionar(dados) {
     await this.aguardarInicializacao();
+    
+    // Verifica duplicidade
+    const itensExistentes = await this.listarTodos();
+    const dadosString = JSON.stringify(dados);
+    
+    for (const item of itensExistentes) {
+      const itemDadosString = JSON.stringify(item.dados);
+      if (itemDadosString === dadosString) {
+        console.log('⚠️ Registro duplicado detectado, não será adicionado novamente');
+        return null;
+      }
+    }
     
     console.log('📦 ADICIONANDO à fila RDM:', dados);
     
@@ -1057,6 +1088,8 @@ class FilaEnvioRDM {
 
   async remover(id) {
     await this.aguardarInicializacao();
+    
+    console.log(`🗑️ REMOVENDO item ${id} da fila RDM`);
     
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.storeName], 'readwrite');
@@ -1125,6 +1158,7 @@ let equipamentosLista = [];
 let responsaveisLista = [];
 let tiposManutencao = {};
 let tiposCarregados = false;
+let sincronizando = false;
 
 const $ = id => document.getElementById(id);
 const tblBody = document.querySelector('#tblEquipamentos tbody');
@@ -1150,9 +1184,15 @@ async function carregarDadosMestres() {
   
   try {
     const url = `https://api.jsonbin.io/v3/b/${BIN_DADOS_MESTRES}/latest`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
     const res = await fetch(url, {
-      headers: { 'X-Master-Key': MASTER_KEY }
+      headers: { 'X-Master-Key': MASTER_KEY },
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
     
@@ -1182,8 +1222,11 @@ async function carregarDadosMestres() {
     atualizarTodosSelectsResponsaveis();
     
   } catch (error) {
-    console.error('❌ Erro ao carregar dados mestres:', error);
-    alert('⚠️ Erro ao carregar dados do servidor. Usando lista padrão.');
+    if (error.name === 'AbortError') {
+      console.error('❌ Timeout ao carregar dados mestres');
+    } else {
+      console.error('❌ Erro ao carregar dados mestres:', error);
+    }
     
     // Fallback para equipamentos
     equipamentosLista = [
@@ -1212,9 +1255,15 @@ async function carregarDadosMestres() {
 async function carregarTiposManutencao(mostrarAlerta = false) {
   try {
     const url = `https://api.jsonbin.io/v3/b/${BIN_MANUTENCAO}/latest`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     const response = await fetch(url, {
-      headers: { 'X-Master-Key': MASTER_KEY }
+      headers: { 'X-Master-Key': MASTER_KEY },
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (response.ok) {
       const data = await response.json();
@@ -1937,24 +1986,29 @@ function getDadosFormulario() {
 }
 
 // ============================================
-// FUNÇÃO PARA SALVAR NA FILA
+// FUNÇÃO PARA SALVAR NA FILA (MIGRADA DO CHECKLIST)
 // ============================================
 
 async function salvarNaFila(dados) {
   try {
     await filaRDM.init();
     const id = await filaRDM.adicionar(dados);
-    console.log(`📦 Dados adicionados à fila RDM (ID: ${id})`);
-    await atualizarContador();
-    
-    if (navigator.onLine) {
-      console.log('🌐 Online - tentando enviar imediatamente...');
-      setTimeout(async () => {
-        await sincronizarFila();
-      }, 500);
+    if (id !== null) {
+      console.log(`📦 Dados adicionados à fila RDM (ID: ${id})`);
+      await atualizarContador();
+      
+      if (navigator.onLine) {
+        console.log('🌐 Online - tentando enviar imediatamente...');
+        setTimeout(async () => {
+          await sincronizarFila();
+        }, 500);
+      }
+      
+      return id;
+    } else {
+      console.log('ℹ️ Dados já existentes na fila, não foi necessário adicionar');
+      return null;
     }
-    
-    return id;
   } catch (error) {
     console.error('❌ Erro ao salvar na fila:', error);
     throw error;
@@ -1962,16 +2016,19 @@ async function salvarNaFila(dados) {
 }
 
 // ============================================
-// FUNÇÃO DE ENVIO PARA O SERVIDOR
+// FUNÇÃO DE ENVIO PARA O SERVIDOR (MIGRADA DO CHECKLIST)
 // ============================================
 
 async function enviarDadosServidor(dados) {
   try {
     const GET_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}/latest`;
     const PUT_URL = `https://api.jsonbin.io/v3/b/${BIN_RELATORIO}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     
     const resGet = await fetch(GET_URL, { 
-      headers: { 'X-Master-Key': MASTER_KEY, 'X-Bin-Meta': 'false' } 
+      headers: { 'X-Master-Key': MASTER_KEY, 'X-Bin-Meta': 'false' },
+      signal: controller.signal
     });
     
     let dadosExistentes = [];
@@ -1981,6 +2038,8 @@ async function enviarDadosServidor(dados) {
       else if (json.rdm_registros) dadosExistentes = json.rdm_registros;
       else if (Array.isArray(json.record)) dadosExistentes = json.record;
       else if (Array.isArray(json)) dadosExistentes = json;
+    } else {
+      console.warn(`⚠️ GET retornou status ${resGet.status}, continuando com array vazio`);
     }
     
     const dadosAtualizados = [...dadosExistentes, ...dados];
@@ -1992,25 +2051,32 @@ async function enviarDadosServidor(dados) {
         'X-Master-Key':MASTER_KEY,
         'X-Bin-Versioning':'false'
       },
-      body:JSON.stringify({ rdm_registros: dadosAtualizados })
+      body:JSON.stringify({ rdm_registros: dadosAtualizados }),
+      signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
     if(resPut.ok) {
-      console.log('✅ Dados RDM enviados com sucesso');
+      console.log(`✅ ${dados.length} registros RDM enviados com sucesso`);
       return true;
+    } else {
+      console.error(`❌ PUT retornou status ${resPut.status}`);
+      return false;
     }
-    return false;
   } catch(err){
-    console.log('❌ Erro ao enviar dados:', err);
+    if (err.name === 'AbortError') {
+      console.error('❌ Timeout ao enviar dados RDM');
+    } else {
+      console.error('❌ Erro ao enviar dados RDM:', err.message);
+    }
     return false;
   }
 }
 
 // ============================================
-// FUNÇÃO DE SINCRONIZAÇÃO DA FILA
+// FUNÇÃO DE SINCRONIZAÇÃO DA FILA (MIGRADA DO CHECKLIST)
 // ============================================
-
-let sincronizando = false;
 
 async function sincronizarFila() {
   if (!navigator.onLine) {
@@ -2039,23 +2105,24 @@ async function sincronizarFila() {
 
     console.log(`📦 ${itens.length} item(ns) pendente(s)`);
     
-    let itensRemovidos = 0;
-    for (const item of itens) {
-      console.log(`🔄 Processando item ${item.id}...`);
-      
-      const enviado = await enviarDadosServidor(item.dados);
+    // Processa todos os itens em lote
+    const dadosParaEnviar = itens.map(item => item.dados).flat();
+    
+    if (dadosParaEnviar.length > 0) {
+      const enviado = await enviarDadosServidor(dadosParaEnviar);
       
       if (enviado) {
-        await filaRDM.remover(item.id);
-        itensRemovidos++;
-        console.log(`✅ Item ${item.id} removido da fila`);
+        // Remove todos os itens após confirmação do PUT
+        let removidos = 0;
+        for (const item of itens) {
+          await filaRDM.remover(item.id);
+          removidos++;
+        }
+        console.log(`✅ ${removidos} item(ns) removidos da fila`);
       } else {
-        console.log(`❌ Falha no envio do item ${item.id} - mantendo na fila`);
-        break;
+        console.log(`❌ Falha no envio - mantendo ${itens.length} item(ns) na fila`);
       }
     }
-
-    console.log(`✅ ${itensRemovidos} item(ns) removidos da fila`);
 
   } catch (error) {
     console.error('❌ Erro na sincronização:', error);
@@ -2067,7 +2134,7 @@ async function sincronizarFila() {
 }
 
 // ============================================
-// ATUALIZAR CONTADOR DA FILA
+// ATUALIZAR CONTADOR DA FILA (MIGRADO DO CHECKLIST)
 // ============================================
 
 async function atualizarContador() {
@@ -2098,7 +2165,7 @@ async function atualizarContador() {
 }
 
 // ============================================
-// INICIAR SINCRONIZAÇÃO AUTOMÁTICA
+// INICIAR SINCRONIZAÇÃO AUTOMÁTICA (MIGRADO DO CHECKLIST)
 // ============================================
 
 function iniciarSincronizacaoAutomatica() {
@@ -2108,7 +2175,7 @@ function iniciarSincronizacaoAutomatica() {
   });
 
   setInterval(async () => {
-    if (navigator.onLine) {
+    if (navigator.onLine && !sincronizando) {
       const total = await filaRDM.contar();
       if (total > 0) {
         console.log('⏰ Sincronização periódica RDM...');
@@ -2121,7 +2188,7 @@ function iniciarSincronizacaoAutomatica() {
     await filaRDM.init();
     await atualizarContador();
     
-    if (navigator.onLine) {
+    if (navigator.onLine && !sincronizando) {
       const total = await filaRDM.contar();
       if (total > 0) {
         console.log(`🔄 Sincronizando ${total} item(ns) pendentes RDM...`);
@@ -2132,10 +2199,15 @@ function iniciarSincronizacaoAutomatica() {
 }
 
 // ============================================
-// FUNÇÃO PARA ENVIAR PARA O SERVIDOR (PRINCIPAL)
+// FUNÇÃO PARA ENVIAR PARA O SERVIDOR (PRINCIPAL - MIGRADA)
 // ============================================
 
 async function enviarParaServidorRDM(mostrarAlerta = true) {
+  if (sincronizando) {
+    if (mostrarAlerta) alert('⏳ Uma sincronização já está em andamento. Aguarde...');
+    return false;
+  }
+  
   // Validar campos obrigatórios
   if (!validarLinhasObrigatorias()) {
     if (mostrarAlerta) {
@@ -2152,14 +2224,18 @@ async function enviarParaServidorRDM(mostrarAlerta = true) {
 
   const salvou = await salvarNaFila(linhas);
   
-  if (salvou) {
+  if (salvou !== null) {
     if (mostrarAlerta) {
-      alert('✅ Dados enviados para a fila com sucesso!');
+      alert('✅ Dados adicionados à fila de envio e serão sincronizados automaticamente.');
+    }
+    
+    if (navigator.onLine && !sincronizando) {
+      await sincronizarFila();
     }
     return true;
   } else {
     if (mostrarAlerta) {
-      alert('❌ Falha ao salvar na fila. Tente novamente.');
+      alert('ℹ️ Os dados já estão na fila de envio.');
     }
     return false;
   }
@@ -2184,7 +2260,7 @@ function salvarLocalmente() {
 }
 
 // ============================================
-// FUNÇÃO PARA GERAR PDF - CORRIGIDA
+// FUNÇÃO PARA GERAR PDF - CORRIGIDA COM FLUXO DO CHECKLIST
 // ============================================
 
 $('btnGerarPDF').onclick = async () => {
@@ -2213,6 +2289,9 @@ $('btnGerarPDF').onclick = async () => {
       alert('⚠️ Não há dados para gerar o PDF! Preencha pelo menos uma linha.');
       return;
     }
+    
+    // SALVAR NA FILA ANTES DE GERAR O PDF
+    const salvou = await salvarNaFila(dados);
     
     dados.forEach(item => {
       // Buscar descrições para exibição
@@ -2258,12 +2337,11 @@ $('btnGerarPDF').onclick = async () => {
     document.getElementById('msgOk').style.display = 'block';
     setTimeout(() => document.getElementById('msgOk').style.display = 'none', 5000);
     
-    // Tentar enviar automaticamente
-    if (await enviarParaServidorRDM(false)) {
-      if (!confirm('✅ Dados enviados para o servidor!\n\nDeseja limpar os campos?')) {
-        // Mantém os dados
-      }
+    // Após gerar PDF, sincronizar se possível
+    if (navigator.onLine && !sincronizando) {
+      await sincronizarFila();
     }
+    
   } catch (error) {
     alert('❌ Erro ao gerar PDF');
     console.error(error);
@@ -2271,10 +2349,10 @@ $('btnGerarPDF').onclick = async () => {
 };
 
 // ============================================
-// FUNÇÃO PARA GERAR EXCEL
+// FUNÇÃO PARA GERAR EXCEL - COM FLUXO DO CHECKLIST
 // ============================================
 
-$('btnExcel').onclick = () => {
+$('btnExcel').onclick = async () => {
   // Validar campos obrigatórios
   if (!validarLinhasObrigatorias()) {
     alert('❌ Por favor, preencha todos os campos obrigatórios das linhas que estão com dados (linhas com borda vermelha).');
@@ -2288,6 +2366,9 @@ $('btnExcel').onclick = () => {
       return;
     }
     
+    // SALVAR NA FILA ANTES DE GERAR O EXCEL
+    await salvarNaFila(linhas);
+    
     const ws = XLSX.utils.json_to_sheet(linhas);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'RDM');
@@ -2297,6 +2378,11 @@ $('btnExcel').onclick = () => {
     
     document.getElementById('msgOk').style.display = 'block';
     setTimeout(() => document.getElementById('msgOk').style.display = 'none', 5000);
+    
+    // Após gerar Excel, sincronizar se possível
+    if (navigator.onLine && !sincronizando) {
+      await sincronizarFila();
+    }
   } catch (error) {
     alert('❌ Erro ao gerar Excel');
     console.error(error);
@@ -2323,7 +2409,11 @@ $('btnLimpar').onclick = () => {
 
 $('btnServidor').onclick = async () => {
   if (await enviarParaServidorRDM(true)) {
-    if (confirm('✅ Dados enviados!\n\nDeseja limpar os campos?')) {
+    const manterDados = confirm('✅ Dados salvos na fila' + 
+                               (navigator.onLine ? ' e enviando para o servidor' : ' (aguardando conexão)') + 
+                               ' com sucesso!\n\nDeseja manter os dados no formulário?\n\nClique em OK para manter.\nClique em Cancelar para limpar.');
+    
+    if (!manterDados) {
       $('btnLimpar').click();
     }
   }
@@ -2335,6 +2425,11 @@ $('btnSalvarLocal').onclick = salvarLocalmente;
 $('btnSincronizarAgora').onclick = async () => {
   if (!navigator.onLine) {
     alert('📡 Você está offline. A sincronização será feita automaticamente quando a internet voltar.');
+    return;
+  }
+  
+  if (sincronizando) {
+    alert('⏳ Uma sincronização já está em andamento. Aguarde...');
     return;
   }
   
@@ -2433,7 +2528,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Sincronizar pendentes ao carregar
-  if (navigator.onLine) {
+  if (navigator.onLine && !sincronizando) {
     const total = await filaRDM.contar();
     if (total > 0) {
       console.log(`🔄 Enviando ${total} itens pendentes RDM...`);
@@ -2445,6 +2540,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('📌 BIN de dados mestres (equipamentos/responsáveis):', BIN_DADOS_MESTRES);
   console.log('📌 BIN de relatório RDM:', BIN_RELATORIO);
   console.log('📌 BIN de tipos de manutenção:', BIN_MANUTENCAO);
+  console.log('📌 Arquitetura de sincronização migrada do Checklist');
+
 });
 
 </script>
