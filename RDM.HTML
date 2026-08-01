@@ -203,7 +203,7 @@
     width: 100%;
     border-collapse: collapse;
     background: #ffffff;
-    min-width: 740px;
+    min-width: 800px;
     table-layout: fixed;
   }
   
@@ -235,49 +235,49 @@
     width: 15%;
     min-width: 80px;
     max-width: 18%;
-  } /* EQUIPAMENTO */
+  } /* EQUIPAMENTO - MANTIDO ORIGINAL */
   
   .table th:nth-child(2),
   .table td:nth-child(2) {
-    width: 34%; /* Aumentado de 27% para dar mais espaço ao tipo */
-    min-width: 200px; /* Aumentado de 140px */
-    max-width: 38%; /* Aumentado de 30% */
-  } /* TIPO MANUTENÇÃO - MAIOR */
+    width: 40%;
+    min-width: 240px;
+    max-width: 44%;
+  } /* TIPO MANUTENÇÃO - 40% */
   
   .table th:nth-child(3),
   .table td:nth-child(3) {
-    width: 7%;
-    min-width: 45px;
-    max-width: 9%;
-  } /* QUANTIDADE */
+    width: 5%;
+    min-width: 35px;
+    max-width: 7%;
+  } /* QUANTIDADE - REDUZIDO */
   
   .table th:nth-child(4),
   .table td:nth-child(4) {
     width: 12%;
-    min-width: 85px;
+    min-width: 80px;
     max-width: 14%;
-  } /* DATA */
+  } /* DATA - MANTIDO */
   
   .table th:nth-child(5),
   .table td:nth-child(5) {
-    width: 15%;
+    width: 16%;
     min-width: 80px;
-    max-width: 18%;
-  } /* RESPONSÁVEL */
+    max-width: 19%;
+  } /* RESPONSÁVEL - MANTIDO ORIGINAL */
   
   .table th:nth-child(6),
   .table td:nth-child(6) {
-    width: 15%;
-    min-width: 80px;
-    max-width: 18%;
-  } /* OBSERVAÇÃO */
+    width: 11%;
+    min-width: 55px;
+    max-width: 14%;
+  } /* OBSERVAÇÃO - REDUZIDO */
   
   .table th:nth-child(7),
   .table td:nth-child(7) {
     width: 5%;
     min-width: 35px;
     max-width: 6%;
-  } /* REMOVER */
+  } /* REMOVER - MANTIDO */
   
   /* ===== INPUTS DENTRO DA TABELA ===== */
   .table td input[type="text"],
@@ -363,13 +363,13 @@
   .remove-row:active { transform: scale(0.95); }
   
   /* ============================================
-     COMBOBOX PESQUISÁVEL - TAMANHO DOBRADO
+     COMBOBOX PESQUISÁVEL - TAMANHO AINDA MAIOR
      ============================================ */
   .tipo-wrapper {
     position: relative;
     display: flex;
     flex-direction: column;
-    min-width: 240px; /* DOBRO do tamanho anterior (120px) */
+    min-width: 320px;
     width: 100%;
   }
   
@@ -380,11 +380,11 @@
   
   .tipo-combobox input {
     width: 100%;
-    height: 32px;
-    padding: 4px 28px 4px 8px;
+    height: 36px;
+    padding: 4px 32px 4px 12px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    font-size: 14px; /* Aumentado de 12px para melhor visualização */
+    font-size: 16px;
     background: #ffffff;
     box-sizing: border-box;
     cursor: pointer;
@@ -402,7 +402,7 @@
   
   .tipo-combobox input::placeholder {
     color: #9ca3af;
-    font-size: 13px; /* Aumentado para acompanhar */
+    font-size: 15px;
   }
   
   .tipo-combobox::after {
@@ -444,9 +444,9 @@
   }
   
   .tipo-dropdown-item {
-    padding: 7px 10px;
+    padding: 8px 12px;
     cursor: pointer;
-    font-size: 14px; /* Aumentado de 12px */
+    font-size: 16px;
     color: #1f2937;
     transition: background 0.12s ease;
     border-bottom: 1px solid #f3f4f6;
@@ -484,11 +484,11 @@
   
   .tipo-input-outros {
     width: 100%;
-    height: 32px;
-    padding: 4px 8px;
+    height: 36px;
+    padding: 4px 12px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    font-size: 14px; /* Aumentado de 12px */
+    font-size: 16px;
     box-sizing: border-box;
     display: none;
     -webkit-appearance: none;
@@ -641,12 +641,12 @@
     word-wrap: break-word;
   }
   
-  .rds-table th:nth-child(1) { width: 18%; }
-  .rds-table th:nth-child(2) { width: 27%; }
+  .rds-table th:nth-child(1) { width: 16%; }
+  .rds-table th:nth-child(2) { width: 28%; }
   .rds-table th:nth-child(3) { width: 8%; }
   .rds-table th:nth-child(4) { width: 12%; }
   .rds-table th:nth-child(5) { width: 16%; }
-  .rds-table th:nth-child(6) { width: 19%; }
+  .rds-table th:nth-child(6) { width: 20%; }
   
   /* ============================================
      RESPONSIVIDADE - CELULAR
@@ -688,7 +688,7 @@
     }
   
     .table {
-      min-width: 720px;
+      min-width: 760px;
       table-layout: fixed;
     }
   
@@ -705,18 +705,18 @@
   
     .table th:nth-child(1),
     .table td:nth-child(1) {
-      width: 13%;
-      min-width: 60px;
+      width: 14%;
+      min-width: 65px;
     }
     .table th:nth-child(2),
     .table td:nth-child(2) {
-      width: 30%;
-      min-width: 150px;
+      width: 35%;
+      min-width: 170px;
     }
     .table th:nth-child(3),
     .table td:nth-child(3) {
-      width: 8%;
-      min-width: 40px;
+      width: 6%;
+      min-width: 30px;
     }
     .table th:nth-child(4),
     .table td:nth-child(4) {
@@ -730,8 +730,8 @@
     }
     .table th:nth-child(6),
     .table td:nth-child(6) {
-      width: 16%;
-      min-width: 70px;
+      width: 12%;
+      min-width: 50px;
     }
     .table th:nth-child(7),
     .table td:nth-child(7) {
@@ -765,24 +765,24 @@
     }
   
     .tipo-wrapper {
-      min-width: 150px;
+      min-width: 200px;
     }
   
     .tipo-combobox input {
-      height: 28px;
-      font-size: 12px;
-      padding: 3px 24px 3px 6px;
+      height: 30px;
+      font-size: 14px;
+      padding: 3px 26px 3px 8px;
     }
   
     .tipo-dropdown-item {
       padding: 5px 8px;
-      font-size: 12px;
+      font-size: 14px;
     }
   
     .tipo-input-outros {
-      height: 28px;
-      font-size: 12px;
-      padding: 3px 6px;
+      height: 30px;
+      font-size: 14px;
+      padding: 3px 8px;
     }
   
     .fila-status {
@@ -799,7 +799,7 @@
   /* ===== IPHONE / ANDROID PEQUENO ===== */
   @media (max-width: 480px) {
     .table {
-      min-width: 620px;
+      min-width: 660px;
       table-layout: fixed;
     }
   
@@ -816,18 +816,18 @@
   
     .table th:nth-child(1),
     .table td:nth-child(1) {
-      width: 12%;
-      min-width: 50px;
+      width: 13%;
+      min-width: 55px;
     }
     .table th:nth-child(2),
     .table td:nth-child(2) {
-      width: 28%;
-      min-width: 120px;
+      width: 33%;
+      min-width: 140px;
     }
     .table th:nth-child(3),
     .table td:nth-child(3) {
-      width: 8%;
-      min-width: 35px;
+      width: 6%;
+      min-width: 28px;
     }
     .table th:nth-child(4),
     .table td:nth-child(4) {
@@ -841,8 +841,8 @@
     }
     .table th:nth-child(6),
     .table td:nth-child(6) {
-      width: 16%;
-      min-width: 60px;
+      width: 13%;
+      min-width: 45px;
     }
     .table th:nth-child(7),
     .table td:nth-child(7) {
@@ -877,24 +877,24 @@
     }
   
     .tipo-wrapper {
-      min-width: 120px;
+      min-width: 150px;
     }
   
     .tipo-combobox input {
-      height: 26px;
-      font-size: 11px;
-      padding: 2px 20px 2px 4px;
+      height: 28px;
+      font-size: 13px;
+      padding: 2px 22px 2px 6px;
     }
   
     .tipo-dropdown-item {
       padding: 4px 6px;
-      font-size: 11px;
+      font-size: 13px;
     }
   
     .tipo-input-outros {
-      height: 26px;
-      font-size: 11px;
-      padding: 2px 4px;
+      height: 28px;
+      font-size: 13px;
+      padding: 2px 6px;
     }
   }
 </style>
