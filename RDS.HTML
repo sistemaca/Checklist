@@ -388,6 +388,14 @@
       justify-content: center;
     }
   }
+  #rds_table_func tbody td { height: 24px; vertical-align: middle; }
+
+  /* Campo de data com máscara */
+  #rds_data {
+    font-family: monospace;
+    letter-spacing: 1px;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -396,8 +404,8 @@
     <h1>Gerador de RDS — Relatório Diário de Serviço</h1>
 
     <div class="row">
-      <div class="col small"><label>Data</label><input id="rds_data" type="date"></div>
-      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text" placeholder="HH:MM"></div>
+      <div class="col small"><label>Data</label><input id="rds_data" type="text" inputmode="numeric" placeholder="__/__/____" maxlength="10" autocomplete="off"></div>
+      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text" placeholder="HH:MM" readonly></div>
       <div class="col">
         <label>Contratante</label>
         <select id="rds_contratante">
@@ -556,8 +564,8 @@
         <td><strong>FÁBRICA / LOCAL:</strong><div id="meta_fabrica"></div></td>
       </tr>
       <tr>
-        <td><strong>HORÁRIO DE TRABALHO:</strong><div id="meta_horario_trabalho"></div></td>
-        <td colspan="2"><strong>TEMA (DDS):</strong><div id="meta_tema"></div></td>
+        <td id="celula_horario_trabalho"><strong>DATA:</strong><div id="meta_data_celula">__/___/_____</div></td>
+        <td id="celula_tema" colspan="2"><strong>TEMA (DDS):</strong><div id="meta_tema"></div></td>
       </tr>
     </table>
 
@@ -1201,6 +1209,7 @@ function atualizarInterfaceFuncionarios() {
   
   atualizarDropdownsFuncionarios();
   habilitarTabela();
+  reaplicarSelecoesPredefinidas();
 }
 
 function atualizarDropdownsFuncionarios() {
@@ -1285,6 +1294,25 @@ function aplicarMascaraHorario(input) {
   });
 }
 
+// Máscara para data no formato DD/MM/AAAA
+function aplicarMascaraData(input) {
+  input.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    
+    if (value.length > 8) {
+      value = value.substring(0, 8);
+    }
+    
+    if (value.length >= 5) {
+      e.target.value = value.substring(0, 2) + '/' + value.substring(2, 4) + '/' + value.substring(4, 8);
+    } else if (value.length >= 3) {
+      e.target.value = value.substring(0, 2) + '/' + value.substring(2, 4);
+    } else if (value.length > 0) {
+      e.target.value = value;
+    }
+  });
+}
+
 function criarSelectFuncionario(selected){
   const s = document.createElement('select');
   const opt = document.createElement('option');
@@ -1332,17 +1360,20 @@ function addRow(data={}) {
   inputEntrada.type='text';
   inputEntrada.placeholder='HH:MM';
   inputEntrada.style.textAlign = 'center';
+  if (data.entrada) inputEntrada.value = data.entrada;
   aplicarMascaraHorario(inputEntrada);
   
   const inputSaida=document.createElement('input');
   inputSaida.type='text';
   inputSaida.placeholder='HH:MM';
   inputSaida.style.textAlign = 'center';
+  if (data.saida) inputSaida.value = data.saida;
   aplicarMascaraHorario(inputSaida);
   
   const inputObservacao=document.createElement('input');
   inputObservacao.type='text';
   inputObservacao.placeholder='Observação';
+  if (data.observacao) inputObservacao.value = data.observacao;
   
   const btnRemover=document.createElement('button');
   btnRemover.className='remove-btn-x';
@@ -1394,15 +1425,78 @@ function addRow(data={}) {
   document.querySelector('#tblFuncionarios tbody').appendChild(tr);
 }
 
+// Reaplica código→nome depois que a lista de funcionários é carregada.
+function reaplicarSelecoesPredefinidas() {
+  if (!funcionariosCarregados) return;
+
+  document.querySelectorAll('#tblFuncionarios tbody tr').forEach(tr => {
+    const inputCodigo = tr.querySelector('td:nth-child(1) input');
+    const select = tr.querySelector('td:nth-child(2) select');
+    if (!inputCodigo || !select) return;
+
+    const codigo = inputCodigo.value.trim();
+    if (codigo && !select.value) {
+      const funcionario = funcionarios.find(f =>
+        f.codigo.toString() === codigo.toString()
+      );
+      if (funcionario) select.value = funcionario.nome;
+    }
+  });
+}
+
 function temDadosPreenchidos() {
   const linhas = document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr');
   for (const tr of linhas) {
-    const inputs = tr.querySelectorAll('input');
-    if (inputs[2]?.value.trim() || inputs[3]?.value.trim() || inputs[4]?.value.trim()) {
+    const campos = tr.querySelectorAll('input, select');
+    if (campos[0]?.value.trim() || campos[1]?.value.trim() ||
+        campos[2]?.value.trim() || campos[3]?.value.trim() || campos[4]?.value.trim()) {
       return true;
     }
   }
   return false;
+}
+
+// A data agora já vem no formato DD/MM/AAAA do campo de texto.
+// Aceita também ISO (AAAA-MM-DD) para compatibilidade com cache antigo.
+function formatarDataRDS(dataEntrada) {
+  if (!dataEntrada) return '';
+  
+  // Se já está no formato DD/MM/AAAA
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataEntrada)) {
+    return dataEntrada;
+  }
+  
+  // Se está no formato ISO AAAA-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataEntrada)) {
+    const [ano, mes, dia] = dataEntrada.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+  
+  return '';
+}
+
+function obterDataArquivoRDS(dataEntrada) {
+  if (!dataEntrada) return 'SEM_DATA';
+  
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataEntrada)) {
+    return dataEntrada.replace(/\//g, '-');
+  }
+  
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataEntrada)) {
+    const [ano, mes, dia] = dataEntrada.split('-');
+    return `${dia}-${mes}-${ano}`;
+  }
+  
+  return 'SEM_DATA';
+}
+
+function obterHoraArquivoRDS(hora) {
+  return hora && hora.trim() ? hora.trim().replace(/:/g, '-') : 'SEM_HORA';
+}
+
+function obterNomeServicoArquivoRDS(servico) {
+  const nome = (servico || 'SERVICO').replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').substring(0, 30);
+  return nome || 'SERVICO';
 }
 
 function coletarDadosFormulario() {
@@ -1417,8 +1511,7 @@ function coletarDadosFormulario() {
   const horarioSaida = document.getElementById('rds_horario_saida').value.trim();
   const horarioTrabalho = (horarioEntrada && horarioSaida) ? `${horarioEntrada} às ${horarioSaida}` : '';
 
-  const [yyyy, mm, dd] = data.split('-');
-  const dataFormatada = data ? `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}` : '';
+  const dataFormatada = formatarDataRDS(data);
 
   const linhas = Array.from(document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr')).map(r => {
     const i = r.querySelectorAll('input,select');
@@ -1448,7 +1541,7 @@ function montarDadosServidor(dados) {
   
   return linhas.map(l => ({
     Data: data,
-    HoraDocumento: horaDoc,
+    HoraDocumento: horaDoc ? `${new Date().toLocaleDateString('pt-BR')} ${horaDoc}` : '',
     Contratante: contratante,
     Servico: servico,
     HorarioTrabalho: horarioTrabalho,
@@ -1480,8 +1573,18 @@ window.addEventListener('DOMContentLoaded', () => {
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
-  $('rds_data').value = `${yyyy}-${mm}-${dd}`;
+
+  // CAMPO DATA COMEÇA VAZIO com placeholder __/__/____
+  $('rds_data').value = '';
+  
   $('rds_hora_doc').value = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+  // PREENCHIMENTO INICIAL PADRÃO (sem data)
+  $('rds_contratante').value = 'Mineração Belocal';
+  $('rds_servico').value = 'LIMP ADMINISTRATIVA - ARCOS';
+  $('rds_fabrica').value = 'Fabrica Arcos';
+  $('rds_horario_entrada').value = '07:00';
+  $('rds_horario_saida').value = '16:48';
   
   // Inicializar fila
   iniciarFilaESincronizacao();
@@ -1504,9 +1607,22 @@ async function iniciarFilaESincronizacao() {
 // BOTÕES E EVENTOS
 // ============================================
 
-// Criar 20 linhas iniciais
+// Criar 20 linhas iniciais, com os dois funcionários padrão
 const tblBody = document.querySelector('#tblFuncionarios tbody');
-for(let i=0;i<20;i++) addRow({});
+addRow({ codigo: '01586', entrada: '07:00', saida: '16:48' });
+addRow({ codigo: '01462', entrada: '07:00', saida: '16:48' });
+for (let i = 0; i < 18; i++) addRow({});
+
+// Assim que a lista carregar, relaciona os códigos aos nomes.
+const observerFuncionarios = setInterval(() => {
+  if (funcionariosCarregados) {
+    reaplicarSelecoesPredefinidas();
+    clearInterval(observerFuncionarios);
+  }
+}, 500);
+
+setTimeout(reaplicarSelecoesPredefinidas, 5000);
+setTimeout(reaplicarSelecoesPredefinidas, 10000);
 
 // Adicionar linha
 document.getElementById('btnAdd').onclick=()=>addRow({});
@@ -1723,80 +1839,150 @@ document.getElementById('btnGerarPDF').onclick = async () => {
     alert('⚠️ Primeiro carregue a lista de funcionários');
     return;
   }
-  
+
   if (!temDadosPreenchidos()) {
-    alert('⚠️ Nenhum dado de funcionário preenchido para gerar PDF!');
+    alert('⚠️ Preencha pelo menos o código, funcionário ou alguma informação da tabela.');
     return;
   }
-  
-  // Gerar o PDF
-  const {jsPDF}=window.jspdf;
-  const dataISO = document.getElementById('rds_data').value;
-  const [yyyy, mm, dd] = dataISO.split('-');
-  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
-  document.getElementById('meta_data').innerText='DATA: '+dataFormatada;
-  document.getElementById('meta_hora_doc').innerText=document.getElementById('rds_hora_doc').value;
-  document.getElementById('meta_contratante').innerText=document.getElementById('rds_contratante').value;
-  document.getElementById('meta_servico').innerText=document.getElementById('rds_servico').value;
-  document.getElementById('meta_fabrica').innerText=document.getElementById('rds_fabrica').value;
-  document.getElementById('meta_horario_trabalho').innerText = obterHorarioTrabalhoTexto();
-  document.getElementById('meta_tema').innerText=document.getElementById('rds_tema').value;
-  document.getElementById('rds_dds').innerText=document.getElementById('rds_tema').value;
 
-  const tbody=document.getElementById('rds_func_rows');
-  tbody.innerHTML='';
-  document.querySelectorAll('#tblFuncionarios tbody tr').forEach(r=>{
-    const tds=r.querySelectorAll('input,select');
-    const entrada = tds[2].value.trim();
-    const saida = tds[3].value.trim();
-    const observacao = tds[4].value.trim();
-    if(entrada || saida || observacao){
-      const tr2=document.createElement('tr');
-      tr2.innerHTML=`<td>${tds[0].value}</td><td>${tds[1].value}</td><td>${entrada}</td><td>${saida}</td><td>${observacao}</td>`;
-      tbody.appendChild(tr2);
+  if (!window.jspdf || !window.html2canvas) {
+    alert('❌ Não foi possível carregar a biblioteca de PDF. Verifique sua conexão e tente novamente.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const dataCampo = document.getElementById('rds_data').value.trim();
+  const dataFormatada = formatarDataRDS(dataCampo);
+  const horaDoc = document.getElementById('rds_hora_doc').value.trim();
+
+  const metaData = document.getElementById('meta_data');
+  metaData.textContent = dataFormatada ? 'DATA: ' + dataFormatada : '';
+  metaData.style.display = dataFormatada ? '' : 'none';
+
+  const metaHora = document.getElementById('meta_hora_doc');
+  metaHora.textContent = horaDoc ? 'HORA: ' + horaDoc : '';
+  metaHora.style.display = horaDoc ? '' : 'none';
+
+  document.getElementById('meta_contratante').textContent = document.getElementById('rds_contratante').value;
+  document.getElementById('meta_servico').textContent = document.getElementById('rds_servico').value;
+  document.getElementById('meta_fabrica').textContent = document.getElementById('rds_fabrica').value;
+
+  // NOVO: célula DATA no lugar do horário de trabalho
+  const dataCelula = document.getElementById('meta_data_celula');
+  if (dataFormatada) {
+    dataCelula.textContent = dataFormatada;
+  } else {
+    dataCelula.textContent = '__/___/_____';
+  }
+
+  document.getElementById('meta_tema').textContent = document.getElementById('rds_tema').value;
+  document.getElementById('rds_dds').textContent = document.getElementById('rds_tema').value;
+
+  const celulaHorario = document.getElementById('celula_horario_trabalho');
+  const celulaTema = document.getElementById('celula_tema');
+  celulaHorario.style.display = '';
+  celulaTema.colSpan = 2;
+
+  const tbody = document.getElementById('rds_func_rows');
+  tbody.innerHTML = '';
+
+  document.querySelectorAll('#tblFuncionarios tbody tr').forEach(linha => {
+    const campos = linha.querySelectorAll('input, select');
+    const codigo = campos[0]?.value.trim() || '';
+    const nome = campos[1]?.value.trim() || '';
+    const entrada = campos[2]?.value.trim() || '';
+    const saida = campos[3]?.value.trim() || '';
+    const observacao = campos[4]?.value.trim() || '';
+
+    if (codigo || nome || entrada || saida || observacao) {
+      const tr = document.createElement('tr');
+      [codigo, nome, entrada, saida, observacao].forEach(valor => {
+        const td = document.createElement('td');
+        td.textContent = valor;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
     }
   });
 
-  const wrapper=document.getElementById('rds_report').cloneNode(true);
-  wrapper.style.position='fixed';wrapper.style.left='-9999px';
+  while (tbody.rows.length < 4) {
+    const tr = document.createElement('tr');
+    for (let coluna = 0; coluna < 5; coluna++) {
+      const td = document.createElement('td');
+      td.textContent = '';
+      td.style.height = '24px';
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+
+  const wrapper = document.getElementById('rds_report').cloneNode(true);
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '-10000px';
+  wrapper.style.top = '0';
+  wrapper.style.zIndex = '-1';
+  wrapper.style.display = 'block';
+  wrapper.style.width = '794px';
+  wrapper.style.background = '#ffffff';
   document.body.appendChild(wrapper);
-  const canvas=await html2canvas(wrapper,{scale:2});
-  const img=canvas.toDataURL('image/png');
-  const pdf=new jsPDF({unit:'pt',format:'a4'});
-  const w=pdf.internal.pageSize.width;
-  const h=(canvas.height*w)/canvas.width;
-  let pos=0, heightLeft=h;
-  pdf.addImage(img,'PNG',0,pos,w,h);
-  heightLeft-=pdf.internal.pageSize.height;
-  while(heightLeft>0){pos-=pdf.internal.pageSize.height;pdf.addPage();pdf.addImage(img,'PNG',0,pos,w,h);heightLeft-=pdf.internal.pageSize.height;}
-  
-  const dataArquivo = `${dd}-${mm}-${yyyy}`;
-  const horaArquivo = document.getElementById('rds_hora_doc').value.replace(':', '-');
-  const nomeServico = document.getElementById('rds_servico').value.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
-  pdf.save(`RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.pdf`);
-  
-  document.body.removeChild(wrapper);
-  
-  // CORREÇÃO: Salvar na fila APENAS UMA VEZ
+
+  try {
+    const canvas = await html2canvas(wrapper, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      allowTaint: false
+    });
+
+    const img = canvas.toDataURL('image/jpeg', 0.98);
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true, precision: 16 });
+    const largura = pdf.internal.pageSize.getWidth();
+    const alturaPagina = pdf.internal.pageSize.getHeight();
+    const alturaImagem = (canvas.height * largura) / canvas.width;
+
+    let alturaRestante = alturaImagem;
+    let posicao = 0;
+    pdf.addImage(img, 'JPEG', 0, posicao, largura, alturaImagem, undefined, 'FAST');
+    alturaRestante -= alturaPagina;
+
+    while (alturaRestante > 0) {
+      posicao -= alturaPagina;
+      pdf.addPage();
+      pdf.addImage(img, 'JPEG', 0, posicao, largura, alturaImagem, undefined, 'FAST');
+      alturaRestante -= alturaPagina;
+    }
+
+    const dataArquivo = obterDataArquivoRDS(dataCampo);
+    const horaArquivo = obterHoraArquivoRDS(horaDoc);
+    const nomeServico = obterNomeServicoArquivoRDS(document.getElementById('rds_servico').value);
+    pdf.save(`RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.pdf`);
+  } catch (erro) {
+    console.error('Erro ao gerar PDF:', erro);
+    alert('❌ Não foi possível gerar o PDF: ' + (erro.message || erro));
+    return;
+  } finally {
+    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+  }
+
   const dados = coletarDadosFormulario();
   const dadosServidor = montarDadosServidor(dados);
-  
+
   if (dadosServidor.length > 0) {
     const salvou = await salvarEEnviar(dadosServidor, false);
-    
     if (salvou) {
-      const manterDados = confirm('✅ PDF gerado e dados salvos na fila' + 
-                                 (navigator.onLine ? ' (enviando para o servidor...)' : ' (aguardando conexão)') +
-                                 '\n\nDeseja manter os dados no formulário?\n\nClique em OK para manter.\nClique em Cancelar para limpar.');
-      
+      const manterDados = confirm('✅ PDF gerado e dados salvos na fila' +
+        (navigator.onLine ? ' (enviando para o servidor...)' : ' (aguardando conexão)') +
+        '\n\nDeseja manter os dados no formulário?\n\nClique em OK para manter.\nClique em Cancelar para limpar.');
+
       if (!manterDados) {
         document.querySelector('#tblFuncionarios tbody').innerHTML = '';
-        for(let i=0;i<20;i++) addRow({});
+        for (let i = 0; i < 20; i++) addRow({});
         proximaLinhaParaPreencher = 0;
         alert('🧹 Formulário limpo!');
       }
     } else {
-      alert('❌ PDF gerado, mas não foi possível salvar os dados localmente.');
+      alert('❌ PDF gerado, mas não foi possível salvar os dados na fila.');
     }
   }
 };
@@ -1815,7 +2001,6 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
     return;
   }
   
-  // Gerar Excel
   const data = document.getElementById('rds_data').value;
   const hora = document.getElementById('rds_hora_doc').value;
   const contratante = document.getElementById('rds_contratante').value;
@@ -1831,14 +2016,13 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
       const observacao = cells[4].querySelector('input').value.trim();
       const inputCodigo = cells[0].querySelector('input');
       const selectNome = cells[1].querySelector('select');
-      const codigo = (entrada || saida) ? (inputCodigo ? inputCodigo.value.trim() : '') : '';
-      const nome = (entrada || saida) ? (selectNome?.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
+      const codigo = inputCodigo ? inputCodigo.value.trim() : '';
+      const nome = selectNome?.value ? (selectNome.options[selectNome.selectedIndex]?.text?.trim() || '') : '';
 
       return { Codigo: codigo, Nome: nome, Entrada: entrada, Saida: saida, Observacao: observacao };
-  }).filter(f => f.Entrada || f.Saida || f.Observacao);
+  }).filter(f => f.Codigo || f.Nome || f.Entrada || f.Saida || f.Observacao);
 
-  const [yyyy, mm, dd] = data.split('-');
-  const dataFormatada = `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${yyyy}`;
+  const dataFormatada = formatarDataRDS(data);
 
   const linhas = linhasFunc.map(f => ({
       Data: dataFormatada,
@@ -1865,9 +2049,9 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
   const a = document.createElement('a');
   a.href = url;
   
-  const dataArquivo = `${dd}-${mm}-${yyyy}`;
-  const horaArquivo = hora.replace(':', '-');
-  const nomeServico = servico.replace(/[^a-z0-9]/gi,'_').substring(0, 30);
+  const dataArquivo = obterDataArquivoRDS(data);
+  const horaArquivo = obterHoraArquivoRDS(hora);
+  const nomeServico = obterNomeServicoArquivoRDS(servico);
   a.download = `RDS_${nomeServico}_${dataArquivo}_${horaArquivo}.xlsx`;
   
   document.body.appendChild(a);
@@ -1875,7 +2059,6 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  // CORREÇÃO: Salvar na fila APENAS UMA VEZ
   if (linhas.length > 0) {
     const salvou = await salvarEEnviar(linhas, false);
     
@@ -1902,7 +2085,9 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
 window.addEventListener('load', () => {
   const cache = localStorage.getItem('rds_offline_cache');
   if (cache) {
-    const { cabecalho, linhas } = JSON.parse(cache);
+    let pacoteCache;
+    try { pacoteCache = JSON.parse(cache); } catch (erro) { console.error('Cache RDS inválido:', erro); localStorage.removeItem('rds_offline_cache'); return; }
+    const { cabecalho, linhas } = pacoteCache;
     if (cabecalho && linhas && linhas.length > 0) {
       const carregar = confirm('📦 Há dados salvos localmente.\n\nClique em OK para carregar no formulário.\nClique em Cancelar para começar em branco.');
       
@@ -1950,13 +2135,13 @@ window.addEventListener('load', () => {
   }
 });
 
-// Aplicar máscara nos campos de horário
+// Aplicar máscara nos campos de horário e data
 aplicarMascaraHorario(document.getElementById('rds_hora_doc'));
 aplicarMascaraHorario(document.getElementById('rds_horario_entrada'));
 aplicarMascaraHorario(document.getElementById('rds_horario_saida'));
+aplicarMascaraData(document.getElementById('rds_data'));
 
-console.log('✅ RDS com fila offline corrigida carregado!');
-console.log('📌 Para debug, verificar chamadas indevidas de adicionarNaFila/salvarEEnviar');
+console.log('✅ RDS com fila offline e campo data simplificado carregado!');
 </script>
 </body>
 </html>
