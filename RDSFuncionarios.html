@@ -1686,6 +1686,13 @@ document.getElementById('btnServidor').onclick = async () => {
     return;
   }
   
+  // ---- VALIDAÇÃO DO CAMPO SERVIÇO ----
+  const servicoSelecionado = document.getElementById('rds_servico').value;
+  if (!servicoSelecionado || servicoSelecionado === '') {
+    alert('⚠️ Selecione um SERVIÇO antes de enviar para o servidor.');
+    return;
+  }
+  
   if (!temDadosPreenchidos()) {
     alert('⚠️ Nenhum dado de funcionário preenchido!');
     return;
@@ -1721,6 +1728,13 @@ document.getElementById('btnServidor').onclick = async () => {
 document.getElementById('btnGerarPDF').onclick = async () => {
   if (!funcionariosCarregados) {
     alert('⚠️ Primeiro carregue a lista de funcionários');
+    return;
+  }
+  
+  // ---- VALIDAÇÃO DO CAMPO SERVIÇO ----
+  const servicoSelecionado = document.getElementById('rds_servico').value;
+  if (!servicoSelecionado || servicoSelecionado === '') {
+    alert('⚠️ Selecione um SERVIÇO antes de gerar o PDF.');
     return;
   }
   
@@ -1810,6 +1824,13 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
     return;
   }
   
+  // ---- VALIDAÇÃO DO CAMPO SERVIÇO ----
+  const servicoSelecionado = document.getElementById('rds_servico').value;
+  if (!servicoSelecionado || servicoSelecionado === '') {
+    alert('⚠️ Selecione um SERVIÇO antes de gerar o Excel.');
+    return;
+  }
+  
   if (!temDadosPreenchidos()) {
     alert('⚠️ Nenhum dado de funcionário preenchido para gerar Excel!');
     return;
@@ -1842,7 +1863,7 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
 
   const linhas = linhasFunc.map(f => ({
       Data: dataFormatada,
-      Hora: hora,
+      Hora: `${new Date().toLocaleDateString('pt-BR')} ${hora}`,
       Contratante: contratante,
       Servico: servico,
       Fabrica: fabrica,
