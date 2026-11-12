@@ -397,7 +397,7 @@
 
     <div class="row">
       <div class="col small"><label>Data</label><input id="rds_data" type="date"></div>
-      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text" placeholder="HH:MM"></div>
+      <div class="col small"><label>Hora do Documento</label><input id="rds_hora_doc" type="text" placeholder="HH:MM" readonly></div>
       <div class="col">
         <label>Contratante</label>
         <select id="rds_contratante">
@@ -1448,7 +1448,7 @@ function montarDadosServidor(dados) {
   
   return linhas.map(l => ({
     Data: data,
-    HoraDocumento: horaDoc,
+    HoraDocumento: `${new Date().toLocaleDateString('pt-BR')} ${horaDoc}`,
     Contratante: contratante,
     Servico: servico,
     HorarioTrabalho: horarioTrabalho,
