@@ -1405,6 +1405,42 @@ function temDadosPreenchidos() {
   return false;
 }
 
+
+// Verifica horários SOMENTE nas linhas em que há funcionário selecionado.
+// Linhas sem funcionário não impedem PDF, Excel ou envio ao servidor.
+function validarHorariosFuncionarios() {
+  const linhas = document.querySelector('#tblFuncionarios tbody').querySelectorAll('tr');
+  const pendencias = [];
+
+  linhas.forEach((tr) => {
+    const campos = tr.querySelectorAll('input, select');
+    const nome = campos[1]?.value.trim() || '';
+
+    // Sem funcionário selecionado, esta linha não entra na validação.
+    if (!nome) return;
+
+    const entrada = campos[2]?.value.trim() || '';
+    const saida = campos[3]?.value.trim() || '';
+
+    if (!entrada || !saida) {
+      const faltando = [];
+      if (!entrada) faltando.push('Entrada');
+      if (!saida) faltando.push('Saída');
+      pendencias.push(`${nome} — falta preencher: ${faltando.join(' e ')}`);
+    }
+  });
+
+  if (pendencias.length > 0) {
+    alert(
+      '⚠️ Não é possível continuar. Preencha os horários dos funcionários selecionados:\\n\\n' +
+      pendencias.join('\\n')
+    );
+    return false;
+  }
+
+  return true;
+}
+
 function coletarDadosFormulario() {
   const data = document.getElementById('rds_data').value;
   const horaDoc = document.getElementById('rds_hora_doc').value;
@@ -1698,7 +1734,10 @@ document.getElementById('btnServidor').onclick = async () => {
     return;
   }
   
-  const dados = coletarDadosFormulario();
+  
+  if (!validarHorariosFuncionarios()) return;
+  
+const dados = coletarDadosFormulario();
   const dadosServidor = montarDadosServidor(dados);
   
   if (dadosServidor.length === 0) {
@@ -1743,7 +1782,10 @@ document.getElementById('btnGerarPDF').onclick = async () => {
     return;
   }
   
-  // Gerar o PDF
+  
+  if (!validarHorariosFuncionarios()) return;
+  
+// Gerar o PDF
   const {jsPDF}=window.jspdf;
   const dataISO = document.getElementById('rds_data').value;
   const [yyyy, mm, dd] = dataISO.split('-');
@@ -1836,7 +1878,10 @@ document.getElementById('btnExcelRDS').addEventListener('click', async function(
     return;
   }
   
-  // Gerar Excel
+  
+  if (!validarHorariosFuncionarios()) return;
+  
+// Gerar Excel
   const data = document.getElementById('rds_data').value;
   const hora = document.getElementById('rds_hora_doc').value;
   const contratante = document.getElementById('rds_contratante').value;
